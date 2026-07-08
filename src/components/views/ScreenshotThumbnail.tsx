@@ -51,7 +51,7 @@ function sessionHostAtPoint(x: number, y: number): HTMLElement | null {
  * move independently.
  */
 function ScreenshotStackCard({ shot, projectId }: { shot: PendingScreenshot; projectId: string }) {
-  const { clearPendingScreenshot, updatePendingScreenshot, attachImageToSession, activeTaskIdFor } =
+  const { dismissPendingScreenshot, updateScreenshot, attachImageToSession, activeTaskIdFor } =
     useTerminals();
 
   const startRef = useRef<{ x: number; y: number } | null>(null);
@@ -67,9 +67,11 @@ function ScreenshotStackCard({ shot, projectId }: { shot: PendingScreenshot; pro
     rect: { x: number; y: number; w: number; h: number };
   } | null>(null);
 
+  // Drop from the floating stack only — the shot stays in the history strip so
+  // the user can return to it. Hard delete lives in the history strip's ✕.
   const dismiss = useCallback(
-    () => clearPendingScreenshot(shot.id),
-    [clearPendingScreenshot, shot.id],
+    () => dismissPendingScreenshot(shot.id),
+    [dismissPendingScreenshot, shot.id],
   );
 
   // ✕ removal: slide the card out, then drop it from the store on animationend.
@@ -179,7 +181,7 @@ function ScreenshotStackCard({ shot, projectId }: { shot: PendingScreenshot; pro
       previewDataUrl: string,
       editable: { originalPath: string; shapes: AnnotationShape[] },
     ) => {
-      updatePendingScreenshot(shot.id, {
+      updateScreenshot(shot.id, {
         path: imagePath,
         previewDataUrl,
         originalPath: editable.originalPath,
@@ -187,7 +189,7 @@ function ScreenshotStackCard({ shot, projectId }: { shot: PendingScreenshot; pro
       });
       setEditing(false);
     },
-    [shot.id, updatePendingScreenshot],
+    [shot.id, updateScreenshot],
   );
 
   const dragging = dragPoint !== null;
@@ -352,15 +354,17 @@ function ScreenshotStackCard({ shot, projectId }: { shot: PendingScreenshot; pro
 }
 
 /**
- * Floating stack of captured-but-undropped screenshots, pinned bottom-right.
- * Each new capture piles on top; the oldest sits at the bottom of the stack.
- * Rendered globally via a portal so it floats above the grid and drops can
- * hit-test the whole document.
+ * Floating stack of freshly captured screenshots, pinned bottom-right. Each new
+ * capture piles on top; the oldest sits at the bottom of the stack. Attaching or
+ * dismissing a card only removes it from this stack — the screenshot lives on in
+ * the on-demand history strip. Rendered globally via a portal so it floats above
+ * the grid and drops can hit-test the whole document.
  */
 export function ScreenshotThumbnail({ projectId }: { projectId: string }) {
   const { pendingScreenshots } = useTerminals();
+  const shots = pendingScreenshots.filter((s) => s.projectId === projectId);
 
-  if (pendingScreenshots.length === 0) return null;
+  if (shots.length === 0) return null;
 
   return createPortal(
     <div
@@ -380,7 +384,7 @@ export function ScreenshotThumbnail({ projectId }: { projectId: string }) {
         pointerEvents: "none",
       }}
     >
-      {pendingScreenshots.map((shot) => (
+      {shots.map((shot) => (
         <ScreenshotStackCard key={shot.id} shot={shot} projectId={projectId} />
       ))}
     </div>,
