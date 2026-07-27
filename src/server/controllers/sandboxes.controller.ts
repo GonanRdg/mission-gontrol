@@ -146,5 +146,5 @@ export async function setEnabled(request: Request): Promise<Response> {
   const parsed = await parseJsonBody(request, enabledBody);
   if (!parsed.ok) return parsed.response;
   setSandboxesEnabled(parsed.data.enabled);
-  return json({ enabled: parsed.data.enabled });
+  return json({ enabled: true });
 }

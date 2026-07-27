@@ -66,6 +66,7 @@ import type {
 import type { ScratchPadView } from "~/shared/scratch-pads";
 import type { VoiceCommandAliases } from "~/shared/voice-command-aliases";
 import type { SessionHeaderButtonVisibility } from "~/shared/session-header-buttons";
+import type { HeaderButtonVisibility } from "~/shared/header-buttons";
 import type { PetHomeSide, PetPersistentState } from "~/shared/pet";
 import { pruneStoredSessionFinishNotifications } from "~/lib/session-notification-store";
 import { HTTP_NO_CONTENT } from "~/shared/http-status";
@@ -88,6 +89,12 @@ export type AppSettings = {
    * painted ignores it even while one is stored.
    */
   backgroundImage: string | null;
+  /**
+   * Paint the subtle grid ground (dots in painted, blueprint grid in flat)
+   * behind the dashboard and the project view. Off leaves the bare `--bg`
+   * (or the wallpaper) as the ground.
+   */
+  showBackgroundGrid: boolean;
   /** Derived server-side: true when themeStyle renders clean CSS chrome. */
   minimalTheme: boolean;
   /**
@@ -100,8 +107,10 @@ export type AppSettings = {
   batterySaverEnabled: boolean;
   /** Spellcheck in text fields (Electron). Off frees ~15-20 MB while composing. */
   spellcheckEnabled: boolean;
-  /** Show the active group name badge in the project rail header. */
-  showGroupBadge: boolean;
+  /** Show the active-group switcher pill in the top bar breadcrumb. */
+  showGroupSwitcher: boolean;
+  /** Show the group tag (colored dot + group name) in an open project's header. */
+  showProjectHeaderGroup: boolean;
   sessionFinishToastEnabled: boolean;
   sessionFinishOsNotificationEnabled: boolean;
   /** Ding when a session-finish or diagram-ready notification arrives. */
@@ -111,9 +120,9 @@ export type AppSettings = {
   automaticUpdateInstallOnQuitEnabled: boolean;
   /** Git worktrees per project (always on). */
   worktreesEnabled: boolean;
-  /** Experimental: push-to-talk voice control (off by default). */
+  /** Legacy compatibility field; push-to-talk is always enabled on desktop. */
   voiceControlEnabled: boolean;
-  /** Beta: native popup for Claude Code AskUserQuestion menus (on by default). */
+  /** Legacy compatibility field; native Claude Code question popups are always enabled. */
   questionOverlayEnabled: boolean;
   gitDiffChangedFilesView: GitDiffChangedFilesView | null;
   gitDiffChangedFilesWidth: number | null;
@@ -153,6 +162,11 @@ export type AppSettings = {
    * by default (it's driven by keyboard shortcuts); the rest default on.
    */
   sessionHeaderButtons: SessionHeaderButtonVisibility;
+  /**
+   * Which discretionary top-bar / project-header buttons are shown. All default
+   * on; each action keeps its keyboard shortcut while hidden.
+   */
+  headerButtons: HeaderButtonVisibility;
   /**
    * Default harness/model for voice-started agents when the command doesn't name one.
    * `null` means "not set" — don't pass a model flag, so the CLI uses its own default.
@@ -703,11 +717,13 @@ export const api = {
         | "themeStyle"
         | "surfaceTint"
         | "backgroundImage"
+        | "showBackgroundGrid"
         | "minimalTheme"
         | "mouseGradientDisabled"
         | "batterySaverEnabled"
         | "spellcheckEnabled"
-        | "showGroupBadge"
+        | "showGroupSwitcher"
+        | "showProjectHeaderGroup"
         | "sessionFinishToastEnabled"
         | "sessionFinishOsNotificationEnabled"
         | "notificationSoundEnabled"
@@ -733,6 +749,7 @@ export const api = {
         | "interfaceFontFamily"
         | "interfaceFontScale"
         | "sessionHeaderButtons"
+        | "headerButtons"
         | "defaultAgent"
         | "defaultModel"
         | "annotationAgent"

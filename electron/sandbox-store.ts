@@ -157,17 +157,6 @@ export function readActiveSandboxId(userDataDir: string): string | null {
   }
 }
 
-export function isSandboxesEnabled(userDataDir: string): boolean {
-  try {
-    const row = db(userDataDir)
-      .prepare("SELECT value FROM app_settings WHERE key = 'multiSandbox.enabled'")
-      .get() as { value: string } | undefined;
-    return row?.value === "true";
-  } catch {
-    return false;
-  }
-}
-
 export function disposeSandboxStore(): void {
   if (_db) {
     try {

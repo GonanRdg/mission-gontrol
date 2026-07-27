@@ -24,7 +24,7 @@ import { deleteUserTerminalsByScope } from "../repositories/user-terminals.repo"
 import { deleteHomeTerminalsByScope } from "../repositories/home-terminals.repo";
 import { events } from "../events";
 import { deleteAllProjectImagesFor } from "./project-images";
-import { getBooleanSetting, getSetting, setBooleanSetting, setSetting } from "./settings";
+import { getSetting, setBooleanSetting, setSetting } from "./settings";
 
 // CRUD + scope-selection for sandboxes (isolated execution environments). The
 // container lifecycle is owned by the Electron main; Phase 1 manages only the
@@ -100,13 +100,12 @@ function toPublicSandbox(row: Sandbox): SandboxPublicView {
  *  selected scope (self-heals a dangling scope whose sandbox was deleted). */
 export function getSandboxState(): SandboxState {
   const list = findAllSandboxes();
-  const enabled = getBooleanSetting(SANDBOXES_ENABLED_KEY, false);
   let activeScopeId = getSetting(ACTIVE_SCOPE_KEY) ?? LOCAL_SCOPE_ID;
   if (activeScopeId !== LOCAL_SCOPE_ID && !list.some((s) => s.id === activeScopeId)) {
     activeScopeId = LOCAL_SCOPE_ID;
     setSetting(ACTIVE_SCOPE_KEY, activeScopeId);
   }
-  return { sandboxes: list.map(toPublicSandbox), enabled, activeScopeId };
+  return { sandboxes: list.map(toPublicSandbox), enabled: true, activeScopeId };
 }
 
 export type ConnectRemoteSandboxInput = {
@@ -242,6 +241,8 @@ export function setActiveScope(scopeId: string): string {
   return resolved;
 }
 
-export function setSandboxesEnabled(enabled: boolean): void {
-  setBooleanSetting(SANDBOXES_ENABLED_KEY, enabled);
+export function setSandboxesEnabled(_enabled: boolean): void {
+  // Compatibility for older clients: sandboxes have graduated from
+  // experimental and can no longer be disabled.
+  setBooleanSetting(SANDBOXES_ENABLED_KEY, true);
 }

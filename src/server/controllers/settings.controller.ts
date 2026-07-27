@@ -91,6 +91,10 @@ import {
   normalizeSessionHeaderButtonVisibility,
   type SessionHeaderButtonVisibility,
 } from "~/shared/session-header-buttons";
+import {
+  normalizeHeaderButtonVisibility,
+  type HeaderButtonVisibility,
+} from "~/shared/header-buttons";
 import { readRecallSettings, writeRecallSettings } from "../services/recall-settings";
 import { DEFAULT_SHIP_PROMPT, normalizeShipPrompt } from "~/shared/ship-defaults";
 import {
@@ -131,6 +135,7 @@ const ACTIVE_PROJECT_GROUP_KEY = "active_project_group";
 const COLLAPSED_PROJECT_GROUPS_KEY = "collapsed_project_groups";
 const TERMINAL_ZOOM_LEVEL_KEY = "terminal_zoom_level";
 const SESSION_HEADER_BUTTONS_KEY = "session_header_buttons";
+const HEADER_BUTTONS_KEY = "header_buttons";
 const THEME_STYLE_KEY = "theme_style";
 const MINIMAL_THEME_KEY = "minimal_theme";
 const SURFACE_TINT_KEY = "surface_tint";
@@ -155,7 +160,9 @@ const TERMINAL_LINE_HEIGHT_KEY = "terminal_line_height";
 const TERMINAL_LETTER_SPACING_KEY = "terminal_letter_spacing";
 const INTERFACE_FONT_FAMILY_KEY = "interface_font_family";
 const INTERFACE_FONT_SCALE_KEY = "interface_font_scale";
-const SHOW_GROUP_BADGE_KEY = "show_group_badge";
+const SHOW_GROUP_SWITCHER_KEY = "show_group_switcher";
+const SHOW_PROJECT_HEADER_GROUP_KEY = "show_project_header_group";
+const SHOW_BACKGROUND_GRID_KEY = "show_background_grid";
 
 const voiceCommandAliasesBody = z.unknown().transform((value, ctx): VoiceCommandAliases => {
   try {
@@ -272,6 +279,9 @@ const updateSettingsBody = z
         (value): SessionHeaderButtonVisibility =>
           normalizeSessionHeaderButtonVisibility(value),
       ),
+    headerButtons: z
+      .record(z.string(), z.boolean())
+      .transform((value): HeaderButtonVisibility => normalizeHeaderButtonVisibility(value)),
     defaultAgent: z.enum(AI_RUNTIME_HARNESS_VALUES),
     defaultModel: aiModelBody,
     annotationAgent: z.enum(AI_RUNTIME_HARNESS_VALUES),
@@ -315,7 +325,9 @@ const updateSettingsBody = z
     // from a payload that fails normalization (rejected — a malformed write
     // must never erase the stored pet).
     petState: z.unknown(),
-    showGroupBadge: z.boolean(),
+    showGroupSwitcher: z.boolean(),
+    showProjectHeaderGroup: z.boolean(),
+    showBackgroundGrid: z.boolean(),
   })
   .partial();
 
@@ -487,6 +499,12 @@ function getSessionHeaderButtonsSetting(): SessionHeaderButtonVisibility {
   );
 }
 
+function getHeaderButtonsSetting(): HeaderButtonVisibility {
+  return normalizeHeaderButtonVisibility(
+    safeJsonParse<unknown>(getSetting(HEADER_BUTTONS_KEY), null),
+  );
+}
+
 function getAgentLauncherConfigSetting(): AgentLauncherConfig {
   return normalizeAgentLauncherConfig(
     safeJsonParse<unknown>(getSetting(AGENT_LAUNCHER_CONFIG_KEY), null),
@@ -502,8 +520,16 @@ function getVoiceCommandAliasesSetting() {
   }
 }
 
-function getShowGroupBadgeSetting(): boolean {
-  return getBooleanSetting(SHOW_GROUP_BADGE_KEY, false);
+function getShowGroupSwitcherSetting(): boolean {
+  return getBooleanSetting(SHOW_GROUP_SWITCHER_KEY, true);
+}
+
+function getShowProjectHeaderGroupSetting(): boolean {
+  return getBooleanSetting(SHOW_PROJECT_HEADER_GROUP_KEY, true);
+}
+
+function getShowBackgroundGridSetting(): boolean {
+  return getBooleanSetting(SHOW_BACKGROUND_GRID_KEY, true);
 }
 
 function settingsPayload() {
@@ -550,8 +576,10 @@ function settingsPayload() {
     ),
     // Always on — worktrees graduated from experimental; ignore any stored preference.
     worktreesEnabled: true,
-    voiceControlEnabled: getBooleanSetting("voice_control_enabled", false),
-    questionOverlayEnabled: getBooleanSetting("question_overlay_enabled", true),
+    // These features graduated from experimental; retained in the payload for
+    // compatibility with older renderers, but stored preferences no longer gate them.
+    voiceControlEnabled: true,
+    questionOverlayEnabled: true,
     gitDiffChangedFilesView: getGitDiffChangedFilesViewSetting(),
     gitDiffChangedFilesWidth: getGitDiffChangedFilesWidthSetting(),
     projectsDashboardView: getProjectsDashboardViewSetting(),
@@ -568,6 +596,7 @@ function settingsPayload() {
     interfaceFontFamily: getInterfaceFontFamilySetting(),
     interfaceFontScale: getInterfaceFontScaleSetting(),
     sessionHeaderButtons: getSessionHeaderButtonsSetting(),
+    headerButtons: getHeaderButtonsSetting(),
     defaultAgent: getDefaultAgentSetting(),
     defaultModel: getDefaultModelSetting(),
     annotationAgent: getAnnotationAgentSetting(),
@@ -597,7 +626,9 @@ function settingsPayload() {
     petMultiplayerEnabled: getBooleanSetting(PET_MULTIPLAYER_ENABLED_KEY, false),
     petHomeSide: getPetHomeSideSetting(),
     petState: normalizePetState(safeJsonParse<unknown>(getSetting(PET_STATE_KEY), null)),
-    showGroupBadge: getShowGroupBadgeSetting(),
+    showGroupSwitcher: getShowGroupSwitcherSetting(),
+    showProjectHeaderGroup: getShowProjectHeaderGroupSetting(),
+    showBackgroundGrid: getShowBackgroundGridSetting(),
     ...recallSettingsPayload(),
   };
 }
@@ -716,12 +747,8 @@ export async function update(request: Request): Promise<Response> {
     );
   }
   // worktreesEnabled is always on; ignore writes so old clients can't turn it off.
-  if (body.voiceControlEnabled !== undefined) {
-    setBooleanSetting("voice_control_enabled", body.voiceControlEnabled);
-  }
-  if (body.questionOverlayEnabled !== undefined) {
-    setBooleanSetting("question_overlay_enabled", body.questionOverlayEnabled);
-  }
+  // Voice control and native question popups are also always on; their legacy
+  // fields remain accepted so older clients can update other settings safely.
   if (body.gitDiffChangedFilesView !== undefined) {
     if (body.gitDiffChangedFilesView === null) {
       deleteSetting(GIT_DIFF_CHANGED_FILES_VIEW_KEY);
@@ -808,6 +835,9 @@ export async function update(request: Request): Promise<Response> {
   }
   if (body.sessionHeaderButtons !== undefined) {
     setSetting(SESSION_HEADER_BUTTONS_KEY, JSON.stringify(body.sessionHeaderButtons));
+  }
+  if (body.headerButtons !== undefined) {
+    setSetting(HEADER_BUTTONS_KEY, JSON.stringify(body.headerButtons));
   }
   if (body.defaultAgent !== undefined) {
     setSetting(DEFAULT_AGENT_SETTING_KEY, body.defaultAgent);
@@ -924,8 +954,14 @@ export async function update(request: Request): Promise<Response> {
       setSetting(PET_STATE_KEY, JSON.stringify(mergePetStateWrite(stored, incoming)));
     }
   }
-  if (body.showGroupBadge !== undefined) {
-    setBooleanSetting(SHOW_GROUP_BADGE_KEY, body.showGroupBadge);
+  if (body.showGroupSwitcher !== undefined) {
+    setBooleanSetting(SHOW_GROUP_SWITCHER_KEY, body.showGroupSwitcher);
+  }
+  if (body.showProjectHeaderGroup !== undefined) {
+    setBooleanSetting(SHOW_PROJECT_HEADER_GROUP_KEY, body.showProjectHeaderGroup);
+  }
+  if (body.showBackgroundGrid !== undefined) {
+    setBooleanSetting(SHOW_BACKGROUND_GRID_KEY, body.showBackgroundGrid);
   }
   writeRecallSettings({
     enabled: body.recallEnabled,

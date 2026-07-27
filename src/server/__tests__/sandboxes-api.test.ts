@@ -100,6 +100,24 @@ describe("sandboxes API", () => {
     getDb().delete(appSettings).run();
   });
 
+  it("keeps sandbox support enabled for desktop clients", async () => {
+    const initial = await body(await handleApiRequest(electronRequest("/api/sandboxes")));
+    expect(initial.enabled).toBe(true);
+
+    const update = await body(
+      await handleApiRequest(
+        electronRequest("/api/sandboxes/enabled", {
+          method: "PUT",
+          body: JSON.stringify({ enabled: false }),
+        }),
+      ),
+    );
+    expect(update.enabled).toBe(true);
+    expect(
+      (await body(await handleApiRequest(electronRequest("/api/sandboxes")))).enabled,
+    ).toBe(true);
+  });
+
   it("lists seeded sandboxes and selects the active scope", async () => {
     const id = seedRemoteSandbox("Flexion");
 
