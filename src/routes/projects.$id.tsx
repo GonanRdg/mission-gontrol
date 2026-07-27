@@ -40,6 +40,8 @@ import { archiveOpenSession, invalidateSessionQueries } from "~/lib/archive-sess
 import { enterFocusSession } from "~/lib/focus-session";
 import { consumeProjectOnboardIntent, type ProjectOnboardIntent } from "~/lib/project-onboard-intent";
 import { sandboxUsableForProject } from "~/lib/project-scoped-sandboxes";
+import { useHideableMenu } from "~/lib/hideable-elements";
+import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
 import { ScriptArgsModal } from "~/components/views/ScriptArgsModal";
 import { WorktreeSetupCommandDialog } from "~/components/views/WorktreeSetupCommandDialog";
 import { NewAgentButton } from "~/components/views/NewAgentButton";
@@ -87,10 +89,7 @@ import {
 } from "~/lib/session-warm-pool";
 import { useServerEvents } from "~/lib/use-events";
 import { useDebouncedCallback } from "~/lib/use-debounced-callback";
-import {
-  applyQuestionServerEvent,
-  setQuestionOverlayEnabled,
-} from "~/lib/agent-question-store";
+import { applyQuestionServerEvent } from "~/lib/agent-question-store";
 import { setPendingInitialInput, takePendingInitialInput } from "~/lib/voice-session-prompts";
 import {
   clearPendingSessionModel,
@@ -300,13 +299,10 @@ function ProjectPage() {
   const queryClient = useQueryClient();
   const { data: settings } = useSettings();
   const settingsLoaded = settings !== undefined;
-  // Mirror the beta flag into the question store: gates the pane overlays and
-  // releases any withheld TUI menu the moment the popup is switched off.
-  useEffect(() => {
-    if (typeof settings?.questionOverlayEnabled === "boolean") {
-      setQuestionOverlayEnabled(settings.questionOverlayEnabled);
-    }
-  }, [settings?.questionOverlayEnabled]);
+  const { hideElementContextMenu, hideableMenu } = useHideableMenu();
+  // Which discretionary project-header buttons are shown (Settings → Interface,
+  // or right-click → Hide on the button itself).
+  const headerButtons = settings?.headerButtons ?? DEFAULT_HEADER_BUTTON_VISIBILITY;
   const storedSelectedWorktreeByProject = settings?.selectedWorktreeByProject ?? null;
   const [selectedWorktreeByProject, setSelectedWorktreeByProject] =
     useState<SelectedWorktreeByProject>(() => {
@@ -3240,6 +3236,7 @@ function ProjectPage() {
             )}
           </div>
           {(() => {
+            if (!(settings?.showProjectHeaderGroup ?? true)) return null;
             const projectGroup = project.groupId
               ? groups.find((g) => g.id === project.groupId)
               : undefined;
@@ -3251,6 +3248,7 @@ function ProjectPage() {
                   setActiveGroup(projectGroup.id);
                   void router.navigate({ to: "/" });
                 }}
+                onContextMenu={hideElementContextMenu("project-header-group")}
                 title={`Group: ${projectGroup.name} — open dashboard scoped to this group`}
                 aria-label={`Group ${projectGroup.name} — open dashboard scoped to this group`}
                 style={{
@@ -3286,6 +3284,7 @@ function ProjectPage() {
               </button>
             );
           })()}
+          {hideableMenu}
           <CustomScriptsButton
             scripts={customScripts}
             onRun={runScript}
@@ -3318,7 +3317,7 @@ function ProjectPage() {
               minWidth: 0,
             }}
           >
-            {screenshotSupported && (
+            {screenshotSupported && headerButtons.screenshot && (
               <HotkeyTooltip
                 action="screenshot.capture"
                 label="Screenshot"
@@ -3327,28 +3326,40 @@ function ProjectPage() {
                   variant="ghost"
                   icon="camera"
                   onClick={captureScreenshot}
+                  onContextMenu={hideElementContextMenu("header-button:screenshot")}
                   aria-label="Capture a screenshot"
                   style={{ width: 40, minWidth: 40, paddingInline: 0 }}
                 />
               </HotkeyTooltip>
             )}
             {headerActions}
-            {gridViewToggle}
-            <HotkeyTooltip action="file.finder" label="Find file">
-              <Btn
-                variant="ghost"
-                icon="file-search"
-                onClick={openFileFinderFresh}
-                disabled={!projectPathUsable}
-                aria-label="Find file in project"
-                title={
-                  projectPathBlocked
-                    ? "Project folder unavailable"
-                    : "Find file in project"
-                }
-                style={{ width: 40, minWidth: 40, paddingInline: 0 }}
-              />
-            </HotkeyTooltip>
+            {headerButtons.gridView && gridViewToggle}
+            {headerButtons.fileFinder && (
+              // Hide sits on an outer wrapper, not the button: it disables when
+              // the project folder is missing, and disabled buttons never fire
+              // contextmenu. Wrapping outside the tooltip keeps the Btn as the
+              // tooltip's clone target (it injects aria-describedby there).
+              <span
+                style={{ display: "inline-flex" }}
+                onContextMenu={hideElementContextMenu("header-button:fileFinder")}
+              >
+                <HotkeyTooltip action="file.finder" label="Find file">
+                  <Btn
+                    variant="ghost"
+                    icon="file-search"
+                    onClick={openFileFinderFresh}
+                    disabled={!projectPathUsable}
+                    aria-label="Find file in project"
+                    title={
+                      projectPathBlocked
+                        ? "Project folder unavailable"
+                        : "Find file in project"
+                    }
+                    style={{ width: 40, minWidth: 40, paddingInline: 0 }}
+                  />
+                </HotkeyTooltip>
+              </span>
+            )}
             {!worktreesEnabled && (
               <div
                 role="group"
@@ -4379,8 +4390,8 @@ function WorktreeBadgeDots({
             width: 6,
             height: 6,
             borderRadius: "50%",
-            background: "var(--accent)",
-            boxShadow: "0 0 6px var(--accent-glow)",
+            background: "var(--status-running)",
+            boxShadow: "0 0 6px var(--status-running)",
           }}
         />
       )}
@@ -4391,8 +4402,9 @@ function WorktreeBadgeDots({
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: status === "running" ? "var(--accent)" : TASK_STATUS_META[status].color,
-            boxShadow: status === "running" ? "0 0 5px var(--accent-glow)" : "none",
+            background: TASK_STATUS_META[status].color,
+            boxShadow:
+              status === "running" ? `0 0 5px ${TASK_STATUS_META[status].color}` : "none",
           }}
         />
       ))}

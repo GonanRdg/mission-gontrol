@@ -39,7 +39,6 @@ const ITEM_HEIGHT = 48;
 const ICON_SIZE = 40;
 const GAP = 8;
 const DIVIDER_HEIGHT = 2;
-const HEADER_HEIGHT = 16;
 const GROUP_LABEL_HEIGHT = 20;
 // Settle: how long a dropped group cluster takes to ease into its final slot
 // before the reorder is committed to the DOM.
@@ -696,7 +695,6 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
   // project digits are direct Cmd/Ctrl shortcuts.
   const directProjectShortcuts = usesDirectRailProjectShortcuts(groups, activeGroup);
   const showClusterLabels = !directProjectShortcuts;
-  const showScopedLabel = groupScoped && groups.length > 0 && (settings?.showGroupBadge ?? false);
   const PAD_TOP = minimal ? 18 : 12;
   const PAD_X = minimal ? 4 : 8;
   const BAR_WIDTH = minimal ? 72 : 96;
@@ -735,7 +733,6 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
   const itemOffsets: number[] = [];
   {
     let y = 0;
-    if (showScopedLabel) y += HEADER_HEIGHT + GAP;
     railClusters.forEach((cluster, clusterIndex) => {
       if (showClusterLabels) y += GROUP_LABEL_HEIGHT + GAP;
       else if (clusterIndex > 0) y += DIVIDER_HEIGHT + GAP;
@@ -747,7 +744,6 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
   }
   const flatIndexById = new Map(visible.map((project, index) => [project.id, index]));
   const railLabel = groupScoped ? (railClusters[0]?.label ?? "Group") : "Pinned projects";
-  const railColor = groupScoped ? railClusters[0]?.color : null;
 
   const menuProject = menu ? visibleById.get(menu.id) ?? null : null;
 
@@ -801,47 +797,6 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
             zIndex: 2,
           }}
         />
-      )}
-      {showScopedLabel && (
-        <div
-          title={`Rail scoped to ${railLabel}`}
-          style={{
-            height: HEADER_HEIGHT,
-            maxWidth: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-            flexShrink: 0,
-            padding: "0 2px",
-          }}
-        >
-          <span
-            aria-hidden
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              background: railColor ?? "var(--text-faint)",
-              boxShadow: railColor ? `0 0 6px ${railColor}66` : undefined,
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontFamily: "var(--mono)",
-              fontSize: 8.5,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "var(--text-faint)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {railLabel}
-          </span>
-        </div>
       )}
       {railClusters.map((cluster, clusterIndex) => {
         // During a GROUP drag every element of a cluster (header + tiles)
@@ -1232,11 +1187,8 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
                 }}
               >
                 {statusDots.map((status, dot) => {
-                  // Finished dots stay neutral gray, not --status-done: on
-                  // accent-green themes that green matches the running accent
-                  // and the two states become indistinguishable at 5px.
                   const color =
-                    status === "running" ? "var(--accent)" : "var(--status-idle)";
+                    status === "running" ? "var(--status-running)" : "var(--status-done)";
                   return (
                     <span
                       key={`${status}-${dot}`}
@@ -1245,7 +1197,7 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
                         height: 5,
                         borderRadius: "50%",
                         background: color,
-                        boxShadow: status === "running" ? "0 0 5px var(--accent-glow)" : "none",
+                        boxShadow: status === "running" ? `0 0 5px ${color}` : "none",
                       }}
                     />
                   );
@@ -1302,6 +1254,7 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
               )}
               {needsInputCount > 0 && (
                 <span
+                  className="mc-needs-input-badge"
                   style={{
                     position: "absolute",
                     top: -4,
@@ -1311,7 +1264,7 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
                     borderRadius: 999,
                     background: "var(--surface-3, var(--surface-2))",
                     border: "1px solid var(--border)",
-                    color: "var(--text-dim)",
+                    color: "var(--status-needs)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",

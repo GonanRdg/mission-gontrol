@@ -560,8 +560,8 @@ export function BranchTypeahead({
                                   width: 6,
                                   height: 6,
                                   borderRadius: "50%",
-                                  background: "var(--accent)",
-                                  boxShadow: "0 0 6px var(--accent-glow)",
+                                  background: "var(--status-running)",
+                                  boxShadow: "0 0 6px var(--status-running)",
                                 }}
                               />
                             )}
@@ -572,12 +572,11 @@ export function BranchTypeahead({
                                   width: 5,
                                   height: 5,
                                   borderRadius: "50%",
-                                  background:
-                                    status === "running"
-                                      ? "var(--accent)"
-                                      : TASK_STATUS_META[status].color,
+                                  background: TASK_STATUS_META[status].color,
                                   boxShadow:
-                                    status === "running" ? "0 0 5px var(--accent-glow)" : "none",
+                                    status === "running"
+                                      ? `0 0 5px ${TASK_STATUS_META[status].color}`
+                                      : "none",
                                 }}
                               />
                             ))}

@@ -3,6 +3,9 @@ import { Btn } from "~/components/ui/Btn";
 import { PromptSearchButton } from "~/components/views/PromptSearchButton";
 import { ScratchPadButton } from "~/components/views/ScratchPadButton";
 import { VoicePushToTalkButton } from "~/components/views/VoicePushToTalkButton";
+import { useHideableMenu } from "~/lib/hideable-elements";
+import { useSettings } from "~/queries";
+import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
 
 const STORAGE_KEY = "mc.headerToolsExpanded";
 
@@ -13,8 +16,15 @@ const STORAGE_KEY = "mc.headerToolsExpanded";
  * inline toggle rather than a transient popover, because the tools own their
  * own portaled dropdowns (a popover wrapper would close under them). Every
  * tool keeps its global hotkey while hidden.
+ *
+ * Each tool can also be hidden outright (right-click → Hide, or Settings →
+ * Interface). With all three hidden the "…" toggle would open onto nothing, so
+ * the whole tray disappears with them.
  */
 export function HeaderToolsCluster() {
+  const { data: settings } = useSettings();
+  const visibility = settings?.headerButtons ?? DEFAULT_HEADER_BUTTON_VISIBILITY;
+  const { hideElementContextMenu, hideableMenu } = useHideableMenu();
   const [expanded, setExpanded] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -35,13 +45,26 @@ export function HeaderToolsCluster() {
       return next;
     });
 
+  const anyVisible = visibility.scratchPad || visibility.promptSearch || visibility.voice;
+  if (!anyVisible) return null;
+
   return (
     <>
       {expanded && (
         <>
-          <ScratchPadButton />
-          <PromptSearchButton />
-          <VoicePushToTalkButton />
+          {visibility.scratchPad && (
+            <ScratchPadButton onContextMenu={hideElementContextMenu("header-button:scratchPad")} />
+          )}
+          {visibility.promptSearch && (
+            <PromptSearchButton
+              onContextMenu={hideElementContextMenu("header-button:promptSearch")}
+            />
+          )}
+          {visibility.voice && (
+            <VoicePushToTalkButton
+              onContextMenu={hideElementContextMenu("header-button:voice")}
+            />
+          )}
         </>
       )}
       <Btn
@@ -57,6 +80,7 @@ export function HeaderToolsCluster() {
             : undefined
         }
       />
+      {hideableMenu}
     </>
   );
 }

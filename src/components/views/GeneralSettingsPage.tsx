@@ -41,6 +41,7 @@ import {
 import { isElectron } from "~/lib/electron";
 import { emptyVoiceCommandAliases } from "~/shared/voice-command-aliases";
 import { DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY } from "~/shared/session-header-buttons";
+import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
 import { DEFAULT_SHIP_PROMPT } from "~/shared/ship-defaults";
 import { DEFAULT_SYNC_PROMPT } from "~/shared/sync-defaults";
 import { DEFAULT_PULL_REQUEST_PROMPT } from "~/shared/pull-request-defaults";
@@ -136,6 +137,7 @@ export function GeneralSettingsPage() {
     interfaceFontScale: settings?.interfaceFontScale ?? DEFAULT_INTERFACE_FONT_SCALE,
     sessionHeaderButtons:
       settings?.sessionHeaderButtons ?? DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY,
+    headerButtons: settings?.headerButtons ?? DEFAULT_HEADER_BUTTON_VISIBILITY,
     defaultAgent: settings?.defaultAgent ?? "claude-code",
     defaultModel: settings?.defaultModel ?? null,
     annotationAgent: settings?.annotationAgent ?? "claude-code",
@@ -150,7 +152,7 @@ export function GeneralSettingsPage() {
     pullRequestModel: settings?.pullRequestModel ?? null,
     pullRequestPrompt: settings?.pullRequestPrompt ?? DEFAULT_PULL_REQUEST_PROMPT,
     voiceCommandAliases: settings?.voiceCommandAliases ?? emptyVoiceCommandAliases(),
-    voiceControlEnabled: settings?.voiceControlEnabled ?? false,
+    voiceControlEnabled: settings?.voiceControlEnabled ?? true,
     questionOverlayEnabled: settings?.questionOverlayEnabled ?? true,
     claudeUsageLimitsEnabled: settings?.claudeUsageLimitsEnabled ?? false,
     claudeUsageLimitsShowSession: settings?.claudeUsageLimitsShowSession ?? true,
@@ -174,7 +176,9 @@ export function GeneralSettingsPage() {
     petMultiplayerEnabled: settings?.petMultiplayerEnabled ?? false,
     petHomeSide: settings?.petHomeSide ?? DEFAULT_PET_HOME_SIDE,
     petState: settings?.petState ?? null,
-    showGroupBadge: settings?.showGroupBadge ?? false,
+    showGroupSwitcher: settings?.showGroupSwitcher ?? true,
+    showProjectHeaderGroup: settings?.showProjectHeaderGroup ?? true,
+    showBackgroundGrid: settings?.showBackgroundGrid ?? true,
     ...queryClient.getQueryData<AppSettings>(queryKeys.settings),
     worktreesEnabled: true,
     ...patch,

@@ -6,6 +6,7 @@ import type {
 import { DEFAULT_PROVIDER_USAGE_IDS } from "~/shared/provider-usage";
 import { Btn } from "~/components/ui/Btn";
 import { OPEN_SETTINGS_EVENT } from "~/lib/design-meta";
+import { useHideableMenu } from "~/lib/hideable-elements";
 import { useProviderUsage, useSettings } from "~/queries";
 
 /**
@@ -33,6 +34,7 @@ export function ProviderUsageIndicator() {
   const showSession = settings?.claudeUsageLimitsShowSession ?? true;
   const showWeekly = settings?.claudeUsageLimitsShowWeekly ?? true;
   const { data, isLoading, isFetching, refetch } = useProviderUsage(enabled, providerIds);
+  const { hideElementContextMenu, hideableMenu } = useHideableMenu();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -149,6 +151,7 @@ export function ProviderUsageIndicator() {
           if (!open) placePopover();
           setOpen((v) => !v);
         }}
+        onContextMenu={hideElementContextMenu("provider-usage")}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={ariaSummary(visibleProviders)}
@@ -318,6 +321,7 @@ export function ProviderUsageIndicator() {
           </div>
         </div>
       )}
+      {hideableMenu}
     </div>
   );
 }

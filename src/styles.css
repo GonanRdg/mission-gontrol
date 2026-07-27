@@ -1132,6 +1132,38 @@ select,
     transform: translateX(115%) skewX(-18deg);
   }
 }
+/* Needs-input badge on pinned project tiles: a periodic double-bounce so a
+   session waiting on the user keeps drawing the eye without a constant pulse. */
+.mc-needs-input-badge {
+  animation: mc-needs-input-bounce 2s ease-in-out infinite;
+}
+@keyframes mc-needs-input-bounce {
+  0%,
+  55%,
+  100% {
+    transform: translateY(0);
+  }
+  63% {
+    transform: translateY(-3px);
+  }
+  71% {
+    transform: translateY(0);
+  }
+  79% {
+    transform: translateY(-1.5px);
+  }
+  87% {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc-needs-input-badge {
+    animation: none;
+  }
+}
+html[data-power-save] .mc-needs-input-badge {
+  animation: none;
+}
 /* ── Session icon "running" stroke-draw ───────────────────────────────────
    While a session's status is "running", its header glyph is continuously
    re-drawn: each sub-path is normalized to pathLength=1 (in SessionIcon) so a
@@ -2228,6 +2260,14 @@ html[data-window-idle] .mc-pet * {
 }
 [data-theme="light"] .dot-grid-bg {
   background-image: radial-gradient(circle, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+}
+/* "Background grid" off (Settings → Theme): blank the pattern ground so the
+   dashboard and project view sit on the bare --bg (or the wallpaper). Set on
+   <html> by applyBackgroundGrid + the pre-hydration script, so it also beats
+   the flat-theme blueprint rules further down the sheet — hence !important,
+   which their higher-specificity compound selectors would otherwise win. */
+[data-bg-grid="off"] .dot-grid-bg {
+  background-image: none !important;
 }
 
 .mc-projects-table-scroll {

@@ -25,6 +25,7 @@ import {
   STATUS_META,
 } from "~/lib/design-meta";
 import { getElectron } from "~/lib/electron";
+import { useHideableMenu } from "~/lib/hideable-elements";
 import { enterFocusSession, takePendingRefocus } from "~/lib/focus-session";
 import { takePendingInitialInput } from "~/lib/voice-session-prompts";
 import {
@@ -96,7 +97,6 @@ import {
   subscribeQuestionStore,
   useQuestionDesynced,
   useQuestionDismissed,
-  useQuestionOverlayEnabled,
   useTaskQuestion,
 } from "~/lib/agent-question-store";
 import {
@@ -495,6 +495,7 @@ export function TerminalPane({
   const { data: appSettings } = useSettings();
   const sessionButtons: SessionHeaderButtonVisibility =
     appSettings?.sessionHeaderButtons ?? DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY;
+  const { hideElementContextMenu, hideableMenu } = useHideableMenu();
 
   // Track the header's width *bucket* so narrow grid cells can collapse controls
   // into the "…" menu (compact) and drop the title entirely (tiny). Storing the
@@ -554,23 +555,20 @@ export function TerminalPane({
   // Native AskUserQuestion overlay: pending question data arrives over SSE
   // (see agent-question-store); hydrate covers panes that mount after the
   // event fired (e.g. reopening a project mid-question).
-  const questionOverlayEnabled = useQuestionOverlayEnabled();
   const pendingQuestion = useTaskQuestion(task.id);
   const questionDismissed = useQuestionDismissed(pendingQuestion?.id);
   const questionDesynced = useQuestionDesynced(pendingQuestion?.id);
   const answeredQuestionsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (
-      questionOverlayEnabled &&
       liveTask.agent === "claude-code" &&
       liveTask.status === "needs-input" &&
       pendingQuestion === undefined
     ) {
       void hydrateTaskQuestion(task.id);
     }
-  }, [questionOverlayEnabled, liveTask.agent, liveTask.status, pendingQuestion, task.id]);
+  }, [liveTask.agent, liveTask.status, pendingQuestion, task.id]);
   const showQuestionOverlay =
-    questionOverlayEnabled &&
     !!pendingQuestion &&
     !questionDismissed &&
     liveTask.status === "needs-input" &&
@@ -1658,19 +1656,25 @@ export function TerminalPane({
                     size="sm"
                     icon="pencil"
                     onClick={openRenameDialog}
+                    onContextMenu={hideElementContextMenu("session-button:rename")}
                     aria-label={`Rename session ${liveTask.title}`}
                     style={{ width: 34, padding: 0 }}
                   />
                 </Tooltip>
               )}
               {sessionButtons.zoom && (
-                <TerminalZoomControls
-                  level={zoomLevel}
-                  canZoomIn={canZoomIn}
-                  canZoomOut={canZoomOut}
-                  onZoomIn={zoomIn}
-                  onZoomOut={zoomOut}
-                />
+                <span
+                  style={{ display: "contents" }}
+                  onContextMenu={hideElementContextMenu("session-button:zoom")}
+                >
+                  <TerminalZoomControls
+                    level={zoomLevel}
+                    canZoomIn={canZoomIn}
+                    canZoomOut={canZoomOut}
+                    onZoomIn={zoomIn}
+                    onZoomOut={zoomOut}
+                  />
+                </span>
               )}
               {sessionButtons.clone && (
                 <HotkeyTooltip action="session.clone" label="Clone session">
@@ -1679,6 +1683,7 @@ export function TerminalPane({
                     size="sm"
                     icon="copy"
                     onClick={requestSessionClone}
+                    onContextMenu={hideElementContextMenu("session-button:clone")}
                     aria-label="Clone session"
                     style={{ width: 34, padding: 0 }}
                   />
@@ -1691,6 +1696,7 @@ export function TerminalPane({
                     size="sm"
                     icon="external-link"
                     onClick={requestFocusMode}
+                    onContextMenu={hideElementContextMenu("session-button:focus")}
                     aria-label="Focus session in a floating window"
                     style={{ width: 34, padding: 0 }}
                   />
@@ -1698,6 +1704,9 @@ export function TerminalPane({
               )}
             </>
           )}
+          {/* Portals to document.body; kept outside the compact-header ternary
+              so collapsing the pane mid-open can't strand the menu's state. */}
+          {hideableMenu}
           {onTogglePin && !microHeader && (
             <Tooltip content={liveTask.pinned ? "Unpin session" : "Pin session"}>
               <Btn

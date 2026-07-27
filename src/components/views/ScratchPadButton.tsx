@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Btn } from "~/components/ui/Btn";
@@ -50,7 +57,12 @@ function PadTrashButton({ label, onClick }: { label: string; onClick: () => void
  * pads (open one, remove one, start a new one); the scratch.toggle hotkey
  * opens the most recent pad directly. Disabled outside a project page.
  */
-export function ScratchPadButton() {
+export function ScratchPadButton({
+  onContextMenu,
+}: {
+  /** Right-click → Hide, supplied by the header's hideable-elements menu. */
+  onContextMenu?: (e: ReactMouseEvent) => void;
+}) {
   const { projectId, openLatest, openNew, openPad } = useScratchPad();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -130,7 +142,13 @@ export function ScratchPadButton() {
   };
 
   return (
-    <div ref={anchorRef} style={{ display: "inline-flex", alignItems: "center" }}>
+    // Hide lives on the wrapper, not the button: outside a project the button
+    // is disabled, and disabled buttons never fire contextmenu.
+    <div
+      ref={anchorRef}
+      onContextMenu={onContextMenu}
+      style={{ display: "inline-flex", alignItems: "center" }}
+    >
       <HotkeyTooltip action="scratch.toggle" label="Scratch pads">
         <Btn
           variant="ghost"

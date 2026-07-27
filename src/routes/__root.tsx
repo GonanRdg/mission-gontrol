@@ -76,7 +76,7 @@ import {
   DEFAULT_TERMINAL_LINE_HEIGHT,
 } from "~/shared/terminal-appearance";
 import {
-  SETTINGS_PANEL_IDS,
+  normalizeSettingsPanelId,
   type SettingsPanelId,
 } from "~/components/views/settings-panel-ids";
 // Lazy: the settings overlay is conditionally rendered (settingsOpen) inside
@@ -144,6 +144,10 @@ import {
   BACKGROUND_IMAGE_CACHE_KEY,
   applyBackgroundImage,
 } from "~/lib/background-image";
+import {
+  BACKGROUND_GRID_CACHE_KEY,
+  applyBackgroundGrid,
+} from "~/lib/background-grid";
 import { ThemeOnboardingGate } from "~/components/views/ThemeOnboardingOverlay";
 import "~/styles.css";
 
@@ -160,7 +164,8 @@ const useThemeLayoutEffect =
 // (painted+orange, dark) theme for one frame — every accent-tinted surface
 // flashes before React/useSettings hydrate, and a flat-light user sees a dark
 // flash. Mirrors `applyThemeStyle` (src/lib/theme-style.ts), `useTheme`
-// (src/lib/use-theme.ts), `applySurfaceTint` (src/lib/surface-tint.ts) and
+// (src/lib/use-theme.ts), `applySurfaceTint` (src/lib/surface-tint.ts),
+// `applyBackgroundGrid` (src/lib/background-grid.ts) and
 // `applyAccentColor` (src/lib/accent-colors.ts); keep them in sync. Legacy
 // minimal/noir/ember styles collapse to flat here.
 const PRE_HYDRATION_THEME_SCRIPT = `(function(){try{
@@ -175,6 +180,7 @@ var tt=localStorage.getItem(${JSON.stringify(SURFACE_TINT_CACHE_KEY)});
 if(tt==="subtle"||tt==="vivid"||tt==="intense"){d.setAttribute("data-tint",tt);}
 var bg=localStorage.getItem(${JSON.stringify(BACKGROUND_IMAGE_CACHE_KEY)});
 if(bg&&bg.indexOf("data:image/")===0){d.setAttribute("data-bg-image","true");d.style.setProperty("--mc-bg-image",'url("'+bg+'")');}
+if(localStorage.getItem(${JSON.stringify(BACKGROUND_GRID_CACHE_KEY)})==="1"){d.setAttribute("data-bg-grid","off");}
 if(localStorage.getItem(${JSON.stringify(LAUNCH_INTRO_CACHE_KEY)})==="1"){d.setAttribute("data-launch-intro","true");}
 var t=${JSON.stringify(
   Object.fromEntries(
@@ -341,15 +347,18 @@ function Shell() {
   const [activePanel, setActivePanel] = useState<"usage" | null>(null);
   // Settings renders as a Shell-level overlay (see <SettingsPanel> below) rather
   // than a route, so the live app stays mounted behind it and the sliding panels
-  // reveal the app instead of a black void. `settingsInitialPanel` is non-null
-  // exactly when the overlay is open; its value seeds the panel's initial tab.
-  const [settingsInitialPanel, setSettingsInitialPanel] =
-    useState<SettingsPanelId | null>(null);
-  const settingsOpen = settingsInitialPanel !== null;
-  const openSettings = (initial: SettingsPanelId = "general") => {
-    setSettingsInitialPanel((current) => current ?? initial);
+  // reveal the app instead of a black void. `settingsRequest` is non-null
+  // exactly when the overlay is open; its `panel` is the explicitly requested
+  // tab (deep link, a leaf's settings shortcut) or null for a generic open,
+  // which lets SettingsPanel restore the last-visited tab instead.
+  const [settingsRequest, setSettingsRequest] = useState<{
+    panel: SettingsPanelId | null;
+  } | null>(null);
+  const settingsOpen = settingsRequest !== null;
+  const openSettings = (initial: SettingsPanelId | null = null) => {
+    setSettingsRequest((current) => current ?? { panel: initial });
   };
-  const closeSettingsPanel = () => setSettingsInitialPanel(null);
+  const closeSettingsPanel = () => setSettingsRequest(null);
 
   // Mirror the React open-state into the module flag that non-React global
   // keydown listeners (use-hotkey, the project route) read to suppress app
@@ -364,10 +373,7 @@ function Shell() {
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ panel?: string }>).detail;
-      const panel = detail?.panel;
-      openSettings(SETTINGS_PANEL_IDS.includes(panel as SettingsPanelId)
-        ? (panel as SettingsPanelId)
-        : "general");
+      openSettings(normalizeSettingsPanelId(detail?.panel));
     };
     window.addEventListener(OPEN_SETTINGS_EVENT, handler);
     return () => window.removeEventListener(OPEN_SETTINGS_EVENT, handler);
@@ -513,9 +519,13 @@ function Shell() {
   // The group is the broadest context, so it leads the breadcrumb:
   // Group › Project › Scope. Omitted (not just null-rendered) when no groups
   // exist so no dangling separator renders, and absent on the app-global
-  // Settings/Usage screens where a group scope is meaningless.
+  // Settings/Usage screens where a group scope is meaningless. Also omitted
+  // when hidden via Settings → Interface (right-click the pill → Hide);
+  // groups stay reachable through the dashboard chips and the cycle hotkey.
   const groupCrumb: Crumb[] =
-    groups.length > 0 ? [{ label: "Group", node: <GroupSwitcher /> }] : [];
+    groups.length > 0 && (settings?.showGroupSwitcher ?? true)
+      ? [{ label: "Group", node: <GroupSwitcher /> }]
+      : [];
   const crumbs: Crumb[] = settingsOpen
     ? [{ label: "Settings" }]
     : projectId
@@ -609,6 +619,15 @@ function Shell() {
     if (!settings) return;
     applyBackgroundImage(backgroundImage);
   }, [settings, backgroundImage]);
+
+  // Same guard as the wallpaper: only reconcile once settings have loaded, so a
+  // transient `undefined` doesn't repaint a grid the pre-hydration script
+  // correctly left off.
+  const showBackgroundGrid = settings?.showBackgroundGrid ?? true;
+  useThemeLayoutEffect(() => {
+    if (!settings) return;
+    applyBackgroundGrid(showBackgroundGrid);
+  }, [settings, showBackgroundGrid]);
 
   // Recompute + re-observe the workspace bounds whenever the workspace div is
   // (un)mounted. Focus mode early-returns above and tears down the whole #root
@@ -954,7 +973,7 @@ function Shell() {
         {settingsOpen && (
           <Suspense fallback={null}>
             <SettingsPanel
-              initialPanel={settingsInitialPanel ?? "general"}
+              initialPanel={settingsRequest?.panel ?? null}
               onBack={closeSettingsPanel}
             />
           </Suspense>

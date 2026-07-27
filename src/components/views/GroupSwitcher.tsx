@@ -14,6 +14,7 @@ import {
   useActiveGroup,
 } from "~/lib/active-group";
 import { useGroupsDialog } from "~/lib/groups-dialog-store";
+import { useHideableMenu } from "~/lib/hideable-elements";
 import { useScopedProjects } from "~/queries";
 import { useBinding } from "~/lib/keybindings/store";
 import { formatBinding } from "~/lib/keybindings/format";
@@ -51,6 +52,7 @@ export function GroupSwitcher() {
   const [open, setOpen] = useState(false);
   const nextGroupBinding = useBinding("group.next");
   const [menuRect, setMenuRect] = useState<{ top: number; left: number } | null>(null);
+  const { hideElementContextMenu, hideableMenu } = useHideableMenu();
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLElement>(null);
 
@@ -140,6 +142,7 @@ export function GroupSwitcher() {
         aria-label={`Active group: ${label}. Switch group`}
         title={`Active group: ${label} — cycle with ${formatBinding(nextGroupBinding)}`}
         onClick={() => setOpen((v) => !v)}
+        onContextMenu={hideElementContextMenu("group-switcher")}
         style={{ paddingInline: 8 }}
       >
         <GroupDot color={activeColor} />
@@ -226,6 +229,7 @@ export function GroupSwitcher() {
           </CardFrame>,
           document.body,
         )}
+      {hideableMenu}
     </div>
   );
 }

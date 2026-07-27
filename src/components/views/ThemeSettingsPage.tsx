@@ -1,7 +1,12 @@
 import { DEFAULT_AGENT_LAUNCHER_CONFIG } from "~/shared/agent-launcher-config";
 import { useId, useRef, useState, type CSSProperties } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Field, SettingCard, SettingsSection } from "~/components/views/SettingsParts";
+import {
+  Field,
+  SettingCard,
+  SettingsSection,
+  ToggleRow,
+} from "~/components/views/SettingsParts";
 import { AccentColorGrid } from "~/components/views/AccentColorPicker";
 import { ThemeStylePreview } from "~/components/views/ThemeStylePreview";
 import { Icon } from "~/components/ui/Icon";
@@ -25,6 +30,7 @@ import {
   compressImageFile,
   BackgroundImageError,
 } from "~/lib/background-image";
+import { applyBackgroundGrid } from "~/lib/background-grid";
 import { useTheme, type Theme } from "~/lib/use-theme";
 import { queryKeys, useSettings } from "~/queries";
 import {
@@ -51,6 +57,7 @@ import {
 } from "~/lib/font-detection";
 import { emptyVoiceCommandAliases } from "~/shared/voice-command-aliases";
 import { DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY } from "~/shared/session-header-buttons";
+import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
 import { DEFAULT_SHIP_PROMPT } from "~/shared/ship-defaults";
 import { DEFAULT_SYNC_PROMPT } from "~/shared/sync-defaults";
 import { DEFAULT_PULL_REQUEST_PROMPT } from "~/shared/pull-request-defaults";
@@ -63,6 +70,7 @@ export function ThemeSettingsPage() {
   const themeStyle = settings?.themeStyle ?? DEFAULT_THEME_STYLE;
   const surfaceTint = settings?.surfaceTint ?? DEFAULT_SURFACE_TINT;
   const backgroundImage = settings?.backgroundImage ?? null;
+  const showBackgroundGrid = settings?.showBackgroundGrid ?? true;
   const minimalTheme = settings?.minimalTheme ?? false;
   const interfaceFontFamily = settings?.interfaceFontFamily ?? null;
   const interfaceFontScale =
@@ -87,6 +95,7 @@ export function ThemeSettingsPage() {
         | "themeStyle"
         | "surfaceTint"
         | "backgroundImage"
+        | "showBackgroundGrid"
         | "minimalTheme"
         | "interfaceFontFamily"
         | "interfaceFontScale"
@@ -132,6 +141,7 @@ export function ThemeSettingsPage() {
     interfaceFontScale: settings?.interfaceFontScale ?? DEFAULT_INTERFACE_FONT_SCALE,
     sessionHeaderButtons:
       settings?.sessionHeaderButtons ?? DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY,
+    headerButtons: settings?.headerButtons ?? DEFAULT_HEADER_BUTTON_VISIBILITY,
     defaultAgent: settings?.defaultAgent ?? "claude-code",
     defaultModel: settings?.defaultModel ?? null,
     annotationAgent: settings?.annotationAgent ?? "claude-code",
@@ -146,7 +156,7 @@ export function ThemeSettingsPage() {
     pullRequestModel: settings?.pullRequestModel ?? null,
     pullRequestPrompt: settings?.pullRequestPrompt ?? DEFAULT_PULL_REQUEST_PROMPT,
     voiceCommandAliases: settings?.voiceCommandAliases ?? emptyVoiceCommandAliases(),
-    voiceControlEnabled: settings?.voiceControlEnabled ?? false,
+    voiceControlEnabled: settings?.voiceControlEnabled ?? true,
     questionOverlayEnabled: settings?.questionOverlayEnabled ?? true,
     claudeUsageLimitsEnabled: settings?.claudeUsageLimitsEnabled ?? false,
     claudeUsageLimitsShowSession: settings?.claudeUsageLimitsShowSession ?? true,
@@ -170,7 +180,9 @@ export function ThemeSettingsPage() {
     petMultiplayerEnabled: settings?.petMultiplayerEnabled ?? false,
     petHomeSide: settings?.petHomeSide ?? DEFAULT_PET_HOME_SIDE,
     petState: settings?.petState ?? null,
-    showGroupBadge: settings?.showGroupBadge ?? false,
+    showGroupSwitcher: settings?.showGroupSwitcher ?? true,
+    showProjectHeaderGroup: settings?.showProjectHeaderGroup ?? true,
+    showBackgroundGrid,
     ...queryClient.getQueryData<AppSettings>(queryKeys.settings),
     worktreesEnabled: true,
     ...patch,
@@ -242,6 +254,23 @@ export function ThemeSettingsPage() {
     }
   };
 
+  const setShowBackgroundGrid = async (next: boolean) => {
+    applyBackgroundGrid(next);
+    const previous = queryClient.getQueryData<AppSettings>(queryKeys.settings);
+    const optimistic = optimisticSettings({ showBackgroundGrid: next });
+    queryClient.setQueryData(queryKeys.settings, optimistic);
+    try {
+      const updated = await api.updateSettings({ showBackgroundGrid: next });
+      queryClient.setQueryData(queryKeys.settings, { ...optimistic, ...updated });
+    } catch (error) {
+      if (previous) {
+        queryClient.setQueryData(queryKeys.settings, previous);
+        applyBackgroundGrid(previous.showBackgroundGrid ?? true);
+      }
+      throw error;
+    }
+  };
+
   const setInterfaceFontFamily = async (next: string | null) => {
     applyInterfaceFontFamily(next);
     const previous = queryClient.getQueryData<AppSettings>(queryKeys.settings);
@@ -307,6 +336,21 @@ export function ThemeSettingsPage() {
       </Field>
       <Field label="Surface tint">
         <SurfaceTintToggle tint={surfaceTint} onChange={setSurfaceTint} />
+      </Field>
+      <Field label="Background grid">
+        <ToggleRow
+          title="Show the background grid"
+          description={
+            themeStyle === "flat"
+              ? "The faint blueprint grid behind the dashboard and the project view. Off leaves the plain background (or your wallpaper) showing through."
+              : "The faint dot grid behind the dashboard and the project view. Off leaves the plain background showing through."
+          }
+          checked={showBackgroundGrid}
+          onChange={(next) => {
+            void setShowBackgroundGrid(next);
+          }}
+          label="Show the background grid"
+        />
       </Field>
       {themeStyle === "flat" && (
         <BackgroundImageCard
