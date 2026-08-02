@@ -20,6 +20,7 @@ import { useBinding } from "~/lib/keybindings/store";
 import { formatBinding } from "~/lib/keybindings/format";
 import { Z_INDEX } from "~/lib/z-index";
 import type { ActiveProjectGroup } from "~/shared/ui-preferences";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 function GroupDot({ color, size = 7 }: { color: string; size?: number }) {
   return (
@@ -50,6 +51,7 @@ export function GroupSwitcher() {
   const { data: scopedProjects } = useScopedProjects();
   const groupsDialog = useGroupsDialog();
   const [open, setOpen] = useState(false);
+  useSuspendAppDragRegion(open);
   const nextGroupBinding = useBinding("group.next");
   const [menuRect, setMenuRect] = useState<{ top: number; left: number } | null>(null);
   const { hideElementContextMenu, hideableMenu } = useHideableMenu();

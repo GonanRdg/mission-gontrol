@@ -141,6 +141,7 @@ import { sandboxWorkspacePath, workspaceSlug } from "~/shared/sandbox-workspace"
 import { AGENT_REGISTRY } from "~/shared/agents";
 import { LOCAL_SCOPE_ID } from "~/shared/sandbox";
 import { toast } from "sonner";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 async function resolveMcEnv(electron: NonNullable<ReturnType<typeof getElectron>>) {
   try {
@@ -240,6 +241,7 @@ function HeaderMoreMenu({
   onZoomOut: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  useSuspendAppDragRegion(open);
   const [menuRect, setMenuRect] = useState<{ top: number; right: number } | null>(null);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLElement>(null);

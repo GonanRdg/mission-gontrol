@@ -8,7 +8,6 @@ import {
 } from "~/components/ui/DropdownMenuItem";
 import { api, type AppSettings } from "~/lib/api";
 import { OPEN_SETTINGS_EVENT, type OpenSettingsEventDetail } from "~/lib/design-meta";
-import { useDismissableMenu } from "~/lib/use-dismissable-menu";
 import { queryKeys } from "~/queries";
 import {
   DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY,
@@ -163,7 +162,6 @@ export function useHideableMenu(): {
   const updateVisibility = useUpdateUiVisibility();
   const [menu, setMenu] = useState<{ id: HideableElementId; x: number; y: number } | null>(null);
   const close = useCallback(() => setMenu(null), []);
-  useDismissableMenu(menu !== null, close);
 
   const hideElementContextMenu = useCallback(
     (id: HideableElementId) => (e: ReactMouseEvent) => {
@@ -208,6 +206,7 @@ export function useHideableMenu(): {
         anchor={{ x: menu.x, y: menu.y }}
         label={`Hide the ${element.label}`}
         minWidth={210}
+        onClose={close}
       >
         <DropdownMenuItem icon="eye-off" autoFocus onClick={hide}>
           Hide {element.label}

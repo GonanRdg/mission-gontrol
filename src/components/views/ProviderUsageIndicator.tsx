@@ -8,6 +8,7 @@ import { Btn } from "~/components/ui/Btn";
 import { OPEN_SETTINGS_EVENT } from "~/lib/design-meta";
 import { useHideableMenu } from "~/lib/hideable-elements";
 import { useProviderUsage, useSettings } from "~/queries";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 /**
  * Compact multi-provider usage control.
@@ -36,6 +37,7 @@ export function ProviderUsageIndicator() {
   const { data, isLoading, isFetching, refetch } = useProviderUsage(enabled, providerIds);
   const { hideElementContextMenu, hideableMenu } = useHideableMenu();
   const [open, setOpen] = useState(false);
+  useSuspendAppDragRegion(open);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);

@@ -336,6 +336,15 @@ select,
   -webkit-app-region: no-drag;
 }
 
+/* A menu or dropdown is open (see useSuspendAppDragRegion): the top bar's
+   drag region must temporarily stop being a drag region, because native drag
+   handling swallows presses before the DOM sees them — leaving outside-press
+   menu dismissal blind to clicks on the bar. !important beats the inline
+   WebkitAppRegion style TopBar sets. */
+body[data-suspend-app-drag] .mc-topbar {
+  -webkit-app-region: no-drag !important;
+}
+
 .mc-btn {
   --mc-btn-gap: 6px;
   --mc-btn-height: 30px;

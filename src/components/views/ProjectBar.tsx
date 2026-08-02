@@ -13,7 +13,6 @@ import { CardFrame } from "~/components/ui/CardFrame";
 import { ContextMenuPopover } from "~/components/ui/ContextMenuPopover";
 import { DropdownMenuItem } from "~/components/ui/DropdownMenuItem";
 import { ProjectDialog } from "~/components/views/ProjectDialog";
-import { useDismissableMenu } from "~/lib/use-dismissable-menu";
 import { useServerEvents } from "~/lib/use-events";
 import { useDebouncedCallback } from "~/lib/use-debounced-callback";
 import { useUserTerminals } from "~/lib/user-terminal-store";
@@ -196,7 +195,6 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
     .filter((project) => project.pinned)
     .map((project) => project.id);
   const closeMenu = useCallback(() => setMenu(null), []);
-  useDismissableMenu(menu !== null, closeMenu);
 
   useEffect(() => {
     setProjectDrag(null);
@@ -1311,7 +1309,12 @@ export const ProjectBar = memo(function ProjectBar({ disabled = false }: { disab
         );
       })}
       {menu && (
-        <ContextMenuPopover anchor={menu} label={`${menu.name} actions`} minWidth={196}>
+        <ContextMenuPopover
+          anchor={menu}
+          label={`${menu.name} actions`}
+          minWidth={196}
+          onClose={closeMenu}
+        >
             <DropdownMenuItem
               icon="settings"
               autoFocus

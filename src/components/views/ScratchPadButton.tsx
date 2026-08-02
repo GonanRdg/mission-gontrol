@@ -21,6 +21,7 @@ import { useScratchPad } from "~/lib/scratch-pad-store";
 import { Z_INDEX } from "~/lib/z-index";
 import { queryKeys, useScratchPads } from "~/queries";
 import { scratchPadTitle, type ScratchPadView } from "~/shared/scratch-pads";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 const MENU_WIDTH = 280;
 
@@ -66,6 +67,7 @@ export function ScratchPadButton({
   const { projectId, openLatest, openNew, openPad } = useScratchPad();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  useSuspendAppDragRegion(menuOpen);
   const [menuRect, setMenuRect] = useState<{ top: number; left: number } | null>(null);
   const [confirmPad, setConfirmPad] = useState<ScratchPadView | null>(null);
   const [deleting, setDeleting] = useState(false);

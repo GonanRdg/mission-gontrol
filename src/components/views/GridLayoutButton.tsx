@@ -20,6 +20,7 @@ import { useTerminals } from "~/lib/terminal-store";
 import { Z_INDEX } from "~/lib/z-index";
 import type { TaskAgent } from "~/shared/domain";
 import { scopeKeyFor } from "./SessionGrid";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 // Fixed menu width: the width chips lay out as one 7-column row (Auto + 1–6),
 // and the viewport clamp in updateMenuRect needs the real width to be exact.
@@ -38,6 +39,7 @@ const MENU_WIDTH = 288;
 export function GridLayoutButton({ scopeKey }: { scopeKey: string }) {
   const { sessions } = useTerminals();
   const [open, setOpen] = useState(false);
+  useSuspendAppDragRegion(open);
   const [menuRect, setMenuRect] = useState<{ top: number; left: number } | null>(null);
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLElement>(null);

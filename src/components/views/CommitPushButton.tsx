@@ -7,6 +7,7 @@ import { Icon } from "~/components/ui/Icon";
 import { HotkeyTooltip } from "~/components/ui/Tooltip";
 import { Z_INDEX } from "~/lib/z-index";
 import { VOICE_SHIP_EVENT } from "~/lib/voice-events";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 export function CommitPushButton({
   label = "Ship",
@@ -37,6 +38,7 @@ export function CommitPushButton({
   onCreatePullRequest?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  useSuspendAppDragRegion(menuOpen);
   const [menuRect, setMenuRect] = useState<{ top: number; right: number } | null>(null);
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLElement>(null);

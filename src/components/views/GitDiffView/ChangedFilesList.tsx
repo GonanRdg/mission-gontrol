@@ -13,7 +13,6 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "~/components/ui/Dropdow
 import { Icon } from "~/components/ui/Icon";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 import { CommitPushButton } from "~/components/views/CommitPushButton";
-import { useDismissableMenu } from "~/lib/use-dismissable-menu";
 import { useResizablePanel } from "~/lib/use-resizable-panel";
 import { api, type AppSettings } from "~/lib/api";
 import {
@@ -160,7 +159,6 @@ export function ChangedFilesList({
   );
 
   const closeMenu = useCallback(() => setMenu(null), []);
-  useDismissableMenu(menu !== null, closeMenu);
 
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -310,7 +308,7 @@ export function ChangedFilesList({
         }}
       />
       {menu && (
-        <ContextMenuPopover anchor={menu} label="File actions" minWidth={168}>
+        <ContextMenuPopover anchor={menu} label="File actions" minWidth={168} onClose={closeMenu}>
             {menu.staged ? (
               <DropdownMenuItem
                 icon="x"

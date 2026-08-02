@@ -20,6 +20,7 @@ import { isEditableTarget, useHotkey } from "~/lib/use-hotkey";
 import { useUserTerminals } from "~/lib/user-terminal-store";
 import { queryKeys, useGroups, useProjects, useScopedProjects } from "~/queries";
 import { getProjectActivity, isProjectActive, type ProjectWithCounts } from "~/shared/projects";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 function DotCount({ status, count, size }: { status: TaskStatus; count: number; size: number }) {
   return (
@@ -66,6 +67,7 @@ export function ProjectPicker({ projectId, disabled = false }: { projectId?: str
   const queryClient = useQueryClient();
   const { hasRunningLaunchForProject } = useUserTerminals();
   const [open, setOpen] = useState(false);
+  useSuspendAppDragRegion(open);
   const { data: allProjects } = useProjects();
   const { data: projects } = useScopedProjects();
   const { data: groups = [] } = useGroups();

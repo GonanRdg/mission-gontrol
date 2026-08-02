@@ -11,6 +11,7 @@ import {
 import { useHideableMenu } from "~/lib/hideable-elements";
 import { useSettings } from "~/queries";
 import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 export function SessionNotificationsButton({
   notifications,
@@ -27,6 +28,7 @@ export function SessionNotificationsButton({
     settings?.headerButtons?.notifications ?? DEFAULT_HEADER_BUTTON_VISIBILITY.notifications;
   const { hideElementContextMenu, hideableMenu } = useHideableMenu();
   const [open, setOpen] = useState(false);
+  useSuspendAppDragRegion(open);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const sorted = useMemo(

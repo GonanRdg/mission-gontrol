@@ -9,20 +9,11 @@ import { StatusDot, StatusPill } from "~/components/ui/StatusDot";
 import { ProjectStatusBadge } from "~/components/ui/ProjectStatusBadge";
 import { TASK_STATUSES } from "~/shared/domain";
 import { useUserTerminals } from "~/lib/user-terminal-store";
-import { useDismissableMenu } from "~/lib/use-dismissable-menu";
 import { getProjectActivity, isProjectActive, type ProjectWithCounts } from "~/shared/projects";
 import type { Group } from "~/db/schema";
 
 type ProjectCardMenu = { x: number; y: number } | null;
 const MENU_WIDTH = 196;
-const MENU_HEIGHT = 120;
-
-function menuPosition(x: number, y: number): NonNullable<ProjectCardMenu> {
-  return {
-    x: Math.max(8, Math.min(x, window.innerWidth - MENU_WIDTH - 8)),
-    y: Math.max(8, Math.min(y, window.innerHeight - MENU_HEIGHT - 8)),
-  };
-}
 
 export function ProjectCard({
   project,
@@ -54,11 +45,10 @@ export function ProjectCard({
   // The bespoke ContextMenuPopover has no nested submenus — "Move to group"
   // swaps the menu content to a group list instead.
   const [menuMode, setMenuMode] = useState<"root" | "move">("root");
-  useDismissableMenu(menu !== null, () => setMenu(null));
 
   const openMenu = (x: number, y: number) => {
     setMenuMode("root");
-    setMenu(menuPosition(x, y));
+    setMenu({ x, y });
   };
 
   return (
@@ -240,7 +230,12 @@ export function ProjectCard({
         )}
       </div>
       {menu && (
-        <ContextMenuPopover anchor={menu} label={`${project.name} actions`} minWidth={MENU_WIDTH}>
+        <ContextMenuPopover
+          anchor={menu}
+          label={`${project.name} actions`}
+          minWidth={MENU_WIDTH}
+          onClose={() => setMenu(null)}
+        >
           {menuMode === "root" ? (
             <>
               <DropdownMenuItem

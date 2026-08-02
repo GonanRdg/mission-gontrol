@@ -43,6 +43,7 @@ import {
 } from "~/queries";
 import type { RemoteVmDeployJobSnapshot } from "~/shared/electron-contract";
 import { LOCAL_SCOPE_ID, scopeToSandboxId, type SandboxPublicView } from "~/shared/sandbox";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 const LOCAL_DOT = "var(--text-faint)";
 const MESSAGE_TOAST_CLASS = "mc-toast-panel";
@@ -322,6 +323,7 @@ export function ScopeDropdown() {
   const terminals = useTerminalActions();
   const userTerminals = useUserTerminals();
   const [open, setOpen] = useState(false);
+  useSuspendAppDragRegion(open);
   const [configOpen, setConfigOpen] = useState(false);
   const [resumingId, setResumingId] = useState<string | null>(null);
   const [missingRemoteSandbox, setMissingRemoteSandbox] = useState<{ id: string; name: string } | null>(null);

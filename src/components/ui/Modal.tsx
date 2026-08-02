@@ -192,12 +192,14 @@ export function Modal({
     </div>
   );
 
+  // No stopPropagation on panel clicks: backdrop-close already checks
+  // e.target === e.currentTarget, and swallowing clicks here breaks
+  // click-outside dismissal for menus opened inside the modal.
   const panelProps = {
     tabIndex: -1,
     role: "dialog",
     "aria-modal": true,
     "aria-labelledby": titleId,
-    onClick: (e: MouseEvent<HTMLElement>) => e.stopPropagation(),
   };
 
   const modal = (
