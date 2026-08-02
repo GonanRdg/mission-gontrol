@@ -228,7 +228,16 @@ export function useGitCheckout(projectId: string, worktreeId?: string | null) {
         current ? { ...current, branch: result.branch } : current
       );
     },
-    onSettled: invalidate,
+    onSettled: () => {
+      // A checkout changes which branch a worktree row reports, so refresh the
+      // worktree list too. exact:true is load-bearing — that key is a prefix
+      // of every gitKey, and a fuzzy invalidation would refetch all of them.
+      void qc.invalidateQueries({
+        queryKey: ["projects", projectId, "worktrees"],
+        exact: true,
+      });
+      return invalidate();
+    },
   });
 }
 

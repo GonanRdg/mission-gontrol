@@ -34,13 +34,17 @@ import {
   type WorktreeInfo,
 } from "~/shared/worktrees";
 import { getPinnedProjectStatusDots } from "~/components/views/project-bar-status-dots";
+import { partitionBranches } from "~/components/views/branch-picker-model";
 import { TASK_STATUS_META } from "~/shared/domain";
 import type { GitBranch } from "~/lib/api";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 type BranchCheckoutError = {
   title: string;
   message: string;
   stderr?: string;
+  kind?: string;
+  worktreeId?: string;
 };
 
 type MenuRect = {
@@ -53,7 +57,12 @@ function parseCheckoutError(error: unknown): BranchCheckoutError {
   if (error instanceof ApiError) {
     const body =
       error.body && typeof error.body === "object"
-        ? (error.body as { error?: unknown; stderr?: unknown })
+        ? (error.body as {
+            error?: unknown;
+            stderr?: unknown;
+            kind?: unknown;
+            worktreeId?: unknown;
+          })
         : null;
     const message =
       typeof body?.error === "string" && body.error.trim()
@@ -64,6 +73,8 @@ function parseCheckoutError(error: unknown): BranchCheckoutError {
       title: "Could not switch branch",
       message,
       stderr: stderr && stderr !== message ? stderr : undefined,
+      kind: typeof body?.kind === "string" ? body.kind : undefined,
+      worktreeId: typeof body?.worktreeId === "string" ? body.worktreeId : undefined,
     };
   }
   return {
@@ -165,6 +176,7 @@ export function BranchTypeahead({
   const branchLabel = branch?.trim() || "…";
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  useSuspendAppDragRegion(open);
   const [query, setQuery] = useState("");
   const [menuRect, setMenuRect] = useState<MenuRect | null>(null);
   const [checkoutError, setCheckoutError] = useState<BranchCheckoutError | null>(null);
@@ -224,13 +236,20 @@ export function BranchTypeahead({
   }, [open]);
 
   const branches = branchesQuery.data?.branches ?? [];
-  const filteredBranches = useMemo(
-    () => branches.filter((item) => branchMatchesQuery(item, query)),
-    [branches, query],
-  );
   // Only fold worktrees into the dropdown once there's more than one to switch
   // between — a solo-main project keeps the plain branch typeahead it had.
   const showWorktreeSection = worktrees.length > 1 && !!onSelectWorktree;
+  const { plainBranches, worktreeByBranch } = useMemo(
+    () =>
+      showWorktreeSection
+        ? partitionBranches(branches, worktrees)
+        : { plainBranches: branches, worktreeByBranch: new Map<string, WorktreeInfo>() },
+    [showWorktreeSection, branches, worktrees],
+  );
+  const filteredBranches = useMemo(
+    () => plainBranches.filter((item) => branchMatchesQuery(item, query)),
+    [plainBranches, query],
+  );
   const showSyncAction = behindCount > 0 && !!onSync;
   const filteredWorktrees = useMemo(
     () =>
@@ -303,6 +322,16 @@ export function BranchTypeahead({
       // Only pull branches when checkout is actually available — when opened
       // purely to switch worktrees (branch actions disabled) we skip the fetch.
       if (next && !disabled) void refreshBranches();
+      if (next) {
+        // Refresh the worktree list on open so worktrees created outside the
+        // app (git CLI) show up without waiting for a parent refetch.
+        // exact:true is load-bearing — this key is a prefix of every git query
+        // key, and a fuzzy invalidation would refetch all of them.
+        void queryClient.invalidateQueries({
+          queryKey: ["projects", projectId, "worktrees"],
+          exact: true,
+        });
+      }
       return next;
     });
   };
@@ -318,9 +347,37 @@ export function BranchTypeahead({
       await checkout.mutateAsync({ branch: next, create });
       closeTypeahead();
     } catch (error) {
-      setCheckoutError(parseCheckoutError(error));
+      const parsed = parseCheckoutError(error);
+      // Stale client raced the server: the branch is owned by a worktree we
+      // didn't know about — repoint to it instead of surfacing an error.
+      if (
+        parsed.kind === "branch-in-worktree" &&
+        parsed.worktreeId &&
+        onSelectWorktree &&
+        worktrees.some((item) => item.id === parsed.worktreeId)
+      ) {
+        closeTypeahead();
+        if (parsed.worktreeId !== selectedWorktreeId) onSelectWorktree(parsed.worktreeId);
+        return;
+      }
+      setCheckoutError(parsed);
       closeTypeahead();
     }
+  };
+
+  /**
+   * Branches living in a worktree never go through git checkout — selecting
+   * one just repoints the UI at that worktree, so no dirty-tree warning and
+   * no active-session confirm apply.
+   */
+  const redirectToWorktree = (target: string): boolean => {
+    const worktree = worktreeByBranch.get(target);
+    if (!worktree || !onSelectWorktree) return false;
+    closeTypeahead();
+    if (worktree.id !== selectedWorktreeId && !isOptimisticWorktree(worktree)) {
+      onSelectWorktree(worktree.id);
+    }
+    return true;
   };
 
   const requestCheckout = (target: string, create?: boolean) => {
@@ -330,6 +387,7 @@ export function BranchTypeahead({
       closeTypeahead();
       return;
     }
+    if (!create && redirectToWorktree(next)) return;
     if (hasActiveSession) {
       setPendingCheckout({ branch: next, create });
       closeTypeahead();
@@ -473,7 +531,11 @@ export function BranchTypeahead({
                       ? getPinnedProjectStatusDots(item.taskCounts)
                       : [];
                     const canDelete =
-                      isSelected && !item.isMain && !optimistic && !!onDeleteWorktree;
+                      isSelected &&
+                      !item.isMain &&
+                      !optimistic &&
+                      item.deletable !== false &&
+                      !!onDeleteWorktree;
                     return (
                       <div
                         key={item.id}
@@ -539,6 +601,11 @@ export function BranchTypeahead({
                             }}
                           >
                             {label}
+                            {!!item.branch && item.branch !== label && (
+                              <span style={{ color: "var(--text-faint)" }}>
+                                {" "}· {item.branch}
+                              </span>
+                            )}
                           </span>
                           {optimistic && (
                             <span style={{ color: "var(--text-faint)", fontSize: 10, flexShrink: 0 }}>
