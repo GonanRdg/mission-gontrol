@@ -2,7 +2,7 @@ import { Field, SettingsSection, ToggleRow } from "~/components/views/SettingsPa
 import { useUpdateUiVisibility } from "~/lib/hideable-elements";
 import { useSettings } from "~/queries";
 import {
-  DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY,
+  normalizeSessionHeaderButtonVisibility,
   SESSION_HEADER_BUTTON_KEYS,
   type SessionHeaderButtonKey,
 } from "~/shared/session-header-buttons";
@@ -35,6 +35,12 @@ const BUTTON_META: Record<
     title: "Focus session",
     description: "The pin button that pops a session out into a floating focus window.",
     label: "Show focus button",
+  },
+  expand: {
+    title: "Expand session panel",
+    description:
+      "The maximize button that expands a session pane. Hidden here, the panel still toggles with its hotkey (Cmd/Ctrl K).",
+    label: "Show expand button",
   },
 };
 
@@ -94,7 +100,7 @@ const HEADER_BUTTON_META: Record<
 export function InterfaceSettingsPage() {
   const { data: settings } = useSettings();
   const update = useUpdateUiVisibility();
-  const visibility = settings?.sessionHeaderButtons ?? DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY;
+  const visibility = normalizeSessionHeaderButtonVisibility(settings?.sessionHeaderButtons);
   const headerButtons = settings?.headerButtons ?? DEFAULT_HEADER_BUTTON_VISIBILITY;
 
   const headerButtonRow = (key: HeaderButtonKey) => {

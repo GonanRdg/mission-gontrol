@@ -56,7 +56,7 @@ import {
   useDetectedFonts,
 } from "~/lib/font-detection";
 import { emptyVoiceCommandAliases } from "~/shared/voice-command-aliases";
-import { DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY } from "~/shared/session-header-buttons";
+import { normalizeSessionHeaderButtonVisibility } from "~/shared/session-header-buttons";
 import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
 import { DEFAULT_SHIP_PROMPT } from "~/shared/ship-defaults";
 import { DEFAULT_SYNC_PROMPT } from "~/shared/sync-defaults";
@@ -140,7 +140,7 @@ export function ThemeSettingsPage() {
     interfaceFontFamily: settings?.interfaceFontFamily ?? null,
     interfaceFontScale: settings?.interfaceFontScale ?? DEFAULT_INTERFACE_FONT_SCALE,
     sessionHeaderButtons:
-      settings?.sessionHeaderButtons ?? DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY,
+      normalizeSessionHeaderButtonVisibility(settings?.sessionHeaderButtons),
     headerButtons: settings?.headerButtons ?? DEFAULT_HEADER_BUTTON_VISIBILITY,
     defaultAgent: settings?.defaultAgent ?? "claude-code",
     defaultModel: settings?.defaultModel ?? null,

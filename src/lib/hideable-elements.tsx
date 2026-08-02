@@ -10,7 +10,7 @@ import { api, type AppSettings } from "~/lib/api";
 import { OPEN_SETTINGS_EVENT, type OpenSettingsEventDetail } from "~/lib/design-meta";
 import { queryKeys } from "~/queries";
 import {
-  DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY,
+  normalizeSessionHeaderButtonVisibility,
   type SessionHeaderButtonKey,
 } from "~/shared/session-header-buttons";
 import {
@@ -47,6 +47,7 @@ const SESSION_BUTTON_LABELS: Record<SessionHeaderButtonKey, string> = {
   zoom: "zoom buttons",
   clone: "clone button",
   focus: "focus button",
+  expand: "expand button",
 };
 
 const HEADER_BUTTON_LABELS: Record<HeaderButtonKey, string> = {
@@ -100,7 +101,7 @@ function elementFor(id: HideableElementId): {
     label: SESSION_BUTTON_LABELS[key],
     visibilityPatch: (settings, visible) => ({
       sessionHeaderButtons: {
-        ...(settings?.sessionHeaderButtons ?? DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY),
+        ...normalizeSessionHeaderButtonVisibility(settings?.sessionHeaderButtons),
         [key]: visible,
       },
     }),

@@ -131,7 +131,7 @@ import { getPtyStreamRouter, type PtyStreamHandlers } from "~/lib/pty-stream-rou
 import { isPowerSaveActive, watchPowerSave } from "~/lib/power-save";
 import { queryKeys, useSettings, useTask } from "~/queries";
 import {
-  DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY,
+  normalizeSessionHeaderButtonVisibility,
   type SessionHeaderButtonVisibility,
 } from "~/shared/session-header-buttons";
 import { terminalSurfaceIdForProject, useTerminalActions } from "~/lib/terminal-store";
@@ -392,7 +392,7 @@ function HeaderMoreMenu({
                 {pinned ? "Unpin session" : "Pin session"}
               </DropdownMenuItem>
             )}
-            {onToggleExpanded && (
+            {buttons.expand && onToggleExpanded && (
               <DropdownMenuItem
                 icon={expanded ? "minimize" : "maximize"}
                 onClick={() => pick(onToggleExpanded)}
@@ -496,7 +496,7 @@ export function TerminalPane({
   // zoom shortcuts and wheel-zoom above stay wired regardless of visibility.
   const { data: appSettings } = useSettings();
   const sessionButtons: SessionHeaderButtonVisibility =
-    appSettings?.sessionHeaderButtons ?? DEFAULT_SESSION_HEADER_BUTTON_VISIBILITY;
+    normalizeSessionHeaderButtonVisibility(appSettings?.sessionHeaderButtons);
   const { hideElementContextMenu, hideableMenu } = useHideableMenu();
 
   // Track the header's width *bucket* so narrow grid cells can collapse controls
@@ -1728,7 +1728,7 @@ export function TerminalPane({
               />
             </Tooltip>
           )}
-          {onToggleExpanded && !tinyHeader && (
+          {sessionButtons.expand && onToggleExpanded && !tinyHeader && (
             <HotkeyTooltip
               action="terminal.expandToggle"
               label={expanded ? "Shrink session panel" : "Expand session panel"}
@@ -1738,6 +1738,7 @@ export function TerminalPane({
                 size="sm"
                 icon={expanded ? "minimize" : "maximize"}
                 onClick={onToggleExpanded}
+                onContextMenu={hideElementContextMenu("session-button:expand")}
                 aria-label={expanded ? "Shrink session panel" : "Expand session panel"}
                 aria-pressed={expanded}
                 style={{ width: 34, padding: 0 }}
