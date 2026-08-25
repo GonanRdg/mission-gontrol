@@ -38,6 +38,7 @@ import { partitionBranches } from "~/components/views/branch-picker-model";
 import { TASK_STATUS_META } from "~/shared/domain";
 import type { GitBranch } from "~/lib/api";
 import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
+import { parseGitApiError } from "~/lib/git-remote-action-result";
 
 type BranchCheckoutError = {
   title: string;
@@ -54,33 +55,9 @@ type MenuRect = {
 };
 
 function parseCheckoutError(error: unknown): BranchCheckoutError {
-  if (error instanceof ApiError) {
-    const body =
-      error.body && typeof error.body === "object"
-        ? (error.body as {
-            error?: unknown;
-            stderr?: unknown;
-            kind?: unknown;
-            worktreeId?: unknown;
-          })
-        : null;
-    const message =
-      typeof body?.error === "string" && body.error.trim()
-        ? body.error.trim()
-        : error.message;
-    const stderr = typeof body?.stderr === "string" ? body.stderr.trim() : undefined;
-    return {
-      title: "Could not switch branch",
-      message,
-      stderr: stderr && stderr !== message ? stderr : undefined,
-      kind: typeof body?.kind === "string" ? body.kind : undefined,
-      worktreeId: typeof body?.worktreeId === "string" ? body.worktreeId : undefined,
-    };
-  }
-  return {
-    title: "Could not switch branch",
-    message: error instanceof Error ? error.message : String(error),
-  };
+  // Shared with the Fetch/Pull/Push buttons — same API error shape, same rule
+  // about not repeating stderr when it just echoes the message.
+  return { title: "Could not switch branch", ...parseGitApiError(error) };
 }
 
 function branchLoadErrorMessage(error: unknown): string {
