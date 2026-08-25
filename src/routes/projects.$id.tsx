@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Btn } from "~/components/ui/Btn";
@@ -149,6 +149,7 @@ import { GitDiffModal } from "~/components/views/GitDiffView/GitDiffModal";
 import { CommitPushButton } from "~/components/views/CommitPushButton";
 import { RecallModal } from "~/components/views/RecallModal";
 import { BranchTypeahead } from "~/components/views/BranchTypeahead";
+import { GitRemoteActions } from "~/components/views/GitRemoteActions";
 import { HeaderActions } from "~/components/ui/HeaderActionsSlot";
 import { InstallDiagramSkillMenuItem } from "~/components/views/InstallDiagramSkillMenuItem";
 import { InstallDiagramSkillModal } from "~/components/views/InstallDiagramSkillModal";
@@ -2816,6 +2817,28 @@ function ProjectPage() {
     );
   };
 
+  // Fetch/Pull/Push run real git over the HTTP API, which always targets the
+  // HOST repo — so they are local-scope only, like Sync. Built once here and
+  // handed to whichever header surface is mounted (worktrees on/off).
+  const gitRemoteEnabled =
+    projectPathUsable && activeRuntimeScopeId === LOCAL_SCOPE_ID && !gitUnavailable;
+  const gitRemoteDisabledReason = !projectPathUsable
+    ? "Project folder unavailable"
+    : activeRuntimeScopeId !== LOCAL_SCOPE_ID
+      ? "Fetch, Pull and Push aren't supported in sandbox sessions yet"
+      : gitUnavailableMessage ?? undefined;
+  const gitRemoteActions = (
+    <GitRemoteActions
+      projectId={project.id}
+      worktreeId={selectedWorktreeId}
+      branch={gitStatus?.branch ?? null}
+      aheadCount={gitStatus?.aheadCount ?? null}
+      behindCount={gitStatus?.behindCount ?? null}
+      enabled={gitRemoteEnabled}
+      disabledReason={gitRemoteDisabledReason}
+    />
+  );
+
   const headerActions = (
     <HeaderActions>
       {/* Single context→actions divider: the one boundary between "which
@@ -2877,6 +2900,7 @@ function ProjectPage() {
           shipEnabled={projectPathUsable}
           onShip={startShipSession}
           onCreatePullRequest={startCreatePullRequestSession}
+          remoteActions={gitRemoteActions}
           behindCount={gitStatus?.behindCount ?? null}
           syncEnabled={projectPathUsable && activeRuntimeScopeId === LOCAL_SCOPE_ID}
           onSync={startSyncSession}
@@ -3373,6 +3397,7 @@ function ProjectPage() {
                   minWidth: 0,
                 }}
               >
+                {gitRemoteActions}
                 <ProjectGitStatusButton
                   changedCount={gitStatus?.changedCount}
                   onClick={onToggleDiffView}
@@ -4429,6 +4454,7 @@ function WorktreeToggleGroup({
   shipEnabled = true,
   onShip,
   onCreatePullRequest,
+  remoteActions,
   behindCount = null,
   syncEnabled = true,
   onSync,
@@ -4455,6 +4481,8 @@ function WorktreeToggleGroup({
   onShip: () => void;
   /** Opens the Create PR AI session from the Ship split-button's dropdown. */
   onCreatePullRequest?: () => void;
+  /** Fetch/Pull/Push group; built by the route so both header surfaces share one instance. */
+  remoteActions?: ReactNode;
   /** Commits the current branch is behind its upstream; > 0 reveals Sync. */
   behindCount?: number | null;
   syncEnabled?: boolean;
@@ -4489,6 +4517,7 @@ function WorktreeToggleGroup({
   // distinct controls with hierarchy, not one welded segment.
   const shipControls = (
     <>
+      {remoteActions}
       <ProjectGitStatusButton
         changedCount={changedCount}
         onClick={onToggleDiffView}
