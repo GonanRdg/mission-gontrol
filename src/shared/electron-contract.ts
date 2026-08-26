@@ -99,6 +99,8 @@ export type AgentPtySpawnOptions = BasePtySpawnOptions & {
   shell?: never;
   /** Starting prompt written to the agent's stdin once its TUI is ready (voice control). */
   initialInput?: string;
+  /** Default true. False types `initialInput` without submitting it. */
+  submitInitialInput?: boolean;
 };
 
 export type ShellPtySpawnOptions = BasePtySpawnOptions & {

@@ -1279,7 +1279,7 @@ export function TerminalPane({
           }
         }
         const ptySize = normalizePtySize({ cols: term.cols, rows: term.rows });
-        const initialInput = !useSandbox && shouldInjectInitialInput(task.agent, isResume)
+        const pendingInput = !useSandbox && shouldInjectInitialInput(task.agent, isResume)
           ? takePendingInitialInput(descriptor.taskId)
           : undefined;
         let spawnResult: { ptyId: string };
@@ -1306,9 +1306,10 @@ export function TerminalPane({
                 dangerouslySkipPermissions: descriptor.dangerouslySkipPermissions,
                 mcEnv: await resolveMcEnv(electron),
                 missionControlTheme: getTerminalColorScheme(),
-                // Voice-seeded starting prompt, consumed once on the first spawn so
+                // Seeded starting prompt, consumed once on the first spawn so
                 // reloads/re-spawns never re-inject it. Undefined for normal sessions.
-                initialInput,
+                initialInput: pendingInput?.text,
+                submitInitialInput: pendingInput?.submit,
               });
         } catch (err) {
           releaseSpawnHold();

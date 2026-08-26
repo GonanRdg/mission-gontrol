@@ -662,6 +662,10 @@ export function registerPtyHandlers(
         plan.mode === "agent" && !opts.shell
           ? sanitizeInitialInput(opts.initialInput)
           : undefined;
+      // Opt-out of the submit CR: the prompt is typed into the agent's input box
+      // and left there for the user to read and send (git handoff).
+      const submitInitialInput =
+        plan.mode === "agent" && !opts.shell ? opts.submitInitialInput !== false : true;
       let initialInputScheduled = false;
       let initialInputTimer: ReturnType<typeof setTimeout> | undefined;
       const scheduleInitialInput = (delayMs: number) => {
@@ -673,6 +677,7 @@ export function registerPtyHandlers(
         if (!initialInput) return;
         try {
           proc.write(initialInput);
+          if (!submitInitialInput) return;
           setTimeout(() => {
             try {
               proc.write("\r");

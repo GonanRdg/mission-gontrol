@@ -31,6 +31,11 @@ export type AgentSpawnRequest = BaseSpawnRequest & {
   // the spawn command — it never passes through the argv allow-list, exactly
   // like a user typing into the terminal.
   initialInput?: string;
+  // Whether `initialInput` is submitted for the user. Default true (voice
+  // control speaks a whole task and expects it to run). False types the prompt
+  // into the agent's input box and stops — used by the git handoff, where the
+  // point is to read the pre-written context before letting it run.
+  submitInitialInput?: boolean;
 };
 
 export type ShellSpawnRequest = BaseSpawnRequest & {

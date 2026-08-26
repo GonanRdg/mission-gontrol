@@ -1462,7 +1462,13 @@ function ProjectPage() {
   const createSession = useCallback(
     async (
       payload: SessionCreatePayload,
-      opts?: { initialInput?: string; focusOnCreate?: boolean; model?: AiModelId | null },
+      opts?: {
+        initialInput?: string;
+        /** False types the prompt without sending it (git handoff). Default true. */
+        submitInitialInput?: boolean;
+        focusOnCreate?: boolean;
+        model?: AiModelId | null;
+      },
     ) => {
       if (!project || !terminalProject) return;
       const selectedAvailability = availabilityFor(cliAvailability, payload.agent);
@@ -1565,7 +1571,9 @@ function ProjectPage() {
       if (opts?.initialInput) {
         // TerminalPane consumes this once, at the first spawn, as the PTY's
         // initialInput — the main process writes it after the agent TUI is ready.
-        setPendingInitialInput(optimisticTask.id, opts.initialInput);
+        setPendingInitialInput(optimisticTask.id, opts.initialInput, {
+          submit: opts.submitInitialInput,
+        });
       }
       if (opts?.model) {
         setPendingSessionModel(optimisticTask.id, opts.model);
