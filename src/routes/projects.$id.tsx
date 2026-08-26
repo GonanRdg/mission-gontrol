@@ -149,7 +149,9 @@ import { GitDiffModal } from "~/components/views/GitDiffView/GitDiffModal";
 import { CommitPushButton } from "~/components/views/CommitPushButton";
 import { RecallModal } from "~/components/views/RecallModal";
 import { BranchTypeahead } from "~/components/views/BranchTypeahead";
-import { GitRemoteActions } from "~/components/views/GitRemoteActions";
+import { GitRemoteActions, type GitHandoffFailure } from "~/components/views/GitRemoteActions";
+import { buildGitHandoffPrompt } from "~/lib/git-handoff-prompt";
+import { DEFAULT_GIT_HANDOFF_PROMPT } from "~/shared/git-handoff-defaults";
 import { HeaderActions } from "~/components/ui/HeaderActionsSlot";
 import { InstallDiagramSkillMenuItem } from "~/components/views/InstallDiagramSkillMenuItem";
 import { InstallDiagramSkillModal } from "~/components/views/InstallDiagramSkillModal";
@@ -2825,6 +2827,47 @@ function ProjectPage() {
     );
   };
 
+  // Git that plain git can't finish — conflicts, a rejected push — goes to an
+  // agent, seeded with the failing command and its stderr. The prompt is typed
+  // into the session but NOT submitted: the point is to read the context first.
+  const startGitHandoffSession = useCallback(
+    (failure?: GitHandoffFailure) => {
+      if (!project || !projectPathReady) return;
+      if (activeRuntimeScopeId !== LOCAL_SCOPE_ID) {
+        toast.error("Handing git off to an agent isn't supported in sandbox sessions yet.");
+        return;
+      }
+      const payload = defaultSessionPayload(project);
+      const anchor = anchorSessionId();
+      if (anchor) terminals.requestCloneInsertAfter(anchor);
+      void createSession(
+        { ...payload, bareSession: false },
+        {
+          initialInput: buildGitHandoffPrompt({
+            instruction: settings?.gitHandoffPrompt ?? DEFAULT_GIT_HANDOFF_PROMPT,
+            projectName: project.name,
+            branch: gitStatus?.branch ?? null,
+            worktreeName: selectedWorktree?.isMain ? null : selectedWorktree?.name ?? null,
+            failure,
+          }),
+          submitInitialInput: false,
+          focusOnCreate: true,
+        },
+      );
+    },
+    [
+      project,
+      projectPathReady,
+      activeRuntimeScopeId,
+      createSession,
+      settings?.gitHandoffPrompt,
+      gitStatus?.branch,
+      selectedWorktree,
+      anchorSessionId,
+      terminals,
+    ],
+  );
+
   // Fetch/Pull/Push run real git over the HTTP API, which always targets the
   // HOST repo — so they are local-scope only, like Sync. Built once here and
   // handed to whichever header surface is mounted (worktrees on/off).
@@ -2846,6 +2889,7 @@ function ProjectPage() {
       behindCount={gitStatus?.behindCount ?? null}
       enabled={gitRemoteEnabled}
       disabledReason={gitRemoteDisabledReason}
+      onHandOffToAgent={startGitHandoffSession}
     />
   );
 

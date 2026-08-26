@@ -120,7 +120,18 @@ export function mcToastCustom(
  * close button. `tone` drives the icon, color, alignment, and detail wrapping.
  */
 export function mcToastResultCard(
-  { tone, title, detail }: { tone: "success" | "error"; title: string; detail: string },
+  {
+    tone,
+    title,
+    detail,
+    action,
+  }: {
+    tone: "success" | "error";
+    title: string;
+    detail: string;
+    /** Optional single follow-up, e.g. handing a failed git action to an agent. */
+    action?: { label: string; onClick: () => void };
+  },
   options?: ExternalToast,
 ): string | number {
   const color = tone === "error" ? "var(--status-failed)" : "var(--accent)";
@@ -172,6 +183,21 @@ export function mcToastResultCard(
           >
             {detail}
           </div>
+          {action && (
+            <McToastActions style={{ marginTop: 10 }}>
+              <Btn
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  toast.dismiss(toastId);
+                  action.onClick();
+                }}
+              >
+                {action.label}
+              </Btn>
+            </McToastActions>
+          )}
         </div>
         <McToastCloseButton toastId={toastId} />
       </CardFrame>
