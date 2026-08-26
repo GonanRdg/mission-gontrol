@@ -115,8 +115,6 @@ export function BranchTypeahead({
    * standalone Sync split-button folded into this one control.
    */
   behindCount = 0,
-  syncEnabled = true,
-  onSync,
   /** When provided, the dropdown gains a "New worktree" action in its footer. */
   onCreateWorktree,
   createWorktreeDisabled = false,
@@ -139,8 +137,6 @@ export function BranchTypeahead({
   worktreePath?: string;
   selected?: boolean;
   behindCount?: number;
-  syncEnabled?: boolean;
-  onSync?: () => void;
   onCreateWorktree?: () => void;
   createWorktreeDisabled?: boolean;
   createWorktreeTitle?: string;
@@ -150,6 +146,7 @@ export function BranchTypeahead({
   onDeleteWorktree?: (worktree: WorktreeInfo) => void;
   runningKeys?: ReadonlySet<string>;
 }) {
+  const isBehind = behindCount > 0;
   const branchLabel = branch?.trim() || "…";
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -227,7 +224,6 @@ export function BranchTypeahead({
     () => plainBranches.filter((item) => branchMatchesQuery(item, query)),
     [plainBranches, query],
   );
-  const showSyncAction = behindCount > 0 && !!onSync;
   const filteredWorktrees = useMemo(
     () =>
       showWorktreeSection
@@ -765,55 +761,8 @@ export function BranchTypeahead({
                 )
               )}
             </div>
-            {(showSyncAction || onCreateWorktree) && (
+            {onCreateWorktree && (
               <div style={{ borderTop: "1px solid var(--border)", padding: 6 }}>
-                {showSyncAction && (
-                  <button
-                    type="button"
-                    className="mc-branch-menu-item"
-                    disabled={!syncEnabled}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      if (!syncEnabled) return;
-                      closeTypeahead();
-                      onSync?.();
-                    }}
-                    title={
-                      syncEnabled
-                        ? `${behindCount} ${behindCount === 1 ? "commit" : "commits"} behind upstream — open an AI session to pull and sync`
-                        : "Sync unavailable in sandbox sessions"
-                    }
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      minHeight: 32,
-                      border: 0,
-                      borderRadius: 6,
-                      color: syncEnabled ? "var(--accent-ink)" : "var(--text-faint)",
-                      cursor: syncEnabled ? "pointer" : "default",
-                      padding: "7px 9px",
-                      textAlign: "left",
-                      fontFamily: "var(--mono)",
-                      fontSize: 11.5,
-                      opacity: syncEnabled ? 1 : 0.6,
-                    }}
-                  >
-                    <Icon name="download" size={12} />
-                    <span style={{ flex: 1, minWidth: 0 }}>Sync with upstream</span>
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        fontSize: 10.5,
-                        color: syncEnabled ? "var(--accent-ink)" : "var(--text-faint)",
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      ↓{behindCount}
-                    </span>
-                  </button>
-                )}
                 {onCreateWorktree && (
                 <button
                   type="button"
@@ -872,7 +821,7 @@ export function BranchTypeahead({
           aria-expanded={open}
           aria-controls="branch-typeahead-options"
           aria-label={
-            showSyncAction
+            isBehind
               ? `Switch branch — ${behindCount} ${behindCount === 1 ? "commit" : "commits"} behind upstream`
               : undefined
           }
@@ -882,7 +831,7 @@ export function BranchTypeahead({
               : branch
               ? `Switch branch (${branch})`
               : "Switch branch"
-          }${showSyncAction ? ` · ${behindCount} behind upstream — Sync from this menu` : ""}`}
+          }${isBehind ? ` · ${behindCount} behind upstream — Pull from the git menu` : ""}`}
           style={{
             fontFamily: "var(--mono)",
             maxWidth: "min(36ch, 42vw)",
@@ -904,7 +853,7 @@ export function BranchTypeahead({
           >
             {branchLabel}
           </span>
-          {showSyncAction && (
+          {isBehind && (
             <span
               aria-hidden
               style={{

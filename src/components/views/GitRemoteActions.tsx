@@ -21,6 +21,7 @@ import { mcToastResultCard } from "~/lib/mc-toast";
 import { openExternal } from "~/lib/open-external";
 import { recordGitRemoteActionNotification } from "~/lib/session-notification-store";
 import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
+import { VOICE_SHIP_EVENT } from "~/lib/voice-events";
 import { Z_INDEX } from "~/lib/z-index";
 import {
   useGitCommit,
@@ -251,6 +252,14 @@ export function GitRemoteActions({
       );
     }
   }, [busyAction, onHandOffToAgent, prM]);
+
+  // "Ship it" — from voice control or the project.ship hotkey — means Commit &
+  // Push now that no agent session is involved.
+  useEffect(() => {
+    const onShipIntent = () => void runCommitAndPush();
+    window.addEventListener(VOICE_SHIP_EVENT, onShipIntent);
+    return () => window.removeEventListener(VOICE_SHIP_EVENT, onShipIntent);
+  }, [runCommitAndPush]);
 
   const updateMenuRect = useCallback(() => {
     const anchor = anchorRef.current;

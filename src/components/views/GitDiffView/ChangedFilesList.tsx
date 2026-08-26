@@ -10,9 +10,9 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { ContextMenuPopover } from "~/components/ui/ContextMenuPopover";
 import { DropdownMenuItem, DropdownMenuSeparator } from "~/components/ui/DropdownMenuItem";
+import { Btn } from "~/components/ui/Btn";
 import { Icon } from "~/components/ui/Icon";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
-import { CommitPushButton } from "~/components/views/CommitPushButton";
 import { useResizablePanel } from "~/lib/use-resizable-panel";
 import { api, type AppSettings } from "~/lib/api";
 import {
@@ -211,13 +211,16 @@ export function ChangedFilesList({
           count={staged.length}
           tone="staged"
           extra={
-            <CommitPushButton
-              label="Ship"
-              title="Open an AI session to push and sync with remote"
+            <Btn
               variant="primary"
-              enabled={enabled}
-              onShip={onShip}
-            />
+              icon="upload"
+              disabled={!enabled}
+              onClick={onShip}
+              title="Stage everything, commit with a generated message, then push"
+              style={{ fontFamily: "var(--mono)" }}
+            >
+              Commit &amp; Push
+            </Btn>
           }
         >
           {staged.length === 0 ? (

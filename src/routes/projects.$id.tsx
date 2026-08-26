@@ -96,9 +96,6 @@ import {
   peekPendingSessionModel,
   setPendingSessionModel,
 } from "~/lib/session-model-overrides";
-import { DEFAULT_SHIP_PROMPT } from "~/shared/ship-defaults";
-import { DEFAULT_SYNC_PROMPT } from "~/shared/sync-defaults";
-import { DEFAULT_PULL_REQUEST_PROMPT } from "~/shared/pull-request-defaults";
 import type { AiModelId } from "~/shared/ai-runtime-defaults";
 import {
   VOICE_NEW_AGENT_EVENT,
@@ -110,6 +107,7 @@ import {
   type VoiceNewAgentDetail,
   type VoiceRememberDetail,
   type VoiceRunScriptDetail,
+  dispatchVoiceShip,
 } from "~/lib/voice-events";
 import { MEMORY_TITLE_MAX } from "~/shared/project-memory";
 import { useTerminals } from "~/lib/terminal-store";
@@ -146,7 +144,6 @@ import { useWorktreesEnabled } from "~/lib/use-worktrees-enabled";
 import { useActiveGroup } from "~/lib/active-group";
 import { useGitStatus, useUpstreamFetchPoll } from "~/queries/git";
 import { GitDiffModal } from "~/components/views/GitDiffView/GitDiffModal";
-import { CommitPushButton } from "~/components/views/CommitPushButton";
 import { RecallModal } from "~/components/views/RecallModal";
 import { BranchTypeahead } from "~/components/views/BranchTypeahead";
 import { GitRemoteActions, type GitHandoffFailure } from "~/components/views/GitRemoteActions";
@@ -1849,119 +1846,8 @@ function ProjectPage() {
     ],
   );
 
-  // Ship: open an AI session that pushes/syncs with remote using Settings → Defaults → Ship.
-  const startShipSession = useCallback(() => {
-    if (!project || !projectPathReady) return;
-    if (activeRuntimeScopeId !== LOCAL_SCOPE_ID) {
-      toast.error("Ship isn't supported in sandbox sessions yet.");
-      return;
-    }
-    const payload = defaultSessionPayload(project);
-    const anchor = anchorSessionId();
-    if (anchor) terminals.requestCloneInsertAfter(anchor);
-    void createSession(
-      {
-        ...payload,
-        agent: settings?.shipAgent ?? "claude-code",
-        bareSession: false,
-      },
-      {
-        initialInput: settings?.shipPrompt ?? DEFAULT_SHIP_PROMPT,
-        focusOnCreate: true,
-        model: settings?.shipModel ?? null,
-      },
-    );
-  }, [
-    project,
-    projectPathReady,
-    activeRuntimeScopeId,
-    createSession,
-    settings?.shipAgent,
-    settings?.shipModel,
-    settings?.shipPrompt,
-    anchorSessionId,
-    terminals,
-  ]);
 
-  // Create PR: like Ship, but the injected prompt (Settings → Defaults →
-  // Create PR) has the agent commit/push local work, sync with upstream, then
-  // open a pull request in the browser.
-  const startCreatePullRequestSession = useCallback(() => {
-    if (!project || !projectPathReady) return;
-    if (activeRuntimeScopeId !== LOCAL_SCOPE_ID) {
-      toast.error("Create PR isn't supported in sandbox sessions yet.");
-      return;
-    }
-    const payload = defaultSessionPayload(project);
-    const anchor = anchorSessionId();
-    if (anchor) terminals.requestCloneInsertAfter(anchor);
-    void createSession(
-      {
-        ...payload,
-        agent: settings?.pullRequestAgent ?? "claude-code",
-        bareSession: false,
-      },
-      {
-        initialInput: settings?.pullRequestPrompt ?? DEFAULT_PULL_REQUEST_PROMPT,
-        focusOnCreate: true,
-        model: settings?.pullRequestModel ?? null,
-      },
-    );
-  }, [
-    project,
-    projectPathReady,
-    activeRuntimeScopeId,
-    createSession,
-    settings?.pullRequestAgent,
-    settings?.pullRequestModel,
-    settings?.pullRequestPrompt,
-    anchorSessionId,
-    terminals,
-  ]);
 
-  // Sync: open an AI session that pulls upstream changes into the current
-  // branch (stash/commit → pull → resolve conflicts → stash pop), driven by the
-  // prompt in Settings → Defaults → Sync. Mirrors startShipSession, plus a
-  // re-entry guard: unlike Ship, two concurrent sync sessions would each run
-  // `git stash`/`git stash pop` in the same worktree and can clobber each
-  // other's stash, so we block an accidental double-spawn while one is in flight.
-  const syncSpawnLockRef = useRef(false);
-  const startSyncSession = useCallback(() => {
-    if (syncSpawnLockRef.current) return;
-    if (!project || !projectPathReady) return;
-    if (activeRuntimeScopeId !== LOCAL_SCOPE_ID) {
-      toast.error("Sync isn't supported in sandbox sessions yet.");
-      return;
-    }
-    const payload = defaultSessionPayload(project);
-    const anchor = anchorSessionId();
-    if (anchor) terminals.requestCloneInsertAfter(anchor);
-    syncSpawnLockRef.current = true;
-    void createSession(
-      {
-        ...payload,
-        agent: settings?.syncAgent ?? "claude-code",
-        bareSession: false,
-      },
-      {
-        initialInput: settings?.syncPrompt ?? DEFAULT_SYNC_PROMPT,
-        focusOnCreate: true,
-        model: settings?.syncModel ?? null,
-      },
-    ).finally(() => {
-      syncSpawnLockRef.current = false;
-    });
-  }, [
-    project,
-    projectPathReady,
-    activeRuntimeScopeId,
-    createSession,
-    settings?.syncAgent,
-    settings?.syncModel,
-    settings?.syncPrompt,
-    anchorSessionId,
-    terminals,
-  ]);
 
   // Command bus: VoiceController (mounted at root) dispatches these for the
   // active project route to perform. Mirrors the project.runToggle hotkey.
@@ -2213,14 +2099,15 @@ function ProjectPage() {
     { capture: true },
   );
 
-  // Ship: open the commit/push/sync AI session. Capture phase mirrors git.diff so
-  // a focused session terminal can't swallow the chord first; startShipSession
-  // itself guards project/path-ready and the local-scope requirement.
+  // Commit & Push. Capture phase mirrors git.diff so a focused session terminal
+  // can't swallow the chord first. Dispatching the ship event (rather than
+  // calling git here) keeps one implementation in GitRemoteActions, shared with
+  // voice control and the menu item.
   useHotkey(
     "project.ship",
     () => {
       if (anyBlockingDialogOpen || !projectPathReady) return;
-      startShipSession();
+      dispatchVoiceShip();
     },
     { capture: true },
   );
@@ -2951,13 +2838,8 @@ function ProjectPage() {
           changedCount={gitStatus?.changedCount}
           onToggleDiffView={onToggleDiffView}
           shipDisabled={projectPathBlocked}
-          shipEnabled={projectPathUsable}
-          onShip={startShipSession}
-          onCreatePullRequest={startCreatePullRequestSession}
           remoteActions={gitRemoteActions}
           behindCount={gitStatus?.behindCount ?? null}
-          syncEnabled={projectPathUsable && activeRuntimeScopeId === LOCAL_SCOPE_ID}
-          onSync={startSyncSession}
           onCreateWorktree={() => void createProjectWorktree()}
           createWorktreeDisabled={creatingWorktree || projectPathBlocked || gitUnavailable}
           createWorktreeTitle={
@@ -3451,20 +3333,12 @@ function ProjectPage() {
                   minWidth: 0,
                 }}
               >
-                {gitRemoteActions}
                 <ProjectGitStatusButton
                   changedCount={gitStatus?.changedCount}
                   onClick={onToggleDiffView}
                   disabled={projectPathBlocked}
                 />
-                <CommitPushButton
-                  size="md"
-                  variant={gitStatus?.changedCount === 0 ? "gray-frame" : "primary"}
-                  splitTrailing
-                  enabled={projectPathUsable}
-                  onShip={startShipSession}
-                  onCreatePullRequest={startCreatePullRequestSession}
-                />
+                {gitRemoteActions}
               </div>
             )}
             {!showArchived && (
@@ -3709,7 +3583,7 @@ function ProjectPage() {
         projectPath={selectedWorktreePath || project.path}
         enabled={projectPathReady}
         onClose={closeDiffView}
-        onShip={startShipSession}
+        onShip={dispatchVoiceShip}
       />
 
       <CodexHooksNoticeDialog
@@ -4505,13 +4379,8 @@ function WorktreeToggleGroup({
   changedCount,
   onToggleDiffView,
   shipDisabled = false,
-  shipEnabled = true,
-  onShip,
-  onCreatePullRequest,
   remoteActions,
   behindCount = null,
-  syncEnabled = true,
-  onSync,
   onCreateWorktree,
   createWorktreeDisabled = false,
   createWorktreeTitle,
@@ -4531,16 +4400,10 @@ function WorktreeToggleGroup({
   changedCount?: number;
   onToggleDiffView: () => void;
   shipDisabled?: boolean;
-  shipEnabled?: boolean;
-  onShip: () => void;
-  /** Opens the Create PR AI session from the Ship split-button's dropdown. */
-  onCreatePullRequest?: () => void;
   /** Fetch/Pull/Push group; built by the route so both header surfaces share one instance. */
   remoteActions?: ReactNode;
   /** Commits the current branch is behind its upstream; > 0 reveals Sync. */
   behindCount?: number | null;
-  syncEnabled?: boolean;
-  onSync?: () => void;
   onCreateWorktree?: () => void;
   createWorktreeDisabled?: boolean;
   createWorktreeTitle?: string;
@@ -4567,29 +4430,22 @@ function WorktreeToggleGroup({
   // The action lives inside the branch dropdown now (with a ↓N badge on the
   // trigger) — no standalone Sync split-button.
   const syncBehindCount = selectedIsMain ? behindCount ?? 0 : 0;
-  // Un-fused: Changes (quiet, review diff) and Ship (bold primary) read as two
-  // distinct controls with hierarchy, not one welded segment.
+  // Un-fused: Changes (quiet, review the diff) and the git control (fetch and
+  // the rest) read as two distinct controls, not one welded segment.
   const shipControls = (
     <>
-      {remoteActions}
       <ProjectGitStatusButton
         changedCount={changedCount}
         onClick={onToggleDiffView}
         disabled={shipDisabled}
       />
-      <CommitPushButton
-        size="md"
-        variant={changedCount === 0 ? "gray-frame" : "primary"}
-        enabled={shipEnabled}
-        onShip={onShip}
-        onCreatePullRequest={onCreatePullRequest}
-      />
+      {remoteActions}
     </>
   );
   return (
     <div
       role="group"
-      aria-label="Worktree, branch, and ship controls"
+      aria-label="Worktree, branch, and git controls"
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -4648,8 +4504,6 @@ function WorktreeToggleGroup({
             worktreePath={selectedWorktree.path}
             selected={!selectedIsMain}
             behindCount={syncBehindCount}
-            syncEnabled={syncEnabled}
-            onSync={onSync}
             onCreateWorktree={onCreateWorktree}
             createWorktreeDisabled={createWorktreeDisabled}
             createWorktreeTitle={createWorktreeTitle}
