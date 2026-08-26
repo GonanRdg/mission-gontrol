@@ -18,10 +18,17 @@ import {
   type GitRemoteOutcome,
 } from "~/lib/git-remote-action-result";
 import { mcToastResultCard } from "~/lib/mc-toast";
+import { openExternal } from "~/lib/open-external";
 import { recordGitRemoteActionNotification } from "~/lib/session-notification-store";
 import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 import { Z_INDEX } from "~/lib/z-index";
-import { useGitCommit, useGitFetch, useGitPull, useGitPush } from "~/queries/git";
+import {
+  useGitCommit,
+  useGitCreatePullRequest,
+  useGitFetch,
+  useGitPull,
+  useGitPush,
+} from "~/queries/git";
 import type { CommitResult, PullMode } from "~/server/services/git";
 import { CommitMessageDialog } from "~/components/views/CommitMessageDialog";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
@@ -72,6 +79,7 @@ export function GitRemoteActions({
   const pullM = useGitPull(projectId, worktreeId);
   const pushM = useGitPush(projectId, worktreeId);
   const commitM = useGitCommit(projectId, worktreeId);
+  const prM = useGitCreatePullRequest(projectId, worktreeId);
 
   const [manualCommitReason, setManualCommitReason] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -195,6 +203,54 @@ export function GitRemoteActions({
     },
     [branch, busyAction, commitM, pushM, report],
   );
+
+  // Create PR goes straight through `gh` on the server; when gh isn't installed
+  // the server hands back a compare URL, which is still a useful outcome rather
+  // than an error.
+  const runCreatePullRequest = useCallback(async () => {
+    if (busyAction || prM.isPending) return;
+    try {
+      const result = await prM.mutateAsync();
+      if (result.kind === "gh-missing") {
+        openExternal(result.compareUrl);
+        mcToastResultCard(
+          {
+            tone: "success",
+            title: "Opened the compare page",
+            detail: `GitHub CLI (gh) isn't installed — open the PR from ${result.branch} into ${result.baseBranch} in the browser.`,
+          },
+          { duration: 6_000 },
+        );
+        return;
+      }
+      openExternal(result.url);
+      mcToastResultCard(
+        {
+          tone: "success",
+          title: result.kind === "created" ? "Pull request created" : "Pull request already open",
+          detail: result.url,
+        },
+        { duration: 5_000 },
+      );
+    } catch (e) {
+      const { message, stderr } = parseGitApiError(e);
+      const handOff = onHandOffToAgent;
+      mcToastResultCard(
+        {
+          tone: "error",
+          title: "Create pull request failed",
+          detail: stderr ? `${message}\n\n${stderr}` : message,
+          action: handOff
+            ? {
+                label: "Hand off to agent",
+                onClick: () => handOff({ action: "push", message }),
+              }
+            : undefined,
+        },
+        { duration: Infinity },
+      );
+    }
+  }, [busyAction, onHandOffToAgent, prM]);
 
   const updateMenuRect = useCallback(() => {
     const anchor = anchorRef.current;
@@ -358,6 +414,15 @@ export function GitRemoteActions({
               title="Push this branch to origin, setting upstream if it has none"
             >
               {pushState.tooltip.startsWith("Push —") ? pushState.tooltip : "Push"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              icon="github"
+              disabled={!enabled || prM.isPending}
+              onClick={runFromMenu(() => void runCreatePullRequest())}
+              title="Open a pull request for this branch with the GitHub CLI"
+            >
+              {prM.isPending ? "Opening pull request…" : "Create pull request"}
             </DropdownMenuItem>
             {onHandOffToAgent && (
               <>
