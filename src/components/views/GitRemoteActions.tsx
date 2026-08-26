@@ -200,7 +200,7 @@ export function GitRemoteActions({
           onClick={runFetch}
           disabled={fetchState.disabled}
           aria-label={fetchState.ariaLabel}
-          style={{ ...iconStyle, opacity: fetchState.disabled ? BUSY_OPACITY : 1 }}
+          style={iconStyle}
         />
       </Tooltip>
 
@@ -214,7 +214,7 @@ export function GitRemoteActions({
             onClick={() => void runPull("ff-only")}
             disabled={pullState.disabled}
             aria-label={pullState.ariaLabel}
-            style={{ ...iconStyle, opacity: pullState.disabled ? BUSY_OPACITY : 1 }}
+            style={iconStyle}
           />
         </Tooltip>
         <Btn
@@ -227,7 +227,7 @@ export function GitRemoteActions({
           aria-expanded={menuOpen}
           aria-label="More pull strategies"
           title="More pull strategies"
-          style={{ minWidth: 24, paddingInline: 0, opacity: pullState.disabled ? BUSY_OPACITY : 1 }}
+          style={{ minWidth: 24, paddingInline: 0 }}
         >
           <Icon
             name="chevron-down"
@@ -249,7 +249,7 @@ export function GitRemoteActions({
           onClick={runPush}
           disabled={pushState.disabled}
           aria-label={pushState.ariaLabel}
-          style={{ ...iconStyle, opacity: pushState.disabled ? BUSY_OPACITY : 1 }}
+          style={iconStyle}
         />
       </Tooltip>
 
@@ -298,10 +298,14 @@ export function GitRemoteActions({
   );
 }
 
-// A spinner can't go through `Btn`'s `icon` prop, and swapping to `children`
-// changes the button's intrinsic width mid-flight — which jitters the whole
-// header band. Busy reads as dimmed + disabled + a progress tooltip instead.
-const BUSY_OPACITY = 0.55;
+// Busy state is `disabled` + a progress tooltip, with the dimming left to
+// `.mc-btn:disabled`. Two things NOT to do here:
+//  - stack an inline opacity on top of it: the compounded alpha fades the
+//    painted border-image frame's outer pixels and the button reads as having
+//    physically shrunk.
+//  - swap the icon for a <Spinner>: `Btn`'s `icon` prop takes an IconName, so a
+//    spinner has to go in `children`, which changes intrinsic width mid-flight
+//    and jitters the whole header band.
 const MD_ICON_STYLE = { width: 40, minWidth: 40, paddingInline: 0 } as const;
 const SM_ICON_STYLE = { width: 34, minWidth: 34, paddingInline: 0 } as const;
 
