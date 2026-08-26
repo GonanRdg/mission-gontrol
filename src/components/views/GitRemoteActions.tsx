@@ -389,7 +389,7 @@ export function GitRemoteActions({
               onClick={runFromMenu(() => void runPull("ff-only"))}
               title="Fast-forward only — fails rather than creating a merge commit"
             >
-              {pullState.tooltip.startsWith("Pull —") ? pullState.tooltip : "Pull"}
+              <MenuRow label="Pull (fast-forward)" count={behindCount} prefix="↓" />
             </DropdownMenuItem>
             <DropdownMenuItem
               icon="refresh"
@@ -422,7 +422,7 @@ export function GitRemoteActions({
               onClick={runFromMenu(runPush)}
               title="Push this branch to origin, setting upstream if it has none"
             >
-              {pushState.tooltip.startsWith("Push —") ? pushState.tooltip : "Push"}
+              <MenuRow label="Push" count={aheadCount} prefix="↑" />
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -457,6 +457,43 @@ export function GitRemoteActions({
         onCommit={(message) => void runCommitAndPush(message)}
       />
     </div>
+  );
+}
+
+/**
+ * Menu row with the action name on the left and its pending-commit count on the
+ * right. The count is deliberately NOT part of the label: reading
+ * "Pull — 5 commits behind" as an item name makes the default fast-forward pull
+ * look like a fourth strategy rather than the plain one.
+ */
+function MenuRow({
+  label,
+  count,
+  prefix,
+}: {
+  label: string;
+  count?: number | null;
+  prefix: "↓" | "↑";
+}) {
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+      {(count ?? 0) > 0 && (
+        <span
+          style={{
+            marginLeft: "auto",
+            flexShrink: 0,
+            color: "var(--text-faint)",
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {prefix}
+          {count}
+        </span>
+      )}
+    </span>
   );
 }
 
