@@ -8,14 +8,21 @@
 // so nothing here branches on it — failures are message + stderr, shown as-is.
 
 import { ApiError } from "~/lib/api";
-import type { FetchResult, PullMode, PullResult, PushResult } from "~/server/services/git";
+import type {
+  CommitResult,
+  FetchResult,
+  PullMode,
+  PullResult,
+  PushResult,
+} from "~/server/services/git";
 
-export type GitRemoteAction = "fetch" | "pull" | "push";
+export type GitRemoteAction = "fetch" | "pull" | "push" | "commit";
 
 export type GitRemoteResultKind =
   | FetchResult["kind"]
   | PullResult["kind"]
   | PushResult["kind"]
+  | CommitResult["kind"]
   | "error";
 
 export type GitRemoteOutcome = {
@@ -47,18 +54,21 @@ const ACTION_LABEL: Record<GitRemoteAction, string> = {
   fetch: "Fetch",
   pull: "Pull",
   push: "Push",
+  commit: "Commit",
 };
 
 const BUSY_LABEL: Record<GitRemoteAction, string> = {
   fetch: "Fetching…",
   pull: "Pulling…",
   push: "Pushing…",
+  commit: "Committing…",
 };
 
 const ARIA_LABEL: Record<GitRemoteAction, string> = {
   fetch: "Fetch from origin",
   pull: "Pull from origin",
   push: "Push to origin",
+  commit: "Commit and push",
 };
 
 // Success toasts auto-dismiss; the shorter ones are "nothing happened" results
@@ -212,13 +222,68 @@ export function describeGitRemoteFailure(
 }
 
 /**
+ * Toast copy for Commit & Push, which is two calls the user asked for as one.
+ * Reported as a single outcome so a normal run is one toast, not two.
+ */
+export function describeCommitAndPushOutcome(
+  commit: CommitResult,
+  push: PushResult,
+  branch: string | null | undefined,
+): GitRemoteOutcome {
+  const label = branchLabel(branch);
+  if (commit.kind === "nothing-to-commit") {
+    // Nothing local to record, so the push result is the whole story.
+    return describeGitRemoteOutcome({ action: "push", result: push }, branch);
+  }
+  const shortSha = commit.sha.slice(0, 7);
+  const subject = commit.message.split("\n")[0]?.trim() || shortSha;
+  if (push.kind === "nothing-to-push") {
+    return {
+      action: "commit",
+      resultKind: "committed",
+      tone: "success",
+      title: `Committed ${shortSha}`,
+      detail: `${subject} — nothing to push.`,
+      durationMs: SUCCESS_MS,
+    };
+  }
+  return {
+    action: "commit",
+    resultKind: "committed",
+    tone: "success",
+    title: `Committed & pushed ${label}`,
+    detail: `${shortSha} ${subject}`,
+    durationMs: push.setUpstream ? UPSTREAM_SET_MS : SUCCESS_MS,
+  };
+}
+
+/**
+ * A push that failed *after* its commit landed: keep the sha visible so it's
+ * obvious the work is safe locally and only the push needs retrying.
+ */
+export function withCommittedPrefix(
+  outcome: GitRemoteOutcome,
+  commit: CommitResult,
+): GitRemoteOutcome {
+  if (commit.kind !== "committed") return outcome;
+  return {
+    ...outcome,
+    detail: `Committed ${commit.sha.slice(0, 7)} locally, but the push failed.\n\n${outcome.detail}`,
+  };
+}
+
+/**
  * Bell policy: every failure, plus the successes that actually moved commits.
  * "Nothing happened" outcomes (fetched refs, already-up-to-date, nothing to
  * push) still toast, but a scrollback of them is noise.
  */
 export function shouldRecordInBell(outcome: GitRemoteOutcome): boolean {
   if (outcome.tone === "error") return true;
-  return outcome.resultKind === "pulled" || outcome.resultKind === "pushed";
+  return (
+    outcome.resultKind === "pulled" ||
+    outcome.resultKind === "pushed" ||
+    outcome.resultKind === "committed"
+  );
 }
 
 export type GitRemoteButtonState = {

@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { Btn } from "~/components/ui/Btn";
 import { CardFrame } from "~/components/ui/CardFrame";
-import { Icon } from "~/components/ui/Icon";
+import { Icon, type IconName } from "~/components/ui/Icon";
 import {
   requestDiagramNotificationOpen,
   requestSessionNotificationOpen,
   type AppNotification,
+  type GitRemoteActionNotification,
 } from "~/lib/session-notification-store";
 import { useHideableMenu } from "~/lib/hideable-elements";
 import { useSettings } from "~/queries";
@@ -320,7 +321,7 @@ function NotificationRow({
           )}
           {isGit && (
             <Icon
-              name={notification.action === "push" ? "upload" : notification.action === "pull" ? "download" : "refresh"}
+              name={GIT_ACTION_ICON[notification.action]}
               size={12}
               style={{ color: accent, flexShrink: 0 }}
             />
@@ -390,6 +391,13 @@ function NotificationRow({
     </div>
   );
 }
+
+const GIT_ACTION_ICON: Record<GitRemoteActionNotification["action"], IconName> = {
+  fetch: "refresh",
+  pull: "download",
+  push: "upload",
+  commit: "check",
+};
 
 function notificationKey(notification: AppNotification) {
   if (notification.kind === "diagram-ready") {

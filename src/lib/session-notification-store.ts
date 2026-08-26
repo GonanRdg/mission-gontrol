@@ -36,7 +36,7 @@ export type GitRemoteActionNotification = {
   worktreeId: string | null;
   scopeId: string;
   projectName: string;
-  action: "fetch" | "pull" | "push";
+  action: "fetch" | "pull" | "push" | "commit";
   tone: "success" | "error";
   title: string;
   /** Full toast detail, including stderr. Rows clip it; the tooltip shows it all. */
@@ -167,7 +167,10 @@ function toGitRemoteActionNotification(
   const worktreeId = typeof value.worktreeId === "string" ? value.worktreeId : null;
   const projectName = typeof value.projectName === "string" ? value.projectName : "Project";
   const action =
-    value.action === "fetch" || value.action === "pull" || value.action === "push"
+    value.action === "fetch" ||
+    value.action === "pull" ||
+    value.action === "push" ||
+    value.action === "commit"
       ? value.action
       : null;
   const title = typeof value.title === "string" ? value.title : "";

@@ -7,10 +7,13 @@ import { Icon } from "~/components/ui/Icon";
 import { Tooltip } from "~/components/ui/Tooltip";
 import { gitHandoffFailureFromOutcome, type GitHandoffContext } from "~/lib/git-handoff-prompt";
 import {
+  describeCommitAndPushOutcome,
   describeGitRemoteFailure,
   describeGitRemoteOutcome,
   gitRemoteActionButtonState,
+  parseGitApiError,
   shouldRecordInBell,
+  withCommittedPrefix,
   type GitRemoteAction,
   type GitRemoteOutcome,
 } from "~/lib/git-remote-action-result";
@@ -18,8 +21,9 @@ import { mcToastResultCard } from "~/lib/mc-toast";
 import { recordGitRemoteActionNotification } from "~/lib/session-notification-store";
 import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 import { Z_INDEX } from "~/lib/z-index";
-import { useGitFetch, useGitPull, useGitPush } from "~/queries/git";
-import type { PullMode } from "~/server/services/git";
+import { useGitCommit, useGitFetch, useGitPull, useGitPush } from "~/queries/git";
+import type { CommitResult, PullMode } from "~/server/services/git";
+import { CommitMessageDialog } from "~/components/views/CommitMessageDialog";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
 
 export type GitHandoffFailure = NonNullable<GitHandoffContext["failure"]>;
@@ -67,7 +71,9 @@ export function GitRemoteActions({
   const fetchM = useGitFetch(projectId, worktreeId);
   const pullM = useGitPull(projectId, worktreeId);
   const pushM = useGitPush(projectId, worktreeId);
+  const commitM = useGitCommit(projectId, worktreeId);
 
+  const [manualCommitReason, setManualCommitReason] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   useSuspendAppDragRegion(menuOpen);
   const [menuRect, setMenuRect] = useState<{ top: number; right: number } | null>(null);
@@ -80,9 +86,11 @@ export function GitRemoteActions({
     ? "fetch"
     : pullM.isPending
       ? "pull"
-      : pushM.isPending
-        ? "push"
-        : null;
+      : commitM.isPending
+        ? "commit"
+        : pushM.isPending
+          ? "push"
+          : null;
 
   // Toast every outcome; keep the ones worth a scrollback in the bell, and give
   // failures a one-click route to an agent that starts from the actual error.
@@ -159,6 +167,35 @@ export function GitRemoteActions({
     }
   }, [branch, busyAction, pushM, report]);
 
+  // Commit & Push: the server stages everything and has the configured commit
+  // CLI write the message (one short call, not a session). `message` is only
+  // passed when the user typed one in the fallback dialog.
+  const runCommitAndPush = useCallback(
+    async (message?: string) => {
+      if (busyAction) return;
+      let commit: CommitResult;
+      try {
+        commit = await commitM.mutateAsync(message ? { message } : {});
+      } catch (e) {
+        const kind = parseGitApiError(e).kind;
+        if (!message && kind && MANUAL_MESSAGE_KINDS.has(kind)) {
+          setManualCommitReason(parseGitApiError(e).message);
+          return;
+        }
+        report(describeGitRemoteFailure("commit", e));
+        return;
+      }
+      setManualCommitReason(null);
+      try {
+        const push = await pushM.mutateAsync();
+        report(describeCommitAndPushOutcome(commit, push, branch));
+      } catch (e) {
+        report(withCommittedPrefix(describeGitRemoteFailure("push", e), commit));
+      }
+    },
+    [branch, busyAction, commitM, pushM, report],
+  );
+
   const updateMenuRect = useCallback(() => {
     const anchor = anchorRef.current;
     if (!anchor) return;
@@ -212,6 +249,7 @@ export function GitRemoteActions({
   const fetchState = stateFor("fetch");
   const pullState = stateFor("pull");
   const pushState = stateFor("push");
+  const commitState = stateFor("commit");
 
   const runFromMenu = (run: () => void) => () => {
     setMenuOpen(false);
@@ -306,6 +344,14 @@ export function GitRemoteActions({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
+              icon="check"
+              disabled={commitState.disabled}
+              onClick={runFromMenu(() => void runCommitAndPush())}
+              title="Stage everything, commit with a generated message, then push"
+            >
+              Commit &amp; Push
+            </DropdownMenuItem>
+            <DropdownMenuItem
               icon="upload"
               disabled={pushState.disabled}
               onClick={runFromMenu(runPush)}
@@ -328,6 +374,14 @@ export function GitRemoteActions({
           </CardFrame>,
           document.body,
         )}
+
+      <CommitMessageDialog
+        open={manualCommitReason !== null}
+        reason={manualCommitReason}
+        busy={busyAction === "commit"}
+        onClose={() => setManualCommitReason(null)}
+        onCommit={(message) => void runCommitAndPush(message)}
+      />
     </div>
   );
 }
@@ -336,7 +390,11 @@ const BUSY_LABEL: Record<GitRemoteAction, string> = {
   fetch: "Fetching…",
   pull: "Pulling…",
   push: "Pushing…",
+  commit: "Committing…",
 };
+
+/** Server error kinds that mean "the CLI couldn't write a message" — ask the user. */
+const MANUAL_MESSAGE_KINDS = new Set(["no-commit-cli", "commit-generation-failed"]);
 
 // Busy state is `disabled` + a progress label, with the dimming left to
 // `.mc-btn:disabled`. Two things NOT to do here:

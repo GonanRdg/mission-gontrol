@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "~/lib/api";
 import {
+  describeCommitAndPushOutcome,
   describeGitRemoteFailure,
   describeGitRemoteOutcome,
   gitRemoteActionButtonState,
   outputTail,
   parseGitApiError,
   shouldRecordInBell,
+  withCommittedPrefix,
 } from "~/lib/git-remote-action-result";
 
 const gitApiError = (error: string, stderr?: string) =>
@@ -303,5 +305,84 @@ describe("gitRemoteActionButtonState", () => {
       disabled: true,
       tooltip: "Pull unavailable",
     });
+  });
+});
+
+describe("describeCommitAndPushOutcome", () => {
+  const committed = { kind: "committed", sha: "abcdef1234567890", message: "fix(ui): tighten frame\n\nbody" } as const;
+
+  it("reports commit and push as one success", () => {
+    const outcome = describeCommitAndPushOutcome(
+      committed,
+      { kind: "pushed", setUpstream: false, output: "" },
+      "main",
+    );
+
+    expect(outcome).toMatchObject({
+      action: "commit",
+      resultKind: "committed",
+      tone: "success",
+      title: "Committed & pushed main",
+    });
+    expect(outcome.detail).toBe("abcdef1 fix(ui): tighten frame");
+  });
+
+  it("says so when the commit landed but there was nothing to push", () => {
+    const outcome = describeCommitAndPushOutcome(
+      committed,
+      { kind: "nothing-to-push" },
+      "main",
+    );
+
+    expect(outcome.title).toBe("Committed abcdef1");
+    expect(outcome.detail).toContain("nothing to push");
+  });
+
+  it("falls through to the push result when there was nothing to commit", () => {
+    const outcome = describeCommitAndPushOutcome(
+      { kind: "nothing-to-commit" },
+      { kind: "pushed", setUpstream: true, output: "" },
+      "feature",
+    );
+
+    expect(outcome.action).toBe("push");
+    expect(outcome.title).toBe("Pushed feature — upstream set");
+  });
+
+  it("records a commit in the bell", () => {
+    expect(
+      shouldRecordInBell(
+        describeCommitAndPushOutcome(committed, { kind: "nothing-to-push" }, "main"),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("withCommittedPrefix", () => {
+  it("keeps the sha visible when the push fails after a commit", () => {
+    const failure = describeGitRemoteFailure("push", gitApiError("push rejected", "non-fast-forward"));
+    const prefixed = withCommittedPrefix(failure, {
+      kind: "committed",
+      sha: "1234567890",
+      message: "wip",
+    });
+
+    expect(prefixed.detail).toContain("Committed 1234567 locally");
+    expect(prefixed.detail).toContain("push rejected");
+    expect(prefixed.durationMs).toBeNull();
+  });
+
+  it("leaves a nothing-to-commit result alone", () => {
+    const failure = describeGitRemoteFailure("push", gitApiError("boom"));
+
+    expect(withCommittedPrefix(failure, { kind: "nothing-to-commit" })).toEqual(failure);
+  });
+});
+
+describe("gitRemoteActionButtonState for commit", () => {
+  it("labels the busy commit and its aria", () => {
+    expect(
+      gitRemoteActionButtonState({ action: "commit", busyAction: "commit", enabled: true }),
+    ).toEqual({ disabled: true, tooltip: "Committing…", ariaLabel: "Commit and push" });
   });
 });
