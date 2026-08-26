@@ -43,6 +43,7 @@ import { emptyVoiceCommandAliases } from "~/shared/voice-command-aliases";
 import { normalizeSessionHeaderButtonVisibility } from "~/shared/session-header-buttons";
 import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
 import { DEFAULT_SHIP_PROMPT } from "~/shared/ship-defaults";
+import { DEFAULT_GIT_HANDOFF_PROMPT } from "~/shared/git-handoff-defaults";
 import { DEFAULT_SYNC_PROMPT } from "~/shared/sync-defaults";
 import { DEFAULT_PULL_REQUEST_PROMPT } from "~/shared/pull-request-defaults";
 
@@ -145,6 +146,7 @@ export function GeneralSettingsPage() {
     shipAgent: settings?.shipAgent ?? "claude-code",
     shipModel: settings?.shipModel ?? null,
     shipPrompt: settings?.shipPrompt ?? DEFAULT_SHIP_PROMPT,
+    gitHandoffPrompt: settings?.gitHandoffPrompt ?? DEFAULT_GIT_HANDOFF_PROMPT,
     syncAgent: settings?.syncAgent ?? "claude-code",
     syncModel: settings?.syncModel ?? null,
     syncPrompt: settings?.syncPrompt ?? DEFAULT_SYNC_PROMPT,

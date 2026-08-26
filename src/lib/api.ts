@@ -188,6 +188,13 @@ export type AppSettings = {
   shipModel: AiModelId | null;
   shipPrompt: string;
   /**
+   * Instruction used when a git action is handed off to an agent — the only
+   * remaining AI path for git work. Fetch/pull/push/commit run as plain git;
+   * this covers what git dead-ends on (conflicts, rejected push). Mission
+   * Control appends the failing command and its stderr after it.
+   */
+  gitHandoffPrompt: string;
+  /**
    * Harness/model/prompt for the branch Sync split-button, which opens an AI
    * session to pull upstream changes into the current branch (stash/commit,
    * conflict resolution, stash-pop). Mirrors the Ship trio.

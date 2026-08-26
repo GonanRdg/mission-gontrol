@@ -98,6 +98,10 @@ import {
 import { readRecallSettings, writeRecallSettings } from "../services/recall-settings";
 import { DEFAULT_SHIP_PROMPT, normalizeShipPrompt } from "~/shared/ship-defaults";
 import {
+  DEFAULT_GIT_HANDOFF_PROMPT,
+  normalizeGitHandoffPrompt,
+} from "~/shared/git-handoff-defaults";
+import {
   DEFAULT_PET_HOME_SIDE,
   isPetHomeSide,
   mergePetStateWrite,
@@ -121,6 +125,7 @@ const ANNOTATION_MODEL_SETTING_KEY = "annotation_model";
 const SHIP_AGENT_SETTING_KEY = "ship_agent";
 const SHIP_MODEL_SETTING_KEY = "ship_model";
 const SHIP_PROMPT_SETTING_KEY = "ship_prompt";
+const GIT_HANDOFF_PROMPT_SETTING_KEY = "git_handoff_prompt";
 const SYNC_AGENT_SETTING_KEY = "sync_agent";
 const SYNC_MODEL_SETTING_KEY = "sync_model";
 const SYNC_PROMPT_SETTING_KEY = "sync_prompt";
@@ -289,6 +294,7 @@ const updateSettingsBody = z
     shipAgent: z.enum(AI_RUNTIME_HARNESS_VALUES),
     shipModel: aiModelBody,
     shipPrompt: z.string().transform((value) => normalizeShipPrompt(value)),
+    gitHandoffPrompt: z.string().transform((value) => normalizeGitHandoffPrompt(value)),
     syncAgent: z.enum(AI_RUNTIME_HARNESS_VALUES),
     syncModel: aiModelBody,
     syncPrompt: z.string().transform((value) => normalizeSyncPrompt(value)),
@@ -393,6 +399,11 @@ function getShipModelSetting(): AiModelId | null {
 function getShipPromptSetting(): string {
   const value = getSetting(SHIP_PROMPT_SETTING_KEY);
   return value === null ? DEFAULT_SHIP_PROMPT : normalizeShipPrompt(value);
+}
+
+function getGitHandoffPromptSetting(): string {
+  const value = getSetting(GIT_HANDOFF_PROMPT_SETTING_KEY);
+  return value === null ? DEFAULT_GIT_HANDOFF_PROMPT : normalizeGitHandoffPrompt(value);
 }
 
 function getSyncAgentSetting(): AiRuntimeHarness {
@@ -604,6 +615,7 @@ function settingsPayload() {
     shipAgent: getShipAgentSetting(),
     shipModel: getShipModelSetting(),
     shipPrompt: getShipPromptSetting(),
+    gitHandoffPrompt: getGitHandoffPromptSetting(),
     syncAgent: getSyncAgentSetting(),
     syncModel: getSyncModelSetting(),
     syncPrompt: getSyncPromptSetting(),
@@ -871,6 +883,9 @@ export async function update(request: Request): Promise<Response> {
   }
   if (body.shipPrompt !== undefined) {
     setSetting(SHIP_PROMPT_SETTING_KEY, body.shipPrompt);
+  }
+  if (body.gitHandoffPrompt !== undefined) {
+    setSetting(GIT_HANDOFF_PROMPT_SETTING_KEY, body.gitHandoffPrompt);
   }
   if (body.syncAgent !== undefined) {
     setSetting(SYNC_AGENT_SETTING_KEY, body.syncAgent);
