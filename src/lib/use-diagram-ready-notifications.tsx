@@ -5,10 +5,11 @@ import {
   getDiagramReadyNotificationsSnapshot,
   loadAppNotifications,
   mergeDiagramReadyNotification,
+  notificationTimestamp,
   publishAppNotifications,
   subscribeAppNotifications,
+  type AppNotification,
   type DiagramReadyNotification,
-  type SessionFinishNotification,
 } from "~/lib/session-notification-store";
 
 // Stable reference so getServerSnapshot returns the same value every call —
@@ -61,13 +62,11 @@ export function persistDiagramReadyServerEvent(event: ServerEvent): boolean {
   return true;
 }
 
+/** Newest-first merge of the per-kind lists the bell renders. */
 export function mergeAppNotificationLists(
-  sessionNotifications: SessionFinishNotification[],
-  diagramNotifications: DiagramReadyNotification[],
-) {
-  return [...sessionNotifications, ...diagramNotifications].sort((a, b) => {
-    const aTime = a.kind === "session-finished" ? a.finishedAt : a.createdAt;
-    const bTime = b.kind === "session-finished" ? b.finishedAt : b.createdAt;
-    return bTime - aTime;
-  });
+  ...lists: AppNotification[][]
+): AppNotification[] {
+  return lists
+    .flat()
+    .sort((a, b) => notificationTimestamp(b) - notificationTimestamp(a));
 }

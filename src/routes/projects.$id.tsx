@@ -2831,6 +2831,8 @@ function ProjectPage() {
     <GitRemoteActions
       projectId={project.id}
       worktreeId={selectedWorktreeId}
+      scopeId={activeRuntimeScopeId}
+      projectName={project.name}
       branch={gitStatus?.branch ?? null}
       aheadCount={gitStatus?.aheadCount ?? null}
       behindCount={gitStatus?.behindCount ?? null}

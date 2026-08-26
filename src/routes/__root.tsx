@@ -108,6 +108,7 @@ import {
   mergeAppNotificationLists,
   useDiagramReadyNotificationList,
 } from "~/lib/use-diagram-ready-notifications";
+import { useGitRemoteActionNotificationList } from "~/lib/use-git-remote-action-notifications";
 import {
   clearAppNotification,
   clearAppNotifications,
@@ -438,13 +439,19 @@ function Shell() {
   useNavigationSwipe();
   const sessionNotifications = useSessionFinishNotifications();
   const diagramNotificationList = useDiagramReadyNotificationList();
+  const gitRemoteActionNotificationList = useGitRemoteActionNotificationList();
   const appNotifications = useMemo(
     () =>
       mergeAppNotificationLists(
         sessionNotifications.notifications,
         diagramNotificationList,
+        gitRemoteActionNotificationList,
       ),
-    [sessionNotifications.notifications, diagramNotificationList],
+    [
+      sessionNotifications.notifications,
+      diagramNotificationList,
+      gitRemoteActionNotificationList,
+    ],
   );
   const clearAppNotificationItem = useCallback((notification: AppNotification) => {
     clearAppNotification(notification);

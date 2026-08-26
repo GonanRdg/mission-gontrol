@@ -12,11 +12,14 @@ import {
   type GitRemoteAction,
   type GitRemoteOutcome,
 } from "~/lib/git-remote-action-result";
+import { shouldRecordInBell } from "~/lib/git-remote-action-result";
 import { mcToastResultCard } from "~/lib/mc-toast";
+import { recordGitRemoteActionNotification } from "~/lib/session-notification-store";
 import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 import { Z_INDEX } from "~/lib/z-index";
 import { useGitFetch, useGitPull, useGitPush } from "~/queries/git";
 import type { PullMode } from "~/server/services/git";
+import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
 
 /**
  * Fetch / Pull ▾ / Push against the selected project + worktree.
@@ -28,6 +31,8 @@ import type { PullMode } from "~/server/services/git";
 export function GitRemoteActions({
   projectId,
   worktreeId,
+  scopeId,
+  projectName,
   branch,
   aheadCount,
   behindCount,
@@ -38,6 +43,8 @@ export function GitRemoteActions({
   projectId: string;
   /** Already normalized: `null` for the main worktree. */
   worktreeId: string | null;
+  scopeId: string;
+  projectName: string;
   branch: string | null | undefined;
   aheadCount?: number | null;
   behindCount?: number | null;
@@ -66,15 +73,38 @@ export function GitRemoteActions({
         ? "push"
         : null;
 
+  // Toast every outcome; keep the ones worth a scrollback in the bell, so a
+  // failure survives being looked away from.
+  const report = useCallback(
+    (outcome: GitRemoteOutcome) => {
+      showOutcome(outcome);
+      if (!shouldRecordInBell(outcome)) return;
+      const at = Date.now();
+      recordGitRemoteActionNotification({
+        id: `${projectId}:${worktreeId ?? MAIN_WORKTREE_ID}:${outcome.action}:${at}`,
+        projectId,
+        worktreeId,
+        scopeId,
+        projectName,
+        action: outcome.action,
+        tone: outcome.tone,
+        title: outcome.title,
+        detail: outcome.detail,
+        createdAt: at,
+      });
+    },
+    [projectId, projectName, scopeId, worktreeId],
+  );
+
   const runFetch = useCallback(async () => {
     if (busyAction) return;
     try {
       const result = await fetchM.mutateAsync();
-      showOutcome(describeGitRemoteOutcome({ action: "fetch", result }, branch));
+      report(describeGitRemoteOutcome({ action: "fetch", result }, branch));
     } catch (e) {
-      showOutcome(describeGitRemoteFailure("fetch", e));
+      report(describeGitRemoteFailure("fetch", e));
     }
-  }, [branch, busyAction, fetchM]);
+  }, [branch, busyAction, fetchM, report]);
 
   const runPull = useCallback(
     async (mode: PullMode) => {
@@ -83,23 +113,23 @@ export function GitRemoteActions({
         // Pass the mode explicitly even for the default so the call site never
         // lies about which strategy was requested.
         const result = await pullM.mutateAsync(mode);
-        showOutcome(describeGitRemoteOutcome({ action: "pull", mode, result }, branch));
+        report(describeGitRemoteOutcome({ action: "pull", mode, result }, branch));
       } catch (e) {
-        showOutcome(describeGitRemoteFailure("pull", e, { mode }));
+        report(describeGitRemoteFailure("pull", e, { mode }));
       }
     },
-    [branch, busyAction, pullM],
+    [branch, busyAction, pullM, report],
   );
 
   const runPush = useCallback(async () => {
     if (busyAction) return;
     try {
       const result = await pushM.mutateAsync();
-      showOutcome(describeGitRemoteOutcome({ action: "push", result }, branch));
+      report(describeGitRemoteOutcome({ action: "push", result }, branch));
     } catch (e) {
-      showOutcome(describeGitRemoteFailure("push", e));
+      report(describeGitRemoteFailure("push", e));
     }
-  }, [branch, busyAction, pushM]);
+  }, [branch, busyAction, pushM, report]);
 
   const updateMenuRect = useCallback(() => {
     const anchor = anchorRef.current;

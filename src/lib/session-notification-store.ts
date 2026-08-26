@@ -24,13 +24,38 @@ export type DiagramReadyNotification = {
   createdAt: number;
 };
 
-export type AppNotification = SessionFinishNotification | DiagramReadyNotification;
+/**
+ * A git fetch/pull/push run from the project header. Unlike the other kinds
+ * this one is written by the renderer itself rather than by a server event, so
+ * a sticky toast is not the only record of what git said.
+ */
+export type GitRemoteActionNotification = {
+  kind: "git-remote-action";
+  id: string;
+  projectId: string;
+  worktreeId: string | null;
+  scopeId: string;
+  projectName: string;
+  action: "fetch" | "pull" | "push";
+  tone: "success" | "error";
+  title: string;
+  /** Full toast detail, including stderr. Rows clip it; the tooltip shows it all. */
+  detail: string;
+  createdAt: number;
+};
+
+export type AppNotification =
+  | SessionFinishNotification
+  | DiagramReadyNotification
+  | GitRemoteActionNotification;
 
 export type SessionNotificationPruneTarget =
   | { type: "task"; taskId: string; projectId?: string }
   | { type: "diagram"; diagramId: string; projectId: string }
   | { type: "project"; projectId: string }
-  | { type: "worktree"; projectId: string; worktreeId: string | null };
+  | { type: "worktree"; projectId: string; worktreeId: string | null }
+  // Entries with no task/diagram behind them are cleared by their own id.
+  | { type: "notification-id"; id: string };
 
 export type PendingNotificationOpen = {
   kind: "session-finished" | "diagram-ready";
@@ -72,10 +97,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function notificationTimestamp(notification: AppNotification): number {
-  return notification.kind === "session-finished"
-    ? notification.finishedAt
-    : notification.createdAt;
+export function notificationTimestamp(notification: AppNotification): number {
+  switch (notification.kind) {
+    case "session-finished":
+      return notification.finishedAt;
+    case "diagram-ready":
+    case "git-remote-action":
+      return notification.createdAt;
+  }
 }
 
 function toSessionFinishNotification(
@@ -129,9 +158,44 @@ function toDiagramReadyNotification(
   };
 }
 
+function toGitRemoteActionNotification(
+  value: Record<string, unknown>,
+): GitRemoteActionNotification | null {
+  const id = typeof value.id === "string" ? value.id : "";
+  const projectId = typeof value.projectId === "string" ? value.projectId : "";
+  if (!("worktreeId" in value)) return null;
+  const worktreeId = typeof value.worktreeId === "string" ? value.worktreeId : null;
+  const projectName = typeof value.projectName === "string" ? value.projectName : "Project";
+  const action =
+    value.action === "fetch" || value.action === "pull" || value.action === "push"
+      ? value.action
+      : null;
+  const title = typeof value.title === "string" ? value.title : "";
+  const detail = typeof value.detail === "string" ? value.detail : "";
+  const createdAt = typeof value.createdAt === "number" ? value.createdAt : 0;
+  if (!id || !projectId || !action || !title || !Number.isFinite(createdAt)) return null;
+  return {
+    kind: "git-remote-action",
+    id,
+    projectId,
+    worktreeId,
+    scopeId: parseStoredScopeId(value),
+    projectName,
+    action,
+    tone: value.tone === "error" ? "error" : "success",
+    title,
+    detail,
+    createdAt,
+  };
+}
+
+// Unknown kinds fall through to the session parser, so every kind added to
+// AppNotification needs a branch here or its stored rows are coerced into
+// session-finished entries on the next load.
 function toNotification(value: unknown): AppNotification | null {
   if (!isRecord(value)) return null;
   if (value.kind === "diagram-ready") return toDiagramReadyNotification(value);
+  if (value.kind === "git-remote-action") return toGitRemoteActionNotification(value);
   return toSessionFinishNotification(value);
 }
 
@@ -239,9 +303,51 @@ function syncDiagramReadySnapshot(source?: AppNotification[]) {
   }
 }
 
+const EMPTY_GIT_REMOTE_ACTION_NOTIFICATIONS: GitRemoteActionNotification[] = [];
+
+let gitRemoteActionSnapshot: GitRemoteActionNotification[] =
+  EMPTY_GIT_REMOTE_ACTION_NOTIFICATIONS;
+
+function gitRemoteActionNotificationsEqual(
+  left: GitRemoteActionNotification[],
+  right: GitRemoteActionNotification[],
+): boolean {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    const a = left[index]!;
+    const b = right[index]!;
+    if (a.id !== b.id || a.projectId !== b.projectId || a.createdAt !== b.createdAt) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function extractGitRemoteActionNotifications(
+  notifications: AppNotification[],
+): GitRemoteActionNotification[] {
+  const next = notifications.filter(
+    (notification): notification is GitRemoteActionNotification =>
+      notification.kind === "git-remote-action",
+  );
+  return next.length === 0 ? EMPTY_GIT_REMOTE_ACTION_NOTIFICATIONS : next;
+}
+
+function syncGitRemoteActionSnapshot(source?: AppNotification[]) {
+  const next = extractGitRemoteActionNotifications(source ?? loadAppNotifications());
+  if (!gitRemoteActionNotificationsEqual(gitRemoteActionSnapshot, next)) {
+    gitRemoteActionSnapshot = next;
+  }
+}
+
+export function getGitRemoteActionNotificationsSnapshot(): GitRemoteActionNotification[] {
+  return gitRemoteActionSnapshot;
+}
+
 export function publishAppNotifications(notifications: AppNotification[]) {
   saveAppNotifications(notifications);
   syncDiagramReadySnapshot(notifications);
+  syncGitRemoteActionSnapshot(notifications);
   dispatchSessionNotificationsChanged(notifications);
 }
 
@@ -249,6 +355,7 @@ export function subscribeAppNotifications(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
   const onChanged = () => {
     syncDiagramReadySnapshot();
+    syncGitRemoteActionSnapshot();
     onStoreChange();
   };
   const onStorage = (event: StorageEvent) => {
@@ -325,17 +432,63 @@ export function mergeDiagramReadyNotification(
   ]);
 }
 
+// Git entries share the global 200-entry budget with sessions and diagrams, so
+// they get their own cap — clicking Fetch repeatedly can't evict session rows.
+const MAX_GIT_REMOTE_ACTION_NOTIFICATIONS = 20;
+
+export function mergeGitRemoteActionNotification(
+  current: AppNotification[],
+  next: GitRemoteActionNotification,
+): AppNotification[] {
+  const others = current.filter(
+    (n) => !(n.kind === "git-remote-action" && n.id === next.id),
+  );
+  const git = [
+    next,
+    ...others.filter(
+      (n): n is GitRemoteActionNotification => n.kind === "git-remote-action",
+    ),
+  ]
+    .sort((a, b) => notificationTimestamp(b) - notificationTimestamp(a))
+    .slice(0, MAX_GIT_REMOTE_ACTION_NOTIFICATIONS);
+  return sortNotifications([
+    ...git,
+    ...others.filter((n) => n.kind !== "git-remote-action"),
+  ]);
+}
+
+/**
+ * Append a git fetch/pull/push outcome and publish. The renderer calls this
+ * directly — it is the store's only non-server-event producer.
+ */
+export function recordGitRemoteActionNotification(
+  entry: Omit<GitRemoteActionNotification, "kind">,
+): AppNotification[] {
+  const next = mergeGitRemoteActionNotification(loadAppNotifications(), {
+    kind: "git-remote-action",
+    ...entry,
+  });
+  publishAppNotifications(next);
+  return next;
+}
+
 function notificationMatchesPruneTarget(
   notification: AppNotification,
   target: SessionNotificationPruneTarget,
 ): boolean {
+  if (target.type === "notification-id") {
+    // diagram-ready rows are keyed by diagramId, not id.
+    return notification.kind !== "diagram-ready" && notification.id === target.id;
+  }
   if (target.type === "task") {
+    // Git entries have no task behind them — a task going away must not clear
+    // the record of a pull that failed while it was running.
+    if (notification.kind === "git-remote-action") return false;
     const taskId =
       notification.kind === "session-finished"
         ? notification.id
         : notification.taskId;
     return (
-      (notification.kind === "session-finished" || notification.kind === "diagram-ready") &&
       taskId === target.taskId &&
       (!target.projectId || notification.projectId === target.projectId)
     );
@@ -383,6 +536,9 @@ function notificationPruneTarget(
       diagramId: notification.diagramId,
       projectId: notification.projectId,
     };
+  }
+  if (notification.kind === "git-remote-action") {
+    return { type: "notification-id", id: notification.id };
   }
   return {
     type: "task",

@@ -65,9 +65,10 @@ export function SessionNotificationsButton({
   const openNotification = (notification: AppNotification) => {
     if (notification.kind === "session-finished") {
       requestSessionNotificationOpen(notification);
-    } else {
+    } else if (notification.kind === "diagram-ready") {
       requestDiagramNotificationOpen(notification);
     }
+    // git-remote-action rows have no Open button — nothing to navigate to.
     setOpen(false);
     void router.navigate({
       to: "/projects/$id",
@@ -237,7 +238,7 @@ export function SessionNotificationsButton({
                   textAlign: "center",
                 }}
               >
-                Finished sessions and ready diagrams will appear here.
+                Finished sessions, ready diagrams, and git actions will appear here.
               </div>
             )}
           </div>
@@ -258,16 +259,27 @@ function NotificationRow({
   onClear: () => void;
 }) {
   const isDiagram = notification.kind === "diagram-ready";
-  const headline = isDiagram
-    ? `Diagram ready — ${notification.projectName}`
-    : `Session finished — ${notification.projectName}`;
-  const subtitle = isDiagram
-    ? notification.diagramTitle?.trim() || notification.taskTitle
-    : notification.taskTitle;
-  const timestamp = isDiagram ? notification.createdAt : notification.finishedAt;
-  const openLabel = isDiagram
-    ? `Open diagram ${subtitle}`
-    : `Open ${subtitle}`;
+  const isGit = notification.kind === "git-remote-action";
+  const headline = isGit
+    ? `${notification.title} — ${notification.projectName}`
+    : isDiagram
+      ? `Diagram ready — ${notification.projectName}`
+      : `Session finished — ${notification.projectName}`;
+  // Rows are single-line clipped, so a git entry's stderr only fits in the
+  // native tooltip — the sticky toast is where it is meant to be read.
+  const subtitle = isGit
+    ? notification.detail.split("\n").find((line) => line.trim()) ?? ""
+    : isDiagram
+      ? notification.diagramTitle?.trim() || notification.taskTitle
+      : notification.taskTitle;
+  const detailTitle = isGit ? notification.detail || headline : subtitle;
+  const timestamp = isGit || isDiagram ? notification.createdAt : notification.finishedAt;
+  const openLabel = isDiagram ? `Open diagram ${subtitle}` : `Open ${subtitle}`;
+  const isGitFailure = isGit && notification.tone === "error";
+  const clearLabel = subtitle.trim() || headline;
+  const accent = isGitFailure
+    ? "color-mix(in srgb, var(--status-failed) 82%, white)"
+    : "color-mix(in srgb, var(--accent) 76%, white)";
 
   return (
     <div
@@ -280,9 +292,11 @@ function NotificationRow({
         padding: "10px 8px",
         border: "1px solid var(--border)",
         borderRadius: 8,
-        background: isDiagram
-          ? "color-mix(in srgb, var(--accent) 6%, rgba(255,255,255,0.03))"
-          : "rgba(255,255,255,0.03)",
+        background: isGitFailure
+          ? "color-mix(in srgb, var(--status-failed) 8%, rgba(255,255,255,0.03))"
+          : isDiagram
+            ? "color-mix(in srgb, var(--accent) 6%, rgba(255,255,255,0.03))"
+            : "rgba(255,255,255,0.03)",
       }}
     >
       <div style={{ minWidth: 0 }}>
@@ -304,9 +318,16 @@ function NotificationRow({
               }}
             />
           )}
+          {isGit && (
+            <Icon
+              name={notification.action === "push" ? "upload" : notification.action === "pull" ? "download" : "refresh"}
+              size={12}
+              style={{ color: accent, flexShrink: 0 }}
+            />
+          )}
           <div
             style={{
-              color: "color-mix(in srgb, var(--accent) 76%, white)",
+              color: accent,
               fontSize: 12,
               fontWeight: 700,
               whiteSpace: "nowrap",
@@ -327,7 +348,7 @@ function NotificationRow({
             overflow: "hidden",
             textOverflow: "ellipsis",
           }}
-          title={subtitle}
+          title={detailTitle}
         >
           {subtitle}
         </div>
@@ -342,23 +363,28 @@ function NotificationRow({
           {formatTimestamp(timestamp)}
         </div>
       </div>
-      <Btn
-        type="button"
-        variant="primary"
-        size="sm"
-        onClick={onOpen}
-        aria-label={openLabel}
-      >
-        Open
-      </Btn>
+      {isGit ? (
+        // Nothing to open: a git action has no session or diagram behind it.
+        <span />
+      ) : (
+        <Btn
+          type="button"
+          variant="primary"
+          size="sm"
+          onClick={onOpen}
+          aria-label={openLabel}
+        >
+          Open
+        </Btn>
+      )}
       <Btn
         type="button"
         variant="ghost"
         size="sm"
         icon="x"
         onClick={onClear}
-        aria-label={`Clear ${subtitle}`}
-        title={`Clear ${subtitle}`}
+        aria-label={`Clear ${clearLabel}`}
+        title={`Clear ${clearLabel}`}
         style={{ width: 28, padding: 0 }}
       />
     </div>
@@ -368,6 +394,9 @@ function NotificationRow({
 function notificationKey(notification: AppNotification) {
   if (notification.kind === "diagram-ready") {
     return `diagram:${notification.projectId}:${notification.diagramId}`;
+  }
+  if (notification.kind === "git-remote-action") {
+    return `git:${notification.projectId}:${notification.id}`;
   }
   return `session:${notification.projectId}:${notification.id}`;
 }
