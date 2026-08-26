@@ -7,6 +7,7 @@ import { Field, SettingsSection } from "~/components/views/SettingsParts";
 import { ApiError, api, type AppSettings } from "~/lib/api";
 import { syncDefaultRuntimeDefaults } from "~/lib/default-model-store";
 import { queryKeys, useSettings } from "~/queries";
+import { DEFAULT_GIT_HANDOFF_PROMPT } from "~/shared/git-handoff-defaults";
 import {
   COMMIT_CLI_DESCRIPTION,
   COMMIT_CLI_LABEL,
@@ -25,11 +26,8 @@ import {
   type AiRuntimeHarness,
   type AiRuntimeModelsResponse,
 } from "~/shared/ai-runtime-defaults";
-import { DEFAULT_SHIP_PROMPT } from "~/shared/ship-defaults";
-import { DEFAULT_SYNC_PROMPT } from "~/shared/sync-defaults";
-import { DEFAULT_PULL_REQUEST_PROMPT } from "~/shared/pull-request-defaults";
 
-type DefaultsFeatureId = "commit" | "voice" | "markdown" | "ship" | "sync" | "pull-request";
+type DefaultsFeatureId = "commit" | "voice" | "markdown" | "git-handoff";
 
 const DEFAULTS_FEATURES: Array<{
   id: DefaultsFeatureId;
@@ -52,19 +50,11 @@ const DEFAULTS_FEATURES: Array<{
     description: "Harness and model for annotation rewrites.",
   },
   {
-    id: "ship",
-    label: "Ship",
-    description: "Harness, model, and prompt for the Ship button.",
-  },
-  {
-    id: "sync",
-    label: "Sync",
-    description: "Harness, model, and prompt for the branch Sync button.",
-  },
-  {
-    id: "pull-request",
-    label: "Create PR",
-    description: "Harness, model, and prompt for the Ship → Create PR action.",
+    id: "git-handoff",
+    label: "Git handoff",
+    // Ship/Sync/Create-PR used to live here, each spawning an agent session for
+    // work plain git does. Their stored prompts are left untouched in the DB.
+    description: "Prompt used when a git action is handed to an agent.",
   },
 ];
 
@@ -76,16 +66,8 @@ export function DefaultsSettingsPage() {
   const currentModel = settings?.defaultModel ?? null;
   const currentAnnotationAgent = settings?.annotationAgent ?? "claude-code";
   const currentAnnotationModel = settings?.annotationModel ?? null;
-  const currentShipAgent = settings?.shipAgent ?? "claude-code";
-  const currentShipModel = settings?.shipModel ?? null;
-  const currentShipPrompt = settings?.shipPrompt ?? DEFAULT_SHIP_PROMPT;
-  const currentSyncAgent = settings?.syncAgent ?? "claude-code";
-  const currentSyncModel = settings?.syncModel ?? null;
-  const currentSyncPrompt = settings?.syncPrompt ?? DEFAULT_SYNC_PROMPT;
-  const currentPullRequestAgent = settings?.pullRequestAgent ?? "claude-code";
-  const currentPullRequestModel = settings?.pullRequestModel ?? null;
-  const currentPullRequestPrompt =
-    settings?.pullRequestPrompt ?? DEFAULT_PULL_REQUEST_PROMPT;
+  const currentGitHandoffPrompt =
+    settings?.gitHandoffPrompt ?? DEFAULT_GIT_HANDOFF_PROMPT;
 
   const [detection, setDetection] = useState<CommitCliDetection | null>(null);
   const [detectError, setDetectError] = useState<string | null>(null);
@@ -94,26 +76,14 @@ export function DefaultsSettingsPage() {
   const [activeFeature, setActiveFeature] = useState<DefaultsFeatureId>("commit");
   const [runtimeUpdating, setRuntimeUpdating] = useState(false);
   const runtimeUpdateInFlightRef = useRef(false);
-  const [shipPromptDraft, setShipPromptDraft] = useState(currentShipPrompt);
-  const [shipPromptSaving, setShipPromptSaving] = useState(false);
-  const [syncPromptDraft, setSyncPromptDraft] = useState(currentSyncPrompt);
-  const [syncPromptSaving, setSyncPromptSaving] = useState(false);
-  const [pullRequestPromptDraft, setPullRequestPromptDraft] = useState(
-    currentPullRequestPrompt,
+  const [gitHandoffPromptDraft, setGitHandoffPromptDraft] = useState(
+    currentGitHandoffPrompt,
   );
-  const [pullRequestPromptSaving, setPullRequestPromptSaving] = useState(false);
+  const [gitHandoffPromptSaving, setGitHandoffPromptSaving] = useState(false);
 
   useEffect(() => {
-    setShipPromptDraft(currentShipPrompt);
-  }, [currentShipPrompt]);
-
-  useEffect(() => {
-    setSyncPromptDraft(currentSyncPrompt);
-  }, [currentSyncPrompt]);
-
-  useEffect(() => {
-    setPullRequestPromptDraft(currentPullRequestPrompt);
-  }, [currentPullRequestPrompt]);
+    setGitHandoffPromptDraft(currentGitHandoffPrompt);
+  }, [currentGitHandoffPrompt]);
 
   const runDetect = async () => {
     setDetecting(true);
@@ -164,15 +134,7 @@ export function DefaultsSettingsPage() {
         | "defaultModel"
         | "annotationAgent"
         | "annotationModel"
-        | "shipAgent"
-        | "shipModel"
-        | "shipPrompt"
-        | "syncAgent"
-        | "syncModel"
-        | "syncPrompt"
-        | "pullRequestAgent"
-        | "pullRequestModel"
-        | "pullRequestPrompt"
+        | "gitHandoffPrompt"
       >
     >,
   ) => {
@@ -384,39 +346,27 @@ export function DefaultsSettingsPage() {
                 />
               </FeaturePanel>
             )}
-            {activeFeature === "ship" && (
+            {activeFeature === "git-handoff" && (
               <FeaturePanel
-                featureId="ship"
-                title="Ship"
+                featureId="git-handoff"
+                title="Git handoff"
                 description={
                   <>
-                    When you press <strong>Ship</strong>, Mission Control opens
-                    an AI session with this harness and injects the prompt below
-                    so the agent can push and sync with remote.
+                    Fetch, pull, push, and commit run as plain <strong>git</strong> — no
+                    agent, no tokens. When one of them hits something git cannot
+                    finish (a conflict, a rejected push), <strong>Hand off to agent</strong>
+                    {" "}opens a session with this instruction plus the failing command and
+                    its error, typed in but not sent.
                   </>
                 }
               >
-                <RuntimeDefaultControl
-                  agent={currentShipAgent}
-                  model={currentShipModel}
-                  disabled={runtimeUpdating}
-                  onAgentSelect={(agent) =>
-                    void updateRuntimeDefaults({
-                      shipAgent: agent,
-                      shipModel: modelForSelectedHarness(agent, currentShipModel),
-                    })
-                  }
-                  onModelSelect={(model) =>
-                    void updateRuntimeDefaults({ shipModel: model })
-                  }
-                />
-                <Field label="Ship prompt">
+                <Field label="Handoff instruction">
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <textarea
-                      value={shipPromptDraft}
-                      onChange={(e) => setShipPromptDraft(e.target.value)}
+                      value={gitHandoffPromptDraft}
+                      onChange={(e) => setGitHandoffPromptDraft(e.target.value)}
                       rows={4}
-                      disabled={shipPromptSaving || runtimeUpdating}
+                      disabled={gitHandoffPromptSaving || runtimeUpdating}
                       style={{
                         width: "100%",
                         resize: "vertical",
@@ -436,227 +386,32 @@ export function DefaultsSettingsPage() {
                         variant="primary"
                         size="sm"
                         disabled={
-                          shipPromptSaving ||
+                          gitHandoffPromptSaving ||
                           runtimeUpdating ||
-                          shipPromptDraft.trim() === currentShipPrompt
-                        }
-                        onClick={() => {
-                          const next = shipPromptDraft.trim() || DEFAULT_SHIP_PROMPT;
-                          setShipPromptSaving(true);
-                          void updateRuntimeDefaults({ shipPrompt: next }).finally(() => {
-                            setShipPromptSaving(false);
-                          });
-                        }}
-                      >
-                        {shipPromptSaving ? "Saving…" : "Save prompt"}
-                      </Btn>
-                      <Btn
-                        variant="ghost"
-                        size="sm"
-                        disabled={
-                          shipPromptSaving ||
-                          runtimeUpdating ||
-                          shipPromptDraft === DEFAULT_SHIP_PROMPT
-                        }
-                        onClick={() => {
-                          setShipPromptDraft(DEFAULT_SHIP_PROMPT);
-                          setShipPromptSaving(true);
-                          void updateRuntimeDefaults({
-                            shipPrompt: DEFAULT_SHIP_PROMPT,
-                          }).finally(() => {
-                            setShipPromptSaving(false);
-                          });
-                        }}
-                      >
-                        Reset to default
-                      </Btn>
-                    </div>
-                  </div>
-                </Field>
-              </FeaturePanel>
-            )}
-            {activeFeature === "sync" && (
-              <FeaturePanel
-                featureId="sync"
-                title="Sync"
-                description={
-                  <>
-                    When the branch is behind its upstream, a <strong>Sync</strong>{" "}
-                    button appears next to the branch selector. Pressing it opens
-                    an AI session with this harness and injects the prompt below so
-                    the agent can pull upstream changes in — stashing or committing
-                    local work first, resolving conflicts, then restoring it.
-                  </>
-                }
-              >
-                <RuntimeDefaultControl
-                  agent={currentSyncAgent}
-                  model={currentSyncModel}
-                  disabled={runtimeUpdating}
-                  onAgentSelect={(agent) =>
-                    void updateRuntimeDefaults({
-                      syncAgent: agent,
-                      syncModel: modelForSelectedHarness(agent, currentSyncModel),
-                    })
-                  }
-                  onModelSelect={(model) =>
-                    void updateRuntimeDefaults({ syncModel: model })
-                  }
-                />
-                <Field label="Sync prompt">
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <textarea
-                      value={syncPromptDraft}
-                      onChange={(e) => setSyncPromptDraft(e.target.value)}
-                      rows={4}
-                      disabled={syncPromptSaving || runtimeUpdating}
-                      style={{
-                        width: "100%",
-                        resize: "vertical",
-                        minHeight: 88,
-                        padding: "10px 12px",
-                        borderRadius: 7,
-                        border: "1px solid var(--border)",
-                        background: "var(--surface-0)",
-                        color: "var(--text)",
-                        fontFamily: "var(--mono)",
-                        fontSize: 12,
-                        lineHeight: 1.45,
-                      }}
-                    />
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <Btn
-                        variant="primary"
-                        size="sm"
-                        disabled={
-                          syncPromptSaving ||
-                          runtimeUpdating ||
-                          syncPromptDraft.trim() === currentSyncPrompt
-                        }
-                        onClick={() => {
-                          const next = syncPromptDraft.trim() || DEFAULT_SYNC_PROMPT;
-                          setSyncPromptSaving(true);
-                          void updateRuntimeDefaults({ syncPrompt: next }).finally(() => {
-                            setSyncPromptSaving(false);
-                          });
-                        }}
-                      >
-                        {syncPromptSaving ? "Saving…" : "Save prompt"}
-                      </Btn>
-                      <Btn
-                        variant="ghost"
-                        size="sm"
-                        disabled={
-                          syncPromptSaving ||
-                          runtimeUpdating ||
-                          syncPromptDraft === DEFAULT_SYNC_PROMPT
-                        }
-                        onClick={() => {
-                          setSyncPromptDraft(DEFAULT_SYNC_PROMPT);
-                          setSyncPromptSaving(true);
-                          void updateRuntimeDefaults({
-                            syncPrompt: DEFAULT_SYNC_PROMPT,
-                          }).finally(() => {
-                            setSyncPromptSaving(false);
-                          });
-                        }}
-                      >
-                        Reset to default
-                      </Btn>
-                    </div>
-                  </div>
-                </Field>
-              </FeaturePanel>
-            )}
-            {activeFeature === "pull-request" && (
-              <FeaturePanel
-                featureId="pull-request"
-                title="Create PR"
-                description={
-                  <>
-                    When you press <strong>Create PR</strong> from the Ship
-                    button&rsquo;s dropdown, Mission Control opens an AI session
-                    with this harness and injects the prompt below so the agent
-                    can commit and push local work, sync with upstream, then
-                    open a pull request in your browser.
-                  </>
-                }
-              >
-                <RuntimeDefaultControl
-                  agent={currentPullRequestAgent}
-                  model={currentPullRequestModel}
-                  disabled={runtimeUpdating}
-                  onAgentSelect={(agent) =>
-                    void updateRuntimeDefaults({
-                      pullRequestAgent: agent,
-                      pullRequestModel: modelForSelectedHarness(
-                        agent,
-                        currentPullRequestModel,
-                      ),
-                    })
-                  }
-                  onModelSelect={(model) =>
-                    void updateRuntimeDefaults({ pullRequestModel: model })
-                  }
-                />
-                <Field label="Create PR prompt">
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <textarea
-                      value={pullRequestPromptDraft}
-                      onChange={(e) => setPullRequestPromptDraft(e.target.value)}
-                      rows={4}
-                      disabled={pullRequestPromptSaving || runtimeUpdating}
-                      style={{
-                        width: "100%",
-                        resize: "vertical",
-                        minHeight: 88,
-                        padding: "10px 12px",
-                        borderRadius: 7,
-                        border: "1px solid var(--border)",
-                        background: "var(--surface-0)",
-                        color: "var(--text)",
-                        fontFamily: "var(--mono)",
-                        fontSize: 12,
-                        lineHeight: 1.45,
-                      }}
-                    />
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <Btn
-                        variant="primary"
-                        size="sm"
-                        disabled={
-                          pullRequestPromptSaving ||
-                          runtimeUpdating ||
-                          pullRequestPromptDraft.trim() === currentPullRequestPrompt
+                          gitHandoffPromptDraft.trim() === currentGitHandoffPrompt
                         }
                         onClick={() => {
                           const next =
-                            pullRequestPromptDraft.trim() || DEFAULT_PULL_REQUEST_PROMPT;
-                          setPullRequestPromptSaving(true);
-                          void updateRuntimeDefaults({ pullRequestPrompt: next }).finally(
-                            () => {
-                              setPullRequestPromptSaving(false);
-                            },
-                          );
+                            gitHandoffPromptDraft.trim() || DEFAULT_GIT_HANDOFF_PROMPT;
+                          setGitHandoffPromptSaving(true);
+                          void updateRuntimeDefaults({ gitHandoffPrompt: next }).finally(() => {
+                            setGitHandoffPromptSaving(false);
+                          });
                         }}
                       >
-                        {pullRequestPromptSaving ? "Saving…" : "Save prompt"}
+                        Save prompt
                       </Btn>
                       <Btn
                         variant="ghost"
                         size="sm"
-                        disabled={
-                          pullRequestPromptSaving ||
-                          runtimeUpdating ||
-                          pullRequestPromptDraft === DEFAULT_PULL_REQUEST_PROMPT
-                        }
+                        disabled={gitHandoffPromptSaving || runtimeUpdating}
                         onClick={() => {
-                          setPullRequestPromptDraft(DEFAULT_PULL_REQUEST_PROMPT);
-                          setPullRequestPromptSaving(true);
+                          setGitHandoffPromptDraft(DEFAULT_GIT_HANDOFF_PROMPT);
+                          setGitHandoffPromptSaving(true);
                           void updateRuntimeDefaults({
-                            pullRequestPrompt: DEFAULT_PULL_REQUEST_PROMPT,
+                            gitHandoffPrompt: DEFAULT_GIT_HANDOFF_PROMPT,
                           }).finally(() => {
-                            setPullRequestPromptSaving(false);
+                            setGitHandoffPromptSaving(false);
                           });
                         }}
                       >
