@@ -58,6 +58,19 @@ export default tseslint.config(
       "preserve-caught-error": "off",
       "react/no-danger": "off",
       "react-hooks/exhaustive-deps": "off",
+      // Catches a hook placed after an early return — the renderer throws
+      // "Rendered more hooks than during the previous render" at runtime.
+      "react-hooks/rules-of-hooks": "error",
+    },
+  },
+  {
+    // Two pre-existing naming clashes the rule can't see through:
+    //   project-fs.ts — `useSandboxFs` is a plain async helper, not a hook.
+    //   MarkdownPreview.tsx — react-markdown's component overrides are real
+    //   components, but named h1/p/li, so hook calls inside them look illegal.
+    files: ["src/lib/project-fs.ts", "src/components/views/MarkdownPreview.tsx"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
     },
   },
   {
