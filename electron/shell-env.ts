@@ -282,6 +282,32 @@ export function augmentProcessEnv(): void {
   process.env.SHELL = resolveShell();
 }
 
+/**
+ * Environment Claude Code stamps with its own session identity. Mission Control
+ * inherits these when it is itself launched from inside a Claude session (a dev
+ * run started from an agent terminal, for example), and passing them on to a
+ * spawned agent makes that agent believe it is a subagent of the launcher:
+ *  - CHILD_SESSION / SESSION_ID: transcript persistence is skipped, so the
+ *    session never shows up for `claude --resume`.
+ *  - MESSAGING_SOCKET / MESSAGING_TOKEN: credentials for the launching
+ *    session's agent-messaging bus, which a spawned session must not hold.
+ * Stripped so every session Mission Control spawns is top-level regardless of
+ * how Mission Control was started.
+ */
+export const PARENT_AGENT_SESSION_ENV_KEYS = [
+  "CLAUDE_CODE_CHILD_SESSION",
+  "CLAUDE_CODE_SESSION_ID",
+  "CLAUDE_CODE_MESSAGING_SOCKET",
+  "CLAUDE_CODE_MESSAGING_TOKEN",
+] as const;
+
+export function stripParentAgentSessionEnv<T extends Record<string, string | undefined>>(
+  env: T,
+): T {
+  for (const key of PARENT_AGENT_SESSION_ENV_KEYS) delete env[key];
+  return env;
+}
+
 export function sanitizedProcessEnv(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
@@ -292,7 +318,8 @@ export function sanitizedProcessEnv(): Record<string, string> {
   }
   setCanonicalPathEnv(out, buildUserPath(envPathValue(out), { env: out }), os.platform());
   out.SHELL = resolveShell();
-  return out;
+  // After both merges: the login shell could re-export an inherited marker.
+  return stripParentAgentSessionEnv(out);
 }
 
 function commandNames(command: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string[] {
