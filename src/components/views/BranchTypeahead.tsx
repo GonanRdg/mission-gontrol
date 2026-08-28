@@ -535,6 +535,25 @@ export function BranchTypeahead({
                         key={item.id}
                         style={{ display: "flex", alignItems: "stretch", gap: 2 }}
                       >
+                        <Tooltip
+                          content={
+                            optimistic ? (
+                              "Creating worktree…"
+                            ) : (
+                              <span style={{ display: "grid", gap: 3 }}>
+                                <span style={{ fontFamily: "var(--mono)", wordBreak: "break-all" }}>
+                                  {item.branch || item.name}
+                                </span>
+                                <span
+                                  className="mc-tooltip-label"
+                                  style={{ fontSize: 11, wordBreak: "break-all" }}
+                                >
+                                  {item.path}
+                                </span>
+                              </span>
+                            )
+                          }
+                        >
                         <button
                           type="button"
                           role="option"
@@ -547,11 +566,6 @@ export function BranchTypeahead({
                             closeTypeahead();
                             if (!isSelected) onSelectWorktree?.(item.id);
                           }}
-                          title={
-                            optimistic
-                              ? "Creating worktree…"
-                              : `${item.path}${item.branch ? ` · branch ${item.branch}` : ""}`
-                          }
                           style={{
                             flex: 1,
                             minWidth: 0,
@@ -643,6 +657,7 @@ export function BranchTypeahead({
                             ))}
                           </span>
                         </button>
+                        </Tooltip>
                         {canDelete && (
                           <button
                             type="button"
@@ -680,8 +695,22 @@ export function BranchTypeahead({
               )}
               {!loadError &&
                 filteredBranches.map((item) => (
-                  <button
+                  <Tooltip
                     key={`${item.local ? "local" : "remote"}:${item.name}:${item.remoteRef ?? ""}`}
+                    content={
+                      <span style={{ display: "grid", gap: 3 }}>
+                        <span style={{ fontFamily: "var(--mono)", wordBreak: "break-all" }}>
+                          {item.name}
+                        </span>
+                        {!item.local && (
+                          <span className="mc-tooltip-label" style={{ fontSize: 11 }}>
+                            remote{item.remoteRef ? ` · ${item.remoteRef}` : ""}
+                          </span>
+                        )}
+                      </span>
+                    }
+                  >
+                  <button
                     type="button"
                     role="option"
                     className="mc-branch-menu-item"
@@ -689,11 +718,6 @@ export function BranchTypeahead({
                     disabled={checkout.isPending}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => requestCheckout(item.name)}
-                    title={
-                      item.local
-                        ? item.name
-                        : `${item.name} · remote${item.remoteRef ? ` (${item.remoteRef})` : ""}`
-                    }
                     style={{
                       width: "100%",
                       display: "flex",
@@ -730,6 +754,7 @@ export function BranchTypeahead({
                       </span>
                     )}
                   </button>
+                  </Tooltip>
                 ))}
               {!loadError && !disabled && canCreateBranch && (
                 <button

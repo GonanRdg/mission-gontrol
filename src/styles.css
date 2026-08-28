@@ -2877,7 +2877,8 @@ body[data-card-glow] .cursor-glow {
 }
 .mc-tooltip {
   position: fixed;
-  z-index: 10000;
+  /* Above Z_INDEX.popover (10000) — tooltips open from dropdown rows. */
+  z-index: 10500;
   pointer-events: none;
   background: var(--surface-2);
   color: var(--text);

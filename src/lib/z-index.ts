@@ -12,5 +12,11 @@ export const Z_INDEX = {
   /** Full-workspace overlays (Settings) — above the pet, below modals (9999). */
   settings: 9600,
   popover: 10000,
+  /**
+   * Tooltips must clear popovers: they are opened *from* dropdown rows, and a
+   * tie with `popover` leaves the winner up to portal insertion order.
+   * Mirrored by `.mc-tooltip` in styles.css.
+   */
+  tooltip: 10500,
   toast: 20000,
 } as const;
