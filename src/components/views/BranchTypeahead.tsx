@@ -15,6 +15,7 @@ import { Modal } from "~/components/ui/Modal";
 import { Btn } from "~/components/ui/Btn";
 import { CardFrame } from "~/components/ui/CardFrame";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
+import { Tooltip } from "~/components/ui/Tooltip";
 import {
   gitBranchesQueryOptions,
   useGitBranches,
@@ -148,6 +149,26 @@ export function BranchTypeahead({
 }) {
   const isBehind = behindCount > 0;
   const branchLabel = branch?.trim() || "…";
+  // The trigger label truncates, so hovering it is how the full branch name is
+  // read — a styled tooltip rather than the OS one, which takes a second to
+  // appear and can't lead with the name.
+  const triggerTooltip = (
+    <span style={{ display: "grid", gap: 3 }}>
+      <span style={{ fontFamily: "var(--mono)", wordBreak: "break-all" }}>
+        {branch?.trim() || "Switch branch"}
+      </span>
+      {!!worktreePath && (
+        <span className="mc-tooltip-label" style={{ fontSize: 11, wordBreak: "break-all" }}>
+          {worktreePath}
+        </span>
+      )}
+      {isBehind && (
+        <span className="mc-tooltip-label" style={{ fontSize: 11 }}>
+          {behindCount} behind upstream — Pull from the git menu
+        </span>
+      )}
+    </span>
+  );
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   useSuspendAppDragRegion(open);
@@ -668,6 +689,11 @@ export function BranchTypeahead({
                     disabled={checkout.isPending}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => requestCheckout(item.name)}
+                    title={
+                      item.local
+                        ? item.name
+                        : `${item.name} · remote${item.remoteRef ? ` (${item.remoteRef})` : ""}`
+                    }
                     style={{
                       width: "100%",
                       display: "flex",
@@ -813,87 +839,82 @@ export function BranchTypeahead({
           flexShrink: 1,
         }}
       >
-        <Btn
-          variant="ghost"
-          icon="git-branch"
-          disabled={triggerDisabled}
-          onClick={toggleOpen}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-controls="branch-typeahead-options"
-          aria-label={
-            isBehind
-              ? `Switch branch — ${behindCount} ${behindCount === 1 ? "commit" : "commits"} behind upstream`
-              : undefined
-          }
-          // Branch name first: the label truncates, so the tooltip is where the
-          // full name is read.
-          title={`${
-            branch
-              ? `${branch}${worktreePath ? ` · ${worktreePath}` : ""}`
-              : worktreePath || "Switch branch"
-          }${isBehind ? ` · ${behindCount} behind upstream — Pull from the git menu` : ""}`}
-          style={{
-            fontFamily: "var(--mono)",
-            // The branch is the one control allowed to give up width: long
-            // names truncate to an ellipsis and the full name lives in the
-            // title tooltip. Everything else in the git group keeps its label.
-            maxWidth: "min(24ch, 22vw)",
-            flexShrink: 1,
-            minWidth: 0,
-            ...(selected
-              ? {
-                  color: "var(--accent)",
-                  filter: "drop-shadow(0 0 8px var(--accent-glow))",
-                }
-              : null),
-          }}
-        >
-          <span
+        <Tooltip content={triggerTooltip} disabled={open}>
+          <Btn
+            variant="ghost"
+            icon="git-branch"
+            disabled={triggerDisabled}
+            onClick={toggleOpen}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-controls="branch-typeahead-options"
+            aria-label={
+              isBehind
+                ? `Switch branch — ${behindCount} ${behindCount === 1 ? "commit" : "commits"} behind upstream`
+                : undefined
+            }
             style={{
+              fontFamily: "var(--mono)",
+              // The branch is the one control allowed to give up width: long
+              // names truncate to an ellipsis and the full name lives in the
+              // title tooltip. Everything else in the git group keeps its label.
+              maxWidth: "min(24ch, 22vw)",
+              flexShrink: 1,
               minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              ...(selected
+                ? {
+                    color: "var(--accent)",
+                    filter: "drop-shadow(0 0 8px var(--accent-glow))",
+                  }
+                : null),
             }}
           >
-            {branchLabel}
-          </span>
-          {isBehind && (
             <span
-              aria-hidden
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 1,
-                minWidth: 16,
-                height: 16,
-                padding: "0 5px",
-                borderRadius: 999,
-                fontSize: 10.5,
-                fontWeight: 700,
-                lineHeight: 1,
-                flexShrink: 0,
-                color: "var(--accent-ink)",
-                background: "color-mix(in srgb, var(--accent) 20%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--accent) 45%, transparent)",
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              ↓{behindCount}
+              {branchLabel}
             </span>
-          )}
-          <Icon
-            name="chevron-down"
-            size={11}
-            style={{
-              color: "var(--text-faint)",
-              flexShrink: 0,
-              transform: open ? "rotate(180deg)" : undefined,
-              transition: "transform 120ms ease",
-            }}
-          />
-        </Btn>
+            {isBehind && (
+              <span
+                aria-hidden
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 1,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 5px",
+                  borderRadius: 999,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  color: "var(--accent-ink)",
+                  background: "color-mix(in srgb, var(--accent) 20%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--accent) 45%, transparent)",
+                }}
+              >
+                ↓{behindCount}
+              </span>
+            )}
+            <Icon
+              name="chevron-down"
+              size={11}
+              style={{
+                color: "var(--text-faint)",
+                flexShrink: 0,
+                transform: open ? "rotate(180deg)" : undefined,
+                transition: "transform 120ms ease",
+              }}
+            />
+          </Btn>
+        </Tooltip>
       </div>
       {dropdown}
       <ConfirmDialog
