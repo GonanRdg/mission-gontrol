@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { isNewerSemver } from "~/shared/semver";
 
 // @ts-expect-error The build-version helper is a Node .mjs script; tests exercise its exports.
@@ -44,6 +44,23 @@ function makeRepo(version: string, commitsAfterRelease: number): string {
   return dir;
 }
 
+type Stamp = ReturnType<typeof localBuildVersion>;
+
+// Building the fixture repos costs a handful of `git` spawns each, which blows
+// the default 5s test timeout when the whole suite runs in parallel. Build them
+// once, then assert against the stamps.
+let aheadOfRelease: Stamp;
+let onReleaseCommit: Stamp;
+let dirtyTree: Stamp;
+
+beforeAll(() => {
+  const repo = makeRepo("0.49.0", 3);
+  aheadOfRelease = localBuildVersion(repo);
+  onReleaseCommit = localBuildVersion(makeRepo("0.48.36", 0));
+  writeFileSync(join(repo, "scratch.txt"), "wip");
+  dirtyTree = localBuildVersion(repo);
+}, 60_000);
+
 afterAll(() => {
   for (const dir of tmpRepos) rmSync(dir, { recursive: true, force: true });
 });
@@ -63,44 +80,34 @@ describe("nextPatch", () => {
 
 describe("localBuildVersion", () => {
   it("names the build after the release it is on the way to", () => {
-    const repo = makeRepo("0.49.0", 3);
-    const stamp = localBuildVersion(repo);
-
-    expect(stamp.lastRelease).toBe("0.49.0");
-    expect(stamp.target).toBe("0.49.1");
-    expect(stamp.ahead).toBe(3);
-    expect(stamp.dirty).toBe(false);
-    expect(stamp.version).toMatch(/^0\.49\.1-local\.3\.g[0-9a-f]{7}$/);
+    expect(aheadOfRelease.lastRelease).toBe("0.49.0");
+    expect(aheadOfRelease.target).toBe("0.49.1");
+    expect(aheadOfRelease.ahead).toBe(3);
+    expect(aheadOfRelease.dirty).toBe(false);
+    expect(aheadOfRelease.version).toMatch(/^0\.49\.1-local\.3\.g[0-9a-f]{7}$/);
   });
 
   it("counts zero commits ahead on the release commit itself", () => {
-    const stamp = localBuildVersion(makeRepo("0.48.36", 0));
-    expect(stamp.version).toMatch(/^0\.48\.37-local\.0\.g[0-9a-f]{7}$/);
+    expect(onReleaseCommit.version).toMatch(/^0\.48\.37-local\.0\.g[0-9a-f]{7}$/);
   });
 
   it("marks an uncommitted tree", () => {
-    const repo = makeRepo("0.49.0", 1);
-    writeFileSync(join(repo, "scratch.txt"), "wip");
-    const stamp = localBuildVersion(repo);
-    expect(stamp.dirty).toBe(true);
-    expect(stamp.version.endsWith(".dirty")).toBe(true);
+    expect(dirtyTree.dirty).toBe(true);
+    expect(dirtyTree.version.endsWith(".dirty")).toBe(true);
   });
 
   it("keeps the academy update check quiet until upstream passes the target release", () => {
-    const stamp = localBuildVersion(makeRepo("0.49.0", 2));
-
     // isNewerSemver compares numeric cores only, so a published 0.49.0 or
     // 0.49.1 does not read as an update over 0.49.1-local.N — 0.49.2 does.
-    expect(isNewerSemver("0.49.0", stamp.version)).toBe(false);
-    expect(isNewerSemver("0.49.1", stamp.version)).toBe(false);
-    expect(isNewerSemver("0.49.2", stamp.version)).toBe(true);
+    expect(isNewerSemver("0.49.0", aheadOfRelease.version)).toBe(false);
+    expect(isNewerSemver("0.49.1", aheadOfRelease.version)).toBe(false);
+    expect(isNewerSemver("0.49.2", aheadOfRelease.version)).toBe(true);
   });
 
   it("carries the `-local.<n>` prerelease the updater keys off", () => {
     // Full semver ranks a prerelease *below* the release of the same core, so
     // electron-updater would happily install a published 0.49.1 over this
     // build. update-manager reads this marker and never loads the updater.
-    const stamp = localBuildVersion(makeRepo("0.49.0", 2));
-    expect(/-local\.\d+/.test(stamp.version)).toBe(true);
+    expect(/-local\.\d+/.test(aheadOfRelease.version)).toBe(true);
   });
 });
