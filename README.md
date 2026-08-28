@@ -124,6 +124,16 @@ new build on the next launch — **quit (⌘Q) and relaunch**.
 Flags: `--skip-build` (reuse `dist-electron-out/`), `--arch x64`, `--app <path>`,
 `--backup-dir <dir>`, `--no-resign`.
 
+The build is stamped with the release it is on the way to, marked as a local
+prerelease of it — `0.49.1-local.22.g1a2b3c4` is 22 commits past `v0.49.0`
+(`.dirty` is appended when the tree has uncommitted changes). `package.json`
+stays at the last released version; the stamp is injected at build time.
+
+Automatic updates are off in a `-local.` build, in both the Electron updater and
+the in-app CTA: it sits between two published releases, so a released build
+outranks it and would otherwise silently replace it. Settings → About reports
+the local build and the latest release instead.
+
 ### Native module rebuild
 
 `better-sqlite3` and `node-pty` have native bindings, but they do not need the same ABI in development:

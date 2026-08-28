@@ -19,6 +19,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { arch as hostArch, homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import { localBuildVersion } from "./lib/build-version.mjs";
 import { makeFail } from "./lib/cli.mjs";
 
 const REPO_ROOT = resolve(new URL("..", import.meta.url).pathname);
@@ -119,7 +120,16 @@ function timestamp() {
 
 // ---------- build ----------
 if (!skipBuild) {
-  const { env, pnpm, pnpmArgs } = resolveToolchain();
+  const { env: nodeEnv, pnpm, pnpmArgs } = resolveToolchain();
+  const stamp = localBuildVersion(REPO_ROOT);
+  log(
+    `version ${stamp.version} (${stamp.lastRelease} + ${stamp.ahead ?? "?"} commit(s)` +
+      `${stamp.dirty ? ", dirty tree" : ""})`,
+  );
+  // MC_BUILD_VERSION reaches the renderer through vite's __MC_VERSION__;
+  // extraMetadata.version reaches app.getVersion() and Info.plist. Both have to
+  // carry the same string, and neither touches package.json in the repo.
+  const env = { ...nodeEnv, MC_BUILD_VERSION: stamp.version };
   const pnpmRun = (argv) => run(pnpm, [...pnpmArgs, ...argv], { env });
 
   // The whisper payload is a large one-time download; only fetch it when the
@@ -130,7 +140,16 @@ if (!skipBuild) {
   pnpmRun(["build"]);
   pnpmRun(["native:electron"]);
   // --dir: an .app, no DMG/ZIP — nothing here leaves the machine.
-  pnpmRun(["exec", "electron-builder", "--mac", `--${arch}`, "--dir", "--publish", "never"]);
+  pnpmRun([
+    "exec",
+    "electron-builder",
+    "--mac",
+    `--${arch}`,
+    "--dir",
+    "--publish",
+    "never",
+    `-c.extraMetadata.version=${stamp.version}`,
+  ]);
 }
 
 // ---------- locate the build ----------

@@ -12,7 +12,10 @@ const pkg = JSON.parse(
 
 export default defineConfig({
   define: {
-    __MC_VERSION__: JSON.stringify(pkg.version),
+    // MC_BUILD_VERSION is set by scripts/install-local.mjs so a locally
+    // installed build reports the same version in the renderer as in
+    // app.getVersion(); a plain build stamps the repo version.
+    __MC_VERSION__: JSON.stringify(process.env.MC_BUILD_VERSION ?? pkg.version),
   },
   server: {
     port: DEV_SERVER_PORT,
