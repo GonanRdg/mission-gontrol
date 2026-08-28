@@ -17,6 +17,7 @@ type AutoUpdater = ElectronUpdater["autoUpdater"];
 
 export type UpdateState =
   | { kind: "unsupported-dev" }
+  | { kind: "local-build"; version: string }
   | { kind: "idle"; lastCheckedAt: number | null }
   | { kind: "checking" }
   | { kind: "available"; version: string }
@@ -37,9 +38,18 @@ const DEFAULT_AUTOMATIC_UPDATE_INSTALL_ON_QUIT_ENABLED = false;
 const PROGRESS_LOG_STEP = 10;
 let lastLoggedProgressBucket = -1;
 
-let currentState: UpdateState = app.isPackaged
-  ? { kind: "idle", lastCheckedAt: null }
-  : { kind: "unsupported-dev" };
+// A build installed by scripts/install-local.mjs carries a `-local.<n>` semver
+// prerelease (see scripts/lib/build-version.mjs). It sits between two published
+// releases, so the feed will eventually offer a version that outranks it — and
+// installing that would silently throw away the build being dogfooded. Local
+// builds therefore never load the updater at all.
+const isLocalBuild = /-local\.\d+/.test(app.getVersion());
+
+let currentState: UpdateState = !app.isPackaged
+  ? { kind: "unsupported-dev" }
+  : isLocalBuild
+  ? { kind: "local-build", version: app.getVersion() }
+  : { kind: "idle", lastCheckedAt: null };
 
 let updater: AutoUpdater | null = null;
 let getWindow: (() => BrowserWindow | null) | null = null;
@@ -227,7 +237,7 @@ async function loadUpdater(): Promise<AutoUpdater | null> {
 type CheckTrigger = "startup" | "interval" | "ipc";
 
 async function safeCheck(trigger: CheckTrigger = "ipc"): Promise<void> {
-  if (!app.isPackaged) return;
+  if (!app.isPackaged || isLocalBuild) return;
   const au = await loadUpdater();
   if (!au) return;
   const prefs = applyUpdaterPreferences(au);
@@ -247,6 +257,7 @@ async function safeCheck(trigger: CheckTrigger = "ipc"): Promise<void> {
 
 async function safeDownload(): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!app.isPackaged) return { ok: false, error: "not-packaged" };
+  if (isLocalBuild) return { ok: false, error: "local-build" };
   const au = await loadUpdater();
   if (!au) return { ok: false, error: "updater-unavailable" };
   applyUpdaterPreferences(au);
@@ -292,6 +303,7 @@ async function safeDownload(): Promise<{ ok: true } | { ok: false; error: string
 
 function safeInstall(): { ok: true } | { ok: false; error: string } {
   if (!app.isPackaged) return { ok: false, error: "not-packaged" };
+  if (isLocalBuild) return { ok: false, error: "local-build" };
   if (!updater) return { ok: false, error: "updater-not-loaded" };
   log.info("update.install.requested", {
     event: "update.install.requested",
@@ -326,6 +338,15 @@ export function registerUpdateManager(
 
   if (!app.isPackaged) {
     // Stay in unsupported-dev. autoUpdater is intentionally not loaded.
+    return;
+  }
+
+  if (isLocalBuild) {
+    log.info("update.check.skipped", {
+      event: "update.check.skipped",
+      reason: "local-build",
+      currentVersion: app.getVersion(),
+    });
     return;
   }
 

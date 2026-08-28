@@ -13,6 +13,7 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 // reviewer-contracts subagent.
 export type UpdateStateBridge =
   | { kind: "unsupported-dev" }
+  | { kind: "local-build"; version: string }
   | { kind: "idle"; lastCheckedAt: number | null }
   | { kind: "checking" }
   | { kind: "available"; version: string }

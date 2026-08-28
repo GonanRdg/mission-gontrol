@@ -483,6 +483,13 @@ function AboutSection() {
     case "priming":
       status = "Checking for updates…";
       break;
+    case "local-build":
+      // `pnpm install:local` build: it sits between two releases, so automatic
+      // updates are off rather than letting a published build replace it.
+      status = latest
+        ? `Local build — automatic updates are off. Latest release is v${latest}.`
+        : "Local build — automatic updates are off.";
+      break;
     case "checking":
       status = "Checking for updates…";
       break;

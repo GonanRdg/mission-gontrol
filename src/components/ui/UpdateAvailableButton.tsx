@@ -26,6 +26,11 @@ export function UpdateAvailableButton() {
       // "Update available" CTA that would mis-fire mid-prime.
       return null;
 
+    case "local-build":
+      // Installed by `pnpm install:local`. Updates are off by design — no CTA,
+      // not even the academy download fallback.
+      return null;
+
     case "checking":
       return (
         <Btn

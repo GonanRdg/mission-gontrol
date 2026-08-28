@@ -124,5 +124,9 @@ describe("mc-auto-updater store", () => {
     ).toBe(true);
     expect(store.canTriggerUpdateCheck({ kind: "unsupported-dev" })).toBe(false);
     expect(store.canTriggerUpdateCheck({ kind: "checking" })).toBe(false);
+    // Local builds opt out of the updater entirely — no check, no CTA.
+    expect(
+      store.canTriggerUpdateCheck({ kind: "local-build", version: "0.49.1-local.22.gabc1234" })
+    ).toBe(false);
   });
 });

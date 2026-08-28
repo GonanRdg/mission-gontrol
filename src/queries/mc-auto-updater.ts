@@ -8,6 +8,7 @@ import { useSyncExternalStore } from "react";
 export type UpdateState =
   | { kind: "priming" }
   | { kind: "unsupported-dev" }
+  | { kind: "local-build"; version: string }
   | { kind: "idle"; lastCheckedAt: number | null }
   | { kind: "checking" }
   | { kind: "available"; version: string }
