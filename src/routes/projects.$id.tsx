@@ -4468,7 +4468,7 @@ function WorktreeToggleGroup({
           title={mainBranchUnavailableTitle ?? "Git unavailable"}
           style={{
             fontFamily: "var(--mono)",
-            maxWidth: "min(36ch, 42vw)",
+            maxWidth: "min(24ch, 22vw)",
             color: "var(--text-dim)",
           }}
         >

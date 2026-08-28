@@ -810,6 +810,7 @@ export function BranchTypeahead({
           display: "inline-flex",
           alignItems: "center",
           minWidth: 0,
+          flexShrink: 1,
         }}
       >
         <Btn
@@ -825,16 +826,21 @@ export function BranchTypeahead({
               ? `Switch branch — ${behindCount} ${behindCount === 1 ? "commit" : "commits"} behind upstream`
               : undefined
           }
+          // Branch name first: the label truncates, so the tooltip is where the
+          // full name is read.
           title={`${
-            worktreePath
-              ? `${worktreePath}${branch ? ` · branch ${branch}` : ""}`
-              : branch
-              ? `Switch branch (${branch})`
-              : "Switch branch"
+            branch
+              ? `${branch}${worktreePath ? ` · ${worktreePath}` : ""}`
+              : worktreePath || "Switch branch"
           }${isBehind ? ` · ${behindCount} behind upstream — Pull from the git menu` : ""}`}
           style={{
             fontFamily: "var(--mono)",
-            maxWidth: "min(36ch, 42vw)",
+            // The branch is the one control allowed to give up width: long
+            // names truncate to an ellipsis and the full name lives in the
+            // title tooltip. Everything else in the git group keeps its label.
+            maxWidth: "min(24ch, 22vw)",
+            flexShrink: 1,
+            minWidth: 0,
             ...(selected
               ? {
                   color: "var(--accent)",

@@ -248,7 +248,7 @@ export function ProjectPicker({ projectId, disabled = false }: { projectId?: str
   };
 
   return (
-    <div ref={wrapRef} style={{ position: "relative", display: "inline-flex" }}>
+    <div ref={wrapRef} style={{ position: "relative", display: "inline-flex", minWidth: 0 }}>
       <HotkeyTooltip action="project.picker" label="Switch project">
         <Btn
           variant="gray-frame"
@@ -256,9 +256,20 @@ export function ProjectPicker({ projectId, disabled = false }: { projectId?: str
           disabled={disabled}
           aria-haspopup="listbox"
           aria-expanded={open}
+          title={label}
+          style={{ maxWidth: "min(26ch, 22vw)", flexShrink: 1, minWidth: 0 }}
         >
           {current && <ProjectIcon project={current} size={14} />}
-          <span>{label}</span>
+          <span
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {label}
+          </span>
           <Icon
             name="chevron-down"
             size={11}

@@ -369,6 +369,12 @@ body[data-suspend-app-drag] .mc-topbar {
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
+  /* A button never squeezes below its label: the frame is a border-image, so a
+     shrunk box leaves the text spilling over the neighbouring control. Anything
+     that must truncate (the branch trigger) opts back in with flex-shrink: 1
+     plus an inner ellipsis span. */
+  flex: 0 0 auto;
+  max-width: 100%;
   transition:
     background 0.12s ease,
     border-color 0.12s ease,
