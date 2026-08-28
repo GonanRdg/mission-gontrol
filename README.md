@@ -109,6 +109,21 @@ pnpm build              # builds web client + Electron
 pnpm package            # rebuilds native deps for Electron and produces dist/
 ```
 
+### Install a local build over the installed app (macOS)
+
+```bash
+pnpm install:local      # build, then swap /Applications/MissionControl.app
+```
+
+Builds an `.app` only (no DMG/ZIP), re-signs it so the Screen Recording grant
+sticks ([why](docs/local-build-screen-recording.md)), and swaps it in with two
+`rename(2)` calls. The previous bundle moves to `~/.Trash` for rollback. A
+running instance keeps its own inodes, so it survives the swap and picks up the
+new build on the next launch — **quit (⌘Q) and relaunch**.
+
+Flags: `--skip-build` (reuse `dist-electron-out/`), `--arch x64`, `--app <path>`,
+`--backup-dir <dir>`, `--no-resign`.
+
 ### Native module rebuild
 
 `better-sqlite3` and `node-pty` have native bindings, but they do not need the same ABI in development:

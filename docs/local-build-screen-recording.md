@@ -58,6 +58,9 @@ tccutil reset ScreenCapture labs.agentsystem.missioncontrol
 Then **fully quit** MissionControl (`⌘Q` — closing the window is not enough),
 relaunch, trigger a capture, and grant Screen Recording once. It will persist.
 
+`pnpm install:local` runs this step for you, on the staged bundle, before it
+swaps the app in — so a local install never leaves an unsigned bundle behind.
+
 This holds **until the next `pnpm dist:mac`** — a rebuild produces a new cdhash
 that invalidates the grant, so re-run the script after each rebuild.
 
