@@ -53,6 +53,7 @@ export function GeneralSettingsPage() {
   const mouseGradientEnabled = !(settings?.mouseGradientDisabled ?? false);
   const batterySaverEnabled = settings?.batterySaverEnabled ?? true;
   const spellcheckEnabled = settings?.spellcheckEnabled ?? true;
+  const diagramSkillAutoInstallEnabled = settings?.diagramSkillAutoInstallEnabled ?? false;
   const toastEnabled = settings?.sessionFinishToastEnabled ?? true;
   const osNotificationEnabled =
     settings?.sessionFinishOsNotificationEnabled ?? false;
@@ -94,6 +95,7 @@ export function GeneralSettingsPage() {
         | "mouseGradientDisabled"
         | "batterySaverEnabled"
         | "spellcheckEnabled"
+        | "diagramSkillAutoInstallEnabled"
         | "sessionFinishToastEnabled"
         | "sessionFinishOsNotificationEnabled"
         | "notificationSoundEnabled"
@@ -113,6 +115,7 @@ export function GeneralSettingsPage() {
     mouseGradientDisabled: settings?.mouseGradientDisabled ?? false,
     batterySaverEnabled,
     spellcheckEnabled,
+    diagramSkillAutoInstallEnabled,
     sessionFinishToastEnabled: toastEnabled,
     sessionFinishOsNotificationEnabled: osNotificationEnabled,
     notificationSoundEnabled,
@@ -194,6 +197,7 @@ export function GeneralSettingsPage() {
         | "mouseGradientDisabled"
         | "batterySaverEnabled"
         | "spellcheckEnabled"
+        | "diagramSkillAutoInstallEnabled"
         | "sessionFinishToastEnabled"
         | "sessionFinishOsNotificationEnabled"
         | "notificationSoundEnabled"
@@ -227,6 +231,10 @@ export function GeneralSettingsPage() {
     await updateSettings({ spellcheckEnabled: enabled });
     // Apply live in the running Electron session (no-op in the browser).
     void getElectron()?.spellcheck?.setEnabled(enabled);
+  };
+
+  const setDiagramSkillAutoInstallEnabled = async (enabled: boolean) => {
+    await updateSettings({ diagramSkillAutoInstallEnabled: enabled });
   };
 
   const setToastEnabled = async (sessionFinishToastEnabled: boolean) => {
@@ -353,6 +361,15 @@ export function GeneralSettingsPage() {
             description="Underline misspelled words as you type in prompts and inputs. Turning this off frees roughly 15-20 MB of memory while composing."
             checked={spellcheckEnabled}
             onChange={setSpellcheckEnabled}
+            label="Enable"
+          />
+        </Field>
+        <Field label="Diagram skill">
+          <ToggleRow
+            title="Install the diagram skill into every project"
+            description="Agents only render diagrams in Mission Control's viewer when they can read the diagram skill from a folder on disk, and CLIs look for it inside the project. With this on, each agent session copies it into the project it runs in (.claude/skills/diagram/, or .agents/skills/diagram/ for Cursor) — which leaves a skill folder in repos you may not want it in. Off, install it per project from the project menu instead."
+            checked={diagramSkillAutoInstallEnabled}
+            onChange={setDiagramSkillAutoInstallEnabled}
             label="Enable"
           />
         </Field>

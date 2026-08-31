@@ -540,7 +540,19 @@ export function registerPtyHandlers(
       installAgentHooks(opts.agent, plan.cwd, undefined, { petEnabled });
       const mcEnv = plan.mode === "agent" ? getHookEnv() : null;
       if (plan.mode === "agent") {
-        ensureDiagramSkillForAgent(app.getAppPath(), plan.cwd, plan.agent);
+        // Off by default: the install writes a skill folder into the session's
+        // own repo, so it only runs for users who asked for it in Settings →
+        // General. Without it, the diagram skill is installed per project from
+        // the project menu. Read from the same app_settings DB the server owns.
+        if (
+          getBooleanAppSetting(
+            app.getPath("userData"),
+            "diagram_skill_autoinstall",
+            false,
+          )
+        ) {
+          ensureDiagramSkillForAgent(app.getAppPath(), plan.cwd, plan.agent);
+        }
         // Recall provisioning follows the LIVE master switch so flipping the
         // toggle applies to the next session without an app restart. Off →
         // actively remove the managed skill + `.mcp.json` entry; on (or

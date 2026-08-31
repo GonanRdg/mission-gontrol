@@ -152,6 +152,7 @@ const CLAUDE_USAGE_LIMITS_SHOW_WEEKLY_KEY = "claude_usage_limits_show_weekly";
 const PROVIDER_USAGE_ENABLED_KEY = "provider_usage_enabled";
 const PROVIDER_USAGE_IDS_KEY = "provider_usage_ids";
 const AGENT_LAUNCHER_CONFIG_KEY = "agent_launcher_config";
+const DIAGRAM_SKILL_AUTOINSTALL_KEY = "diagram_skill_autoinstall";
 const PET_ENABLED_KEY = "pet_enabled";
 const PET_MESSAGES_ENABLED_KEY = "pet_messages_enabled";
 const PET_SOUNDS_ENABLED_KEY = "pet_sounds_enabled";
@@ -217,6 +218,7 @@ const updateSettingsBody = z
     mouseGradientDisabled: z.boolean(),
     batterySaverEnabled: z.boolean(),
     spellcheckEnabled: z.boolean(),
+    diagramSkillAutoInstallEnabled: z.boolean(),
     sessionFinishToastEnabled: z.boolean(),
     sessionFinishOsNotificationEnabled: z.boolean(),
     notificationSoundEnabled: z.boolean(),
@@ -570,6 +572,11 @@ function settingsPayload() {
     // Default on: turning spellcheck off frees the Electron spellchecker's
     // dictionary + suggestion memory (~15-20 MB) while composing.
     spellcheckEnabled: getBooleanSetting("spellcheck_enabled", true),
+    // Default OFF: copying the skill into each project's cwd writes a
+    // `.claude/skills/diagram/` (and, for Cursor, `.agents/skills/diagram/`)
+    // folder into repos that never asked for one. Off, the diagram viewer is
+    // reached by installing the skill per project instead.
+    diagramSkillAutoInstallEnabled: getBooleanSetting(DIAGRAM_SKILL_AUTOINSTALL_KEY, false),
     sessionFinishToastEnabled: getBooleanSetting("session_finish_toast_enabled", true),
     sessionFinishOsNotificationEnabled: getBooleanSetting(
       "session_finish_os_notification_enabled",
@@ -730,6 +737,9 @@ export async function update(request: Request): Promise<Response> {
   }
   if (body.spellcheckEnabled !== undefined) {
     setBooleanSetting("spellcheck_enabled", body.spellcheckEnabled);
+  }
+  if (body.diagramSkillAutoInstallEnabled !== undefined) {
+    setBooleanSetting(DIAGRAM_SKILL_AUTOINSTALL_KEY, body.diagramSkillAutoInstallEnabled);
   }
   if (body.sessionFinishToastEnabled !== undefined) {
     setBooleanSetting("session_finish_toast_enabled", body.sessionFinishToastEnabled);

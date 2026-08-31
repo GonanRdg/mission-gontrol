@@ -176,6 +176,7 @@ export function TerminalSettingsPage() {
     mouseGradientDisabled: settings?.mouseGradientDisabled ?? false,
     batterySaverEnabled: settings?.batterySaverEnabled ?? true,
     spellcheckEnabled: settings?.spellcheckEnabled ?? true,
+    diagramSkillAutoInstallEnabled: settings?.diagramSkillAutoInstallEnabled ?? false,
     sessionFinishToastEnabled: settings?.sessionFinishToastEnabled ?? true,
     sessionFinishOsNotificationEnabled:
       settings?.sessionFinishOsNotificationEnabled ?? false,

@@ -782,6 +782,38 @@ describe("settings API", () => {
     expect(await jsonBody(read!)).toMatchObject({ spellcheckEnabled: false });
   });
 
+  it("leaves the per-project diagram skill install off by default", async () => {
+    const response = await handleApiRequest(
+      authedRequest("http://localhost/api/settings"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(await jsonBody(response!)).toMatchObject({
+      diagramSkillAutoInstallEnabled: false,
+    });
+  });
+
+  it("persists the diagram skill auto-install preference", async () => {
+    const update = await handleApiRequest(
+      authedRequest("http://localhost/api/settings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ diagramSkillAutoInstallEnabled: true }),
+      }),
+    );
+    const read = await handleApiRequest(
+      authedRequest("http://localhost/api/settings"),
+    );
+
+    expect(update?.status).toBe(200);
+    expect(await jsonBody(update!)).toMatchObject({
+      diagramSkillAutoInstallEnabled: true,
+    });
+    expect(await jsonBody(read!)).toMatchObject({
+      diagramSkillAutoInstallEnabled: true,
+    });
+  });
+
   it("keeps worktrees enabled (always on)", async () => {
     const response = await handleApiRequest(
       authedRequest("http://localhost/api/settings"),

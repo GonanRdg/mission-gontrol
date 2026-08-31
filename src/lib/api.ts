@@ -107,6 +107,11 @@ export type AppSettings = {
   batterySaverEnabled: boolean;
   /** Spellcheck in text fields (Electron). Off frees ~15-20 MB while composing. */
   spellcheckEnabled: boolean;
+  /**
+   * Copy the bundled diagram skill into each project as its agent sessions
+   * start. Off by default — it writes a skill folder into the repo.
+   */
+  diagramSkillAutoInstallEnabled: boolean;
   /** Show the active-group switcher pill in the top bar breadcrumb. */
   showGroupSwitcher: boolean;
   /** Show the group tag (colored dot + group name) in an open project's header. */
@@ -729,6 +734,7 @@ export const api = {
         | "mouseGradientDisabled"
         | "batterySaverEnabled"
         | "spellcheckEnabled"
+        | "diagramSkillAutoInstallEnabled"
         | "showGroupSwitcher"
         | "showProjectHeaderGroup"
         | "sessionFinishToastEnabled"
