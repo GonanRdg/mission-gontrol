@@ -289,9 +289,9 @@ export function createTerminalOptions({
     allowProposedApi: true,
     // Option must act as Meta on macOS or Claude Code's meta bindings
     // (Option+P model picker, etc.) never arrive: xterm's default composes
-    // "π" instead of emitting ESC+p. Tradeoff: Option no longer composes
-    // special characters inside terminal panes. Alt+Arrow word-movement is
-    // unaffected — attachTerminalKeyHandler intercepts it before xterm.
+    // "π" instead of emitting ESC+p. Alt+Arrow word-movement and the ASCII
+    // characters non-US layouts compose with Option (Spanish @ and #) are
+    // unaffected — attachTerminalKeyHandler intercepts them before xterm.
     macOptionIsMeta: true,
     scrollback: 5000,
   };

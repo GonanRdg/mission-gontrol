@@ -20,7 +20,25 @@ export function mapTerminalKey(e: KeyboardEvent): string | null {
     if (e.key === "ArrowRight") return "\x1bf";
   }
 
-  return null;
+  return altComposedAscii(e);
+}
+
+/**
+ * macOptionIsMeta (see createTerminalOptions) turns every Option chord into
+ * ESC+key, which swallows the characters non-US layouts compose with Option:
+ * on the Spanish layout `@` is Option+2 and `#` is Option+3, and `[ ] { } \ |`
+ * sit behind Option elsewhere in Europe. Write the composed character instead
+ * whenever it is ASCII and the physical key is not a letter — Option+letter
+ * stays Meta for Claude Code's bindings, and the US layout's Option characters
+ * (™, ¶, …) are all non-ASCII so they keep composing ESC as before.
+ */
+function altComposedAscii(e: KeyboardEvent): string | null {
+  if (!e.altKey || e.metaKey || e.ctrlKey) return null;
+  if (/^Key[A-Z]$/.test(e.code)) return null;
+  if (e.key.length !== 1) return null;
+  const codePoint = e.key.codePointAt(0)!;
+  if (codePoint < 0x20 || codePoint > 0x7e) return null;
+  return e.key;
 }
 
 // xterm.js calls the custom handler for keydown, keypress, and keyup. We write

@@ -34,6 +34,36 @@ describe("terminal keymap", () => {
     expect(mapTerminalKey(keyEvent({ key: "Enter" }))).toBeNull();
     expect(shouldSuppressTerminalKey(keyEvent({ type: "keypress", key: "Enter" }))).toBe(false);
   });
+
+  it("writes the ASCII characters non-US layouts compose with Option", () => {
+    // Spanish layout: @ is Option+2, # is Option+3.
+    expect(mapTerminalKey(keyEvent({ key: "@", code: "Digit2", altKey: true }))).toBe("@");
+    expect(mapTerminalKey(keyEvent({ key: "#", code: "Digit3", altKey: true }))).toBe("#");
+    // German layout: [ ] { } sit behind Option on the bracket/number keys.
+    expect(mapTerminalKey(keyEvent({ key: "[", code: "Digit5", altKey: true }))).toBe("[");
+    expect(
+      mapTerminalKey(keyEvent({ key: "\\", code: "Digit7", altKey: true, shiftKey: true }))
+    ).toBe("\\");
+  });
+
+  it("keeps Option+letter as Meta", () => {
+    expect(mapTerminalKey(keyEvent({ key: "π", code: "KeyP", altKey: true }))).toBeNull();
+    expect(mapTerminalKey(keyEvent({ key: "p", code: "KeyP", altKey: true }))).toBeNull();
+  });
+
+  it("keeps the US layout's non-ASCII Option characters as Meta", () => {
+    expect(mapTerminalKey(keyEvent({ key: "™", code: "Digit2", altKey: true }))).toBeNull();
+    expect(mapTerminalKey(keyEvent({ key: "Dead", code: "KeyE", altKey: true }))).toBeNull();
+  });
+
+  it("leaves Option chords with Cmd or Ctrl alone", () => {
+    expect(
+      mapTerminalKey(keyEvent({ key: "@", code: "Digit2", altKey: true, metaKey: true }))
+    ).toBeNull();
+    expect(
+      mapTerminalKey(keyEvent({ key: "@", code: "Digit2", altKey: true, ctrlKey: true }))
+    ).toBeNull();
+  });
 });
 
 describe("terminal clipboard chords", () => {
