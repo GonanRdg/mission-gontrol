@@ -16,6 +16,12 @@ export type AgentQuestion = {
   header?: string;
   multiSelect: boolean;
   options: AgentQuestionOption[];
+  /**
+   * Any option carried a `preview`. Claude Code draws such a single-select
+   * question in a split-pane layout with no inline text row, which changes the
+   * keys that answer it — see agent-question-answer's menu layouts.
+   */
+  hasPreviews: boolean;
 };
 
 export type PendingQuestion = {
@@ -40,6 +46,11 @@ function parseOption(raw: unknown): AgentQuestionOption | null {
   return description ? { label, description } : { label };
 }
 
+function hasPreview(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") return false;
+  return (raw as Record<string, unknown>).preview !== undefined;
+}
+
 function parseQuestion(raw: unknown): AgentQuestion | null {
   if (!raw || typeof raw !== "object") return null;
   const q = raw as Record<string, unknown>;
@@ -50,11 +61,15 @@ function parseQuestion(raw: unknown): AgentQuestion | null {
     : [];
   if (options.length === 0) return null;
   const header = capText(q.header);
+  // Read previews off the raw options, not the capped list: the TUI's layout
+  // turns on a preview anywhere in the question, including options past ours.
+  const hasPreviews = Array.isArray(q.options) && q.options.some(hasPreview);
   return {
     question,
     ...(header ? { header } : {}),
     multiSelect: q.multiSelect === true,
     options: options.slice(0, MAX_OPTIONS),
+    hasPreviews,
   };
 }
 

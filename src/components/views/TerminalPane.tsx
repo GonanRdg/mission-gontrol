@@ -101,11 +101,14 @@ import {
 } from "~/lib/agent-question-store";
 import {
   buildPayloadAnswerKeySequence,
+  classifyMenuLayout,
+  menuLayoutForQuestion,
   writeAnswerSequence,
   INTER_QUESTION_DELAY_MS,
   MENU_READY_MS,
   SUBMIT_CONFIRM_DELAY_MS,
   SUBMIT_CONFIRM_KEY,
+  type AnswerSubmitResult,
   type QuestionAnswer,
 } from "~/lib/agent-question-answer";
 import {
@@ -576,20 +579,35 @@ export function TerminalPane({
     liveTask.status === "needs-input" &&
     !startError;
 
-  const submitQuestionAnswers = async (answers: QuestionAnswer[]): Promise<boolean> => {
+  const submitQuestionAnswers = async (
+    answers: QuestionAnswer[],
+  ): Promise<AnswerSubmitResult> => {
     const q = pendingQuestion;
-    if (!q) return false;
-    if (answeredQuestionsRef.current.has(q.id)) return false;
+    if (!q) return "failed";
+    if (answeredQuestionsRef.current.has(q.id)) return "failed";
     // The store is the live source of truth; a cleared/replaced question means
     // the TUI menu underneath is gone and injected keys would hit the REPL.
-    if (getCurrentQuestionId(task.id) !== q.id) return false;
+    if (getCurrentQuestionId(task.id) !== q.id) return "failed";
     const write = termSurfaceRef.current?.writeToPty;
-    if (!write) return false;
+    if (!write) return "failed";
+    const layouts = q.questions.map(menuLayoutForQuestion);
     const plan = buildPayloadAnswerKeySequence(
       answers,
-      q.questions.map((question) => ({ optionCount: question.options.length })),
+      q.questions.map((question, i) => ({
+        optionCount: question.options.length,
+        menuLayout: layouts[i]!,
+      })),
     );
-    if (!plan) return false;
+    if (!plan) return "failed";
+    // A typed answer is the one walk that differs between the two menu
+    // layouts, and the wrong walk lands on "Chat about this" and cancels the
+    // tool. Only the question the TUI currently shows (the first) is on
+    // screen, so verify that one against the menu output the hold captured
+    // and inject nothing at all when it doesn't match what the payload implies.
+    if (answers.some((answer) => answer.kind === "freeText")) {
+      const held = termSurfaceRef.current?.getHeldMenuText?.() ?? "";
+      if (classifyMenuLayout(held) !== layouts[0]) return "unverified";
+    }
     answeredQuestionsRef.current.add(q.id);
     // The hook fires before the TUI menu paints; keys written into the paint
     // window get misrouted. Wait out the remainder of the ready window (only
@@ -601,13 +619,13 @@ export function TerminalPane({
     const settle = q.createdAt + MENU_READY_MS - Date.now();
     if (settle > 0) {
       await new Promise((resolve) => setTimeout(resolve, settle));
-      if (walkInvalid()) return false;
+      if (walkInvalid()) return "failed";
     }
     for (let i = 0; i < plan.steps.length; i++) {
       if (i > 0) {
         // Let the TUI advance to the next question's tab before its walk.
         await new Promise((resolve) => setTimeout(resolve, INTER_QUESTION_DELAY_MS));
-        if (walkInvalid()) return false;
+        if (walkInvalid()) return "failed";
       }
       await writeAnswerSequence(write, plan.steps[i]!);
     }
@@ -615,8 +633,8 @@ export function TerminalPane({
       await new Promise((resolve) => setTimeout(resolve, SUBMIT_CONFIRM_DELAY_MS));
       write(SUBMIT_CONFIRM_KEY);
     }
-    return true;
-  };
+    return "sent";
+  };;
 
   const dismissQuestionOverlay = () => {
     if (pendingQuestion) dismissQuestionLocally(pendingQuestion.id);
@@ -1149,6 +1167,7 @@ export function TerminalPane({
           // already the remote variant for sandbox panes.
           if (surface.ptyId && ptyApi) void ptyApi.write(surface.ptyId, data);
         },
+        getHeldMenuText: () => questionHold.getHeldText(),
       };
 
       const wireTerminalInput = (ptyId: string) => {

@@ -24,6 +24,13 @@ function makeHold(opts?: { maxHeldChars?: number }) {
   };
 }
 
+const PREVIEW_MENU_FRAME =
+  "\x1b[H\x1b[2K\x1b[1B\x1b[2K" +
+  "\x1b[2GHow\x1b[6Gwould\x1b[12Gyou like me to\r\n\x1b[2Gwork during this session?\r\n" +
+  "\x1b[2G\x1b[38;5;153m1. Autonomous\x1b[39m \u2502 preview \u2502\r\n" +
+  "2. Check in often \u2502 preview \u2502\r\n" +
+  "Notes: press n to add notes\r\n3. Chat about this";
+
 const PENDING = {
   questions: [
     { question: "How would you like me to work during this session?", header: "Work style" },
@@ -162,5 +169,43 @@ describe("createQuestionMenuHold", () => {
     t.hold.dispose();
     vi.advanceTimersByTime(GAP * 2);
     expect(t.written).toEqual([]);
+  });
+});
+
+describe("preview-layout menus", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("engages the hold on the split pane's own row", () => {
+    const { hold, written, setQuestion } = makeHold();
+    setQuestion(PENDING);
+    hold.write(PREVIEW_MENU_FRAME);
+    vi.advanceTimersByTime(GAP);
+    expect(written).toEqual([]);
+    expect(hold.getHeldText()).toContain("pressntoaddnotes");
+  });
+
+  it("exposes the held menu text, normalized, including later frames", () => {
+    const { hold, written, setQuestion } = makeHold();
+    setQuestion(PENDING);
+    hold.write(MENU_FRAME);
+    vi.advanceTimersByTime(GAP);
+    hold.write("\x1b[2Gre\x1b[4Gpaint");
+    expect(written).toEqual([]);
+    const held = hold.getHeldText();
+    expect(held).toContain("Typesomething.");
+    expect(held).toContain("repaint");
+  });
+
+  it("is empty before a menu engages the hold", () => {
+    const { hold, setQuestion } = makeHold();
+    setQuestion(PENDING);
+    hold.write("just transcript output\r\n");
+    vi.advanceTimersByTime(GAP);
+    expect(hold.getHeldText()).toBe("");
   });
 });

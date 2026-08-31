@@ -47,6 +47,12 @@ export interface CachedTerminalControls {
   clear(): void;
   /** Write raw bytes to the surface's live PTY (tracks respawns). */
   writeToPty?(data: string): void;
+  /**
+   * The AskUserQuestion menu output withheld from the screen while the popup
+   * answers it, normalized for matching (see terminal-question-hold). Empty
+   * when no menu is being held.
+   */
+  getHeldMenuText?(): string;
 }
 
 /**

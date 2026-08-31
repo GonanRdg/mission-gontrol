@@ -6,26 +6,83 @@
  * not used: whether a digit jumps the highlight or selects immediately has
  * varied across Claude Code versions, while arrows/Space/Enter are stable.
  *
- * Verified against Claude Code 2.1.201 by driving real sessions in a PTY:
+ * Claude Code draws a question in one of two layouts, and they take different
+ * keys for a typed answer:
+ *
+ * - "list" — the default. Rows are the real options, then a synthetic input
+ *   row ("Other", placeholder "Type something."), and a "Chat about this"
+ *   footer that ↓ from the last row moves to. Highlight the input row, type
+ *   inline, Enter submits the typed text.
+ * - "preview" — a split pane, drawn for a single-select question when any of
+ *   its options carries a `preview`. Rows are the real options ONLY: there is
+ *   no input row, and ↓ from the last option jumps to the "Chat about this"
+ *   footer, where every key but ↑/Enter/Esc is ignored and Enter cancels the
+ *   tool. A typed answer goes into a separate Notes field opened with "n";
+ *   Enter there submits it as a notes-only answer (no option selected).
+ *
+ * Verified against Claude Code 2.1.201 and 2.1.251 by driving real sessions
+ * in a PTY and reading the 2.1.251 menu components:
  * - Single-select: highlight starts on option 1; ↓ moves it, Enter selects
- *   and auto-advances to the next question's tab.
+ *   and auto-advances to the next question's tab. Same in both layouts.
  * - Multi-select: Space toggles the highlighted row — and so does Enter, so
  *   Enter must NOT be used from an option row. → advances to the next tab.
+ *   Multi-select is always the list layout.
  * - After the LAST question of a multi-question payload (and after → on any
  *   final multi-select), a review screen appears ("Ready to submit your
  *   answers? ❯ 1. Submit answers / 2. Cancel") that needs one more Enter.
  *   Single-question single-select payloads submit directly with no review.
- * - The TUI appends synthetic rows after the real options: "Type something."
- *   (highlight it, type inline, Enter submits the typed text) and "Chat about
- *   this" (Enter cancels the tool — "User declined to answer questions" — and
- *   the agent continues conversationally; no PostToolUse fires, the question
- *   clears via the subsequent Stop hook).
+ * - "Chat about this" cancels the tool ("User declined to answer questions")
+ *   and the agent continues conversationally; no PostToolUse fires, the
+ *   question clears via the subsequent Stop hook. It sits one ↓ past the last
+ *   row in both layouts.
  */
+
+import { normalizeForMatch } from "./terminal-question-hold";
 
 const KEY_DOWN = "\x1b[B";
 const KEY_RIGHT = "\x1b[C";
 const KEY_ENTER = "\r";
 const KEY_SPACE = " ";
+/** Opens the preview layout's Notes field (its only route to a typed answer). */
+const KEY_NOTES = "n";
+
+/** Which of the two AskUserQuestion menu layouts a question is drawn in. */
+export type MenuLayout = "list" | "preview";
+
+/**
+ * Outcome of an overlay submission. "unverified" means the keys were never
+ * written because the painted menu didn't match the layout the payload
+ * implies — the question is still open in the terminal, untouched.
+ */
+export type AnswerSubmitResult = "sent" | "failed" | "unverified";
+
+/** The split pane is drawn for single-select questions carrying previews. */
+export function menuLayoutForQuestion(question: {
+  multiSelect: boolean;
+  hasPreviews: boolean;
+}): MenuLayout {
+  return question.hasPreviews && !question.multiSelect ? "preview" : "list";
+}
+
+/** Rows unique to one layout, matched against held menu output. */
+const LIST_LAYOUT_MARKER = normalizeForMatch("Type something");
+const PREVIEW_LAYOUT_MARKER = normalizeForMatch("press n to add notes");
+
+/**
+ * Which layout the terminal actually painted, from the menu output the hold
+ * buffered (see terminal-question-hold's getHeldText).
+ *
+ * "unknown" means the frames match neither layout, or both — the caller must
+ * then refuse to inject a typed answer rather than guess, because the wrong
+ * walk lands on "Chat about this" and cancels the tool.
+ */
+export function classifyMenuLayout(heldText: string): MenuLayout | "unknown" {
+  const normalized = normalizeForMatch(heldText);
+  const list = normalized.includes(LIST_LAYOUT_MARKER);
+  const preview = normalized.includes(PREVIEW_LAYOUT_MARKER);
+  if (list === preview) return "unknown";
+  return list ? "list" : "preview";
+}
 
 export type QuestionAnswer =
   | {
@@ -61,6 +118,7 @@ export function buildAnswerKeySequence(
     questionIndex: number;
     /** Total questions in the payload. */
     questionCount: number;
+    menuLayout: MenuLayout;
   },
 ): AnswerKeySequence {
   const isLast = answer.questionIndex >= answer.questionCount - 1;
@@ -71,6 +129,14 @@ export function buildAnswerKeySequence(
   if (answer.kind === "freeText") {
     const text = sanitizeFreeText(answer.text);
     if (!text) return { keys: [], needsSubmitConfirm: false };
+    if (answer.menuLayout === "preview") {
+      // No input row exists: "n" opens the Notes field from any option row,
+      // and Enter submits it as a notes-only answer, advancing like a pick.
+      return {
+        keys: [KEY_NOTES, text, KEY_ENTER],
+        needsSubmitConfirm: confirmAfterEnter,
+      };
+    }
     // Highlight the synthetic "Type something." row (first after the real
     // options), type inline, submit like a single-select pick.
     return {
@@ -80,8 +146,9 @@ export function buildAnswerKeySequence(
   }
 
   if (answer.kind === "chat") {
-    // "Chat about this" sits below "Type something."; selecting it cancels
-    // the whole tool immediately — no review screen ever follows.
+    // "Chat about this" sits one row past the last, in both layouts (the
+    // preview layout ignores the extra ↓); selecting it cancels the whole
+    // tool immediately — no review screen ever follows.
     return {
       keys: [...Array<string>(answer.optionCount + 1).fill(KEY_DOWN), KEY_ENTER],
       needsSubmitConfirm: false,
@@ -140,7 +207,7 @@ export type PayloadAnswerPlan = {
  */
 export function buildPayloadAnswerKeySequence(
   answers: QuestionAnswer[],
-  questions: { optionCount: number }[],
+  questions: { optionCount: number; menuLayout: MenuLayout }[],
 ): PayloadAnswerPlan | null {
   if (answers.length === 0 || answers.length > questions.length) return null;
   const steps: string[][] = [];
@@ -150,6 +217,7 @@ export function buildPayloadAnswerKeySequence(
     const sequence = buildAnswerKeySequence({
       ...answer,
       optionCount: questions[i]!.optionCount,
+      menuLayout: questions[i]!.menuLayout,
       questionIndex: i,
       questionCount: questions.length,
     });

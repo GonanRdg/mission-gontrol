@@ -10,7 +10,11 @@ import {
 import { Btn } from "~/components/ui/Btn";
 import { Kbd } from "~/components/ui/Kbd";
 import type { AgentQuestion, PendingQuestion } from "~/shared/agent-questions";
-import { sanitizeFreeText, type QuestionAnswer } from "~/lib/agent-question-answer";
+import {
+  sanitizeFreeText,
+  type AnswerSubmitResult,
+  type QuestionAnswer,
+} from "~/lib/agent-question-answer";
 
 /** Inline keyboard hint: rendered key glyphs followed by a label. */
 function hint(label: string, keys: string[]): ReactNode {
@@ -58,9 +62,11 @@ export function AskUserQuestionOverlay({
   terminalOwnedFocus: () => boolean;
   /**
    * Inject the collected answers (one per question, or ending early with a
-   * chat answer) into the TUI. Resolves false when nothing could be sent.
+   * chat answer) into the TUI. Resolves "failed" when nothing could be sent,
+   * and "unverified" when the menu on screen didn't match the shape the keys
+   * assume, so nothing was injected at all.
    */
-  onSubmitAnswers: (answers: QuestionAnswer[]) => Promise<boolean>;
+  onSubmitAnswers: (answers: QuestionAnswer[]) => Promise<AnswerSubmitResult>;
   onDismiss: () => void;
   onFocusTerminal: () => void;
   /** Give focus back to the terminal when the overlay unmounts while holding it. */
@@ -76,7 +82,7 @@ export function AskUserQuestionOverlay({
   );
   const [submitting, setSubmitting] = useState(false);
   const [finished, setFinished] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<"failed" | "unverified" | null>(null);
   // Peek: collapse the panel to its header so the terminal (Claude's actual
   // question + the context above it) is readable without giving up the menu.
   const [collapsed, setCollapsed] = useState(false);
@@ -168,11 +174,11 @@ export function AskUserQuestionOverlay({
     // so it survives (and the unmount handoff returns it to the terminal).
     keepOverlayFocus();
     setSubmitting(true);
-    setFailed(false);
+    setFailed(null);
     void onSubmitAnswers(record)
-      .then((ok) => {
-        if (!ok) {
-          setFailed(true);
+      .then((result) => {
+        if (result !== "sent") {
+          setFailed(result);
           return;
         }
         setFinished(
@@ -662,7 +668,9 @@ export function AskUserQuestionOverlay({
           >
             {failed ? (
               <span style={{ color: "var(--status-needs)" }}>
-                Could not send — answer in the terminal.
+                {failed === "unverified"
+                  ? "Menu on screen doesn't match — answer in the terminal."
+                  : "Could not send — answer in the terminal."}
               </span>
             ) : textMode ? (
               <>

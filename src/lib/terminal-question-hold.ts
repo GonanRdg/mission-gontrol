@@ -36,12 +36,21 @@ const ANSI_RE =
  * wrap it at arbitrary columns, so matching normalizes both sides down to the
  * bare glyphs: ANSI stripped, all whitespace removed.
  */
-function normalizeForMatch(text: string): string {
+export function normalizeForMatch(text: string): string {
   return text.replace(ANSI_RE, "").replace(/\s+/g, "");
 }
 
-/** Rows the AskUserQuestion menu always paints, plus per-payload texts. */
-const MENU_ROW_SIGNATURES = ["Type something", "Chat about this", "Enter to select"];
+/**
+ * Rows the AskUserQuestion menu paints, plus per-payload texts. "Type
+ * something" belongs to the list layout and "press n to add notes" to the
+ * split-pane preview layout, so a menu in either shape engages the hold.
+ */
+const MENU_ROW_SIGNATURES = [
+  "Type something",
+  "press n to add notes",
+  "Chat about this",
+  "Enter to select",
+];
 
 /** Question-text prefix short enough to survive narrow-pane truncation. */
 const QUESTION_SIGNATURE_CHARS = 24;
@@ -62,9 +71,23 @@ export function questionMenuSignatures(pending: {
     .filter((sig) => sig.length >= MIN_SIGNATURE_CHARS);
 }
 
+/**
+ * Cap on how much of the backlog getHeldText normalizes: the menu and its
+ * repaints sit at the tail, and normalizing megabytes on every read would
+ * stall the answer path.
+ */
+export const HELD_TEXT_SCAN_CHARS = 64_000;
+
 export interface QuestionMenuHold {
   /** Route a PTY output chunk through the hold. */
   write(data: string): void;
+  /**
+   * The withheld menu output, normalized for matching — what the terminal
+   * would be showing if the popup weren't answering for it. Empty until a
+   * menu frame engages the hold. Used to tell the menu layouts apart before
+   * injecting keys (see agent-question-answer's classifyMenuLayout).
+   */
+  getHeldText(): string;
   /** Re-check the store; flushes the backlog once the question resolved. */
   sync(): void;
   /** Stop the frame timer — call from surface teardown. */
@@ -165,6 +188,10 @@ export function createQuestionMenuHold(opts: {
       }
       clearFrameTimer();
       frameTimer = setTimeout(onFrameComplete, frameGapMs);
+    },
+    getHeldText() {
+      const backlog = held.join("") + frame.join("");
+      return normalizeForMatch(backlog.slice(-HELD_TEXT_SCAN_CHARS));
     },
     sync() {
       if (opts.getSignatures()) return;

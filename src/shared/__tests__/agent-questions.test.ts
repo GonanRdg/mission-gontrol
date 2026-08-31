@@ -26,6 +26,7 @@ describe("parseAskUserQuestionInput", () => {
           { label: "OAuth", description: "Redirect flow" },
           { label: "JWT" },
         ],
+        hasPreviews: false,
       },
     ]);
   });
@@ -56,7 +57,7 @@ describe("parseAskUserQuestionInput", () => {
     });
 
     expect(parsed).toEqual([
-      { question: "Ok", multiSelect: false, options: [{ label: "Keep" }] },
+      { question: "Ok", multiSelect: false, options: [{ label: "Keep" }], hasPreviews: false },
     ]);
   });
 
@@ -73,6 +74,37 @@ describe("parseAskUserQuestionInput", () => {
     expect(parsed).toHaveLength(4);
     expect(parsed?.[0]?.options).toHaveLength(4);
     expect(parsed?.[0]?.options[0]?.label).toHaveLength(2000);
+  });
+
+  it("flags questions whose options carry previews", () => {
+    const parsed = parseAskUserQuestionInput({
+      questions: [
+        {
+          question: "Which layout?",
+          options: [
+            { label: "A", preview: "```ts\nconst a = 1;\n```" },
+            { label: "B" },
+          ],
+        },
+        { question: "Plain", options: [{ label: "A" }, { label: "B" }] },
+      ],
+    });
+    expect(parsed?.[0]?.hasPreviews).toBe(true);
+    expect(parsed?.[1]?.hasPreviews).toBe(false);
+  });
+
+  it("sees previews on options past the cap", () => {
+    const plain = { label: "x" };
+    const parsed = parseAskUserQuestionInput({
+      questions: [
+        {
+          question: "q",
+          options: [plain, plain, plain, plain, { label: "y", preview: "shown" }],
+        },
+      ],
+    });
+    expect(parsed?.[0]?.options).toHaveLength(4);
+    expect(parsed?.[0]?.hasPreviews).toBe(true);
   });
 
   it("returns null for unusable shapes", () => {
