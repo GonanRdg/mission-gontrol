@@ -787,34 +787,6 @@ const TOOL_KIND_TRIGGERS: Partial<Record<string, PetTrigger>> = {
   "edit-migration": "edit-migration",
 };
 
-// Claude's `<!-- pet: … -->` cues arrive at most once per turn; this local
-// floor only matters when several sessions finish together — one voice at a
-// time, the rest of the chorus waits for the next turn.
-const REMARK_COOLDOWN_MS = 30_000;
-let lastRemarkAt = 0;
-
-/** Speak a line Claude wrote for the pet, verbatim. Rarer than any stock
- * pack, so it preempts an open bubble the way critical lines do. */
-function sayRemark(text: string): void {
-  if (!enabled || !messagesEnabled || !persistent) return;
-  // A remark preempts an open bubble like a rare line does — but never a
-  // critical one: another session's "needs input" alert must outlast a
-  // finishing session's chatter (mirrors say()'s critical-only preemption).
-  if (bubble && bubble.priority === "critical") return;
-  const now = Date.now();
-  if (now - lastRemarkAt < REMARK_COOLDOWN_MS) return;
-  lastRemarkAt = now;
-  bubble = { id: ++bubbleId, text, priority: "info" };
-  if (bubbleTimer) clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(() => {
-    bubbleTimer = null;
-    bubble = null;
-    invalidate();
-  }, bubbleDurationMs(text));
-  chirp();
-  invalidate();
-}
-
 /** The pet's voice, in its own species' timbre; gated by the sounds setting. */
 function chirp(kind: "pet" | "dizzy" = "pet"): void {
   if (!soundsEnabled) return;
@@ -1232,15 +1204,6 @@ export function petIngestServerEvent(event: ServerEvent): void {
         say(sentiment === "error" ? "agent-error" : "agent-working");
       }
       recompute();
-      return;
-    }
-    case "agent:remark": {
-      // Claude ended its turn with an invisible `<!-- pet: … -->` cue — the
-      // agent talking to the pet directly. Speak it verbatim: it outranks the
-      // stock finish line (this event lands just before session:finished, so
-      // the bubble it opens blocks that one).
-      const text = typeof event.text === "string" ? event.text : "";
-      if (text) sayRemark(text);
       return;
     }
   }

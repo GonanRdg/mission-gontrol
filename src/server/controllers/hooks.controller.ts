@@ -17,11 +17,10 @@ import { setPendingQuestion } from "../services/pending-questions";
 import { recordPrompt } from "../services/prompts";
 import { maybeAutoIndexGraph } from "../services/graph-auto-index";
 import { ensureGraphWatch } from "../services/graph-watcher";
-import { setTranscriptPath, readLastAssistantText } from "../services/session-transcripts";
+import { setTranscriptPath } from "../services/session-transcripts";
 import { readRecallSettings } from "../services/recall-settings";
-import { getBooleanSetting, readJsonSetting } from "../services/settings";
+import { getBooleanSetting } from "../services/settings";
 import { classifyPetToolUse, petToolSentiment } from "~/shared/pet-tool-classify";
-import { extractPetRemark, renderPetRemarkInstruction } from "~/shared/pet-remark";
 import { events } from "../events";
 import {
   assembleTurnContext,
@@ -57,10 +56,6 @@ const hookPayload = z
     // Absolute path to the session's JSONL transcript (Claude Code). Stashed per
     // task so auto-distill can read the full session, not just the prompts.
     transcript_path: z.string(),
-    // Stop / SubagentStop carry the turn's final assistant text directly. The
-    // transcript file can lag the in-memory conversation (and may not be flushed
-    // when Stop fires), so the pet remark prefers this over re-reading the file.
-    last_assistant_message: z.string(),
     // Synthetic MissionControlSessionEnded (electron/pty-manager): the PTY
     // process's exit code, used to pick finished vs terminated.
     exit_code: z.number(),
@@ -120,33 +115,11 @@ function finishQuietTask(taskId: string): void {
 // (whose hook is still on disk) stops emitting the instant the pet is disabled.
 const PET_ENABLED_KEY = "pet_enabled";
 
-// The persisted pet identity (settings.controller PET_STATE_KEY) — read only
-// for the name, so the remark instruction can address the pet properly.
-const PET_STATE_KEY = "pet_state";
-
-function petName(): string | null {
-  try {
-    const state = readJsonSetting<{ name?: unknown }>(PET_STATE_KEY);
-    return state && typeof state.name === "string" && state.name.trim()
-      ? state.name.trim()
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-// Last pet remark emitted per task. The transcript walk can only resurface an
-// older response's cue when a turn ends without prose (rare, but Stop also
-// re-fires on the same turn); refusing to repeat a task's previous remark
-// keeps the pet from parroting stale lines. Bounded like the transcript map.
-const MAX_TRACKED_REMARKS = 500;
-const lastRemarkByTask = new Map<string, string>();
-
 // The pet's Bash|Write|Edit PostToolUse hook now POSTs on every qualifying tool
 // call (no shell-side time gate — see PET_TOOL_HOOK). Meaningful results always
 // reach the pet, but a burst of routine neutral edits would churn its mood, so
 // the neutral "agent is working" signal is throttled here, per task — after the
-// result is classified, which the shell can't do. Bounded like lastRemarkByTask.
+// result is classified, which the shell can't do. Bounded like the transcript map.
 const NEUTRAL_TOOL_REACT_COOLDOWN_MS = 8_000;
 const MAX_TRACKED_TOOL_REACTS = 500;
 const lastNeutralToolReactByTask = new Map<string, number>();
@@ -164,38 +137,6 @@ function allowNeutralToolReact(taskId: string): boolean {
     lastNeutralToolReactByTask.delete(oldest);
   }
   return true;
-}
-
-/** Extract and emit Claude's `<!-- pet: … -->` cue for this turn, if any. */
-function emitPetRemark(
-  taskId: string,
-  projectId: string,
-  lastAssistantMessage: string | undefined,
-): void {
-  try {
-    // The hook payload's last_assistant_message is always THIS turn's final
-    // text; fall back to the transcript only when the field is absent (older
-    // Claude builds, or another agent). The transcript walk can lag or miss a
-    // not-yet-flushed message, so the direct field is strictly more reliable.
-    const direct =
-      typeof lastAssistantMessage === "string" && lastAssistantMessage.trim()
-        ? lastAssistantMessage
-        : null;
-    const text = direct ?? readLastAssistantText(taskId);
-    if (!text) return;
-    const remark = extractPetRemark(text);
-    if (!remark || lastRemarkByTask.get(taskId) === remark) return;
-    lastRemarkByTask.delete(taskId);
-    lastRemarkByTask.set(taskId, remark);
-    while (lastRemarkByTask.size > MAX_TRACKED_REMARKS) {
-      const oldest = lastRemarkByTask.keys().next().value;
-      if (oldest === undefined) break;
-      lastRemarkByTask.delete(oldest);
-    }
-    events.emit("agent:remark", { taskId, projectId, text: remark });
-  } catch {
-    // Fail-soft: a torn transcript read must never fault the Stop hook.
-  }
 }
 
 async function reconcileSessionId(
@@ -426,17 +367,6 @@ export async function receive(url: URL, request: Request): Promise<Response> {
     return json({ ok: true, ignored: event });
   }
 
-  // Claude may have ended this turn with an invisible `<!-- pet: … -->` cue
-  // (invited by the first-turn instruction below). Surface it BEFORE
-  // updateStatus so the remark reaches the renderer ahead of session:finished
-  // — the pet then speaks Claude's line instead of a stock finish line. Also
-  // fires for a held Stop (active subagents downgraded it to running, so no
-  // session:finished follows): the turn's cue is still current, and the
-  // lastRemarkByTask dedupe keeps the real finish from repeating it.
-  if (event === AGENT_HOOK_EVENTS.stop && getBooleanSetting(PET_ENABLED_KEY, true)) {
-    emitPetRemark(taskId, task.projectId, payload.last_assistant_message);
-  }
-
   try {
     const t = updateStatus(taskId, { status });
     if (!t) return jsonError(HTTP_NOT_FOUND, "task not found");
@@ -473,9 +403,8 @@ export async function receive(url: URL, request: Request): Promise<Response> {
     // other event discards it, so returning these fields elsewhere is harmless.
     if (event === AGENT_HOOK_EVENTS.userPromptSubmit) {
       const toolLoad = buildToolLoadContext(task.agent, taskId, incomingSessionId);
-      const petIntro = buildPetRemarkIntro(task.agent, taskId, incomingSessionId);
       const turnContext = buildTurnContext(task.projectId, task.scopeId, payload.prompt);
-      const additionalContext = [toolLoad, petIntro, turnContext].filter(Boolean).join("\n\n");
+      const additionalContext = [toolLoad, turnContext].filter(Boolean).join("\n\n");
       if (additionalContext) {
         return json({
           ok: true,
@@ -541,31 +470,6 @@ function buildToolLoadContext(agent: TaskAgent, taskId: string, sessionId: strin
   toolLoadPromptedSessions.add(key);
   try {
     return renderToolLoadInstruction();
-  } catch {
-    return "";
-  }
-}
-
-// Sessions already told about the pet's remark channel. Same shape and
-// rationale as toolLoadPromptedSessions: once per session, keyed task+session
-// so a resumed session (fresh context) is re-introduced, bounded in memory.
-const petIntroSentSessions = new Set<string>();
-const PET_INTRO_SENT_CAP = 2000;
-
-/**
- * The one-shot, first-turn instruction inviting Claude to talk to the pet via
- * `<!-- pet: … -->` cues — or "" when it shouldn't fire (non-Claude agent, pet
- * disabled, or already sent for this session). Fail-soft like its siblings.
- */
-function buildPetRemarkIntro(agent: TaskAgent, taskId: string, sessionId: string): string {
-  if (agent !== "claude-code") return "";
-  if (!getBooleanSetting(PET_ENABLED_KEY, true)) return "";
-  const key = `${taskId}:${sessionId || "unknown"}`;
-  if (petIntroSentSessions.has(key)) return "";
-  if (petIntroSentSessions.size >= PET_INTRO_SENT_CAP) petIntroSentSessions.clear();
-  petIntroSentSessions.add(key);
-  try {
-    return renderPetRemarkInstruction(petName());
   } catch {
     return "";
   }

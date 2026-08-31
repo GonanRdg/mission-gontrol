@@ -48,14 +48,6 @@ export type AppEvent =
       // fallback for older payloads and mood logic.
       kind: PetToolKind;
     }
-  | {
-      // Claude ended a response with an invisible `<!-- pet: … -->` cue
-      // (see ~/shared/pet-remark); the pet speaks the line verbatim.
-      type: "agent:remark";
-      taskId: string;
-      projectId: string;
-      text: string;
-    }
   | { type: "memory:created"; id: string; projectId: string }
   | { type: "memory:updated"; id: string; projectId: string }
   | { type: "memory:deleted"; id: string; projectId: string }
