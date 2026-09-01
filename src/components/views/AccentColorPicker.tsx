@@ -1,4 +1,5 @@
 import { Icon } from "~/components/ui/Icon";
+import type { Theme } from "~/lib/use-theme";
 import {
   ACCENT_COLORS,
   type AccentColor,
@@ -12,17 +13,22 @@ const SWATCH_DOT_PX = 18;
 /**
  * Responsive grid of accent-color swatches. Renders painted-chrome or clean
  * (minimal) preview cards depending on `minimal`, so the swatches preview the
- * accent in the currently-selected theme style. Shared by the Theme settings
- * page and the first-launch theme picker.
+ * accent in the currently-selected theme style — and, via `theme`, in the
+ * current appearance. Shared by the Theme settings page and the first-launch
+ * theme picker (which stays on the dark default, matching its style preview).
  */
 export function AccentColorGrid({
   minimal,
   selected,
   onSelect,
+  theme = "dark",
 }: {
   minimal: boolean;
   selected: AccentColorId;
   onSelect: (id: AccentColorId) => void;
+  /** Current light/dark appearance. The flat card is token-driven and follows
+   *  it for free; the painted card has to swap to the light art cut. */
+  theme?: Theme;
 }) {
   return (
     <div
@@ -43,6 +49,7 @@ export function AccentColorGrid({
         ) : (
           <ThemePreviewCard
             key={color.id}
+            theme={theme}
             color={color}
             selected={color.id === selected}
             onSelect={() => onSelect(color.id)}
@@ -166,14 +173,23 @@ function ThemePreviewCard({
   color,
   selected,
   onSelect,
+  theme = "dark",
 }: {
   color: AccentColor;
   selected: boolean;
   onSelect: () => void;
+  theme?: Theme;
 }) {
   const accentRgba = (a: number) => `rgba(${color.rgb}, ${a})`;
-  const panelBorder = `url("/borders/panel_focused_${color.id}.png")`;
-  const squareBorder = `url("/borders/square_${color.id}.png")`;
+  // Mirrors frameArtVars (src/lib/accent-colors.ts): the light appearance uses
+  // the "-light" cut of the panel art, and drops the art background layer for a
+  // paper ground the way CardFrame does — otherwise the swatch samples the
+  // art's opaque centre and stays a dark slab on a light page.
+  const light = theme === "light";
+  const cut = light ? "-light" : "";
+  const panelBorder = `url("/borders/panel_focused_${color.id}${cut}.png")`;
+  const squareBorder = `url("/borders/square_${color.id}${cut}.png")`;
+  // button_filled has no light cut — a solid accent CTA reads fine on paper.
   const buttonBorder = `url("/borders/button_filled_${color.id}.png")`;
   return (
     <button
@@ -188,10 +204,12 @@ function ThemePreviewCard({
         padding: 0,
         cursor: "pointer",
         textAlign: "left",
-        background:
-          `linear-gradient(rgba(3, 6, 8, 0.30), rgba(3, 6, 8, 0.30)), ` +
-          `radial-gradient(circle at 30% 0%, ${accentRgba(selected ? 0.18 : 0.08)}, transparent 65%), ` +
-          `${selected ? panelBorder : squareBorder} 39.0625% 39.0625% / 200% 200% no-repeat`,
+        background: light
+          ? `linear-gradient(var(--surface-0), var(--surface-0)), ` +
+            `radial-gradient(circle at 30% 0%, ${accentRgba(selected ? 0.16 : 0.07)}, transparent 65%)`
+          : `linear-gradient(rgba(3, 6, 8, 0.30), rgba(3, 6, 8, 0.30)), ` +
+            `radial-gradient(circle at 30% 0%, ${accentRgba(selected ? 0.18 : 0.08)}, transparent 65%), ` +
+            `${selected ? panelBorder : squareBorder} 39.0625% 39.0625% / 200% 200% no-repeat`,
         backgroundClip: "padding-box",
         borderStyle: "solid",
         borderColor: "transparent",
@@ -241,7 +259,7 @@ function ThemePreviewCard({
               height: SWATCH_DOT_PX,
               borderRadius: 999,
               background: color.value,
-              border: "1px solid rgba(255, 255, 255, 0.15)",
+              border: `1px solid ${light ? "var(--border-strong)" : "rgba(255, 255, 255, 0.15)"}`,
               boxShadow: `0 0 12px ${accentRgba(0.55)}`,
               flexShrink: 0,
             }}
@@ -276,7 +294,11 @@ function ThemePreviewCard({
               fontFamily: "var(--mono)",
               fontSize: 10.5,
               fontWeight: 600,
-              color: "#fff",
+              // The chip's interior is the accent at low alpha over the card,
+              // so it follows the card's ground: dark ink on the light one.
+              // (The border art itself is only the ring here — the slice has no
+              // `fill` — so it never backs the label.)
+              color: light ? "var(--text)" : "#fff",
               borderStyle: "solid",
               borderColor: "transparent",
               borderWidth: 12,
@@ -284,9 +306,9 @@ function ThemePreviewCard({
               borderImageSlice: "48",
               borderImageWidth: "12px",
               borderImageRepeat: "stretch",
-              background: accentRgba(0.18),
+              background: accentRgba(light ? 0.26 : 0.18),
               backgroundClip: "padding-box",
-              textShadow: `0 0 8px ${accentRgba(0.6)}`,
+              ...(light ? null : { textShadow: `0 0 8px ${accentRgba(0.6)}` }),
             }}
           >
             Action

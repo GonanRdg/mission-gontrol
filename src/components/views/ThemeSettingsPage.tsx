@@ -333,6 +333,7 @@ export function ThemeSettingsPage() {
           minimal={minimalTheme}
           selected={accentColor}
           onSelect={setAccentColor}
+          theme={theme}
         />
       </Field>
       <Field label="Surface tint">
