@@ -272,6 +272,16 @@
   --banner-muted: rgba(23, 24, 28, 0.78);
   --banner-link: color-mix(in srgb, var(--accent) 62%, black);
   --banner-icon-bg: color-mix(in srgb, var(--accent) 14%, var(--surface-0));
+  /* Drop-shadows tuned for a near-black ground read as grime on paper. */
+  --mc-pet-shadow: rgba(18, 22, 33, 0.18);
+}
+
+/* Scrollbar hover had a light variant for the resting thumb but not the hover
+   state, so hovering a scrollbar in light mode made the thumb disappear. */
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+  background-clip: content-box;
+  border: 2px solid transparent;
 }
 
 /* PAINTED, LIGHT mode — dark ink on warm paper.
@@ -509,9 +519,23 @@ body[data-suspend-app-drag] .mc-topbar {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--text);
+  /* The ::before frame slices with `fill`, so the button's interior is opaque
+     near-black art in BOTH appearances — this ink has to stay light rather
+     than follow --text. Flat overrides these buttons wholesale further down,
+     so this only ever applies to painted. */
+  color: var(--mc-frame-ink);
   font-weight: 600;
   filter: drop-shadow(0 0 8px rgb(0 0 0 / 34%));
+}
+
+/* On paper an 8px black bloom around every button reads as a smudge; the ink
+   frame already carries the edge, so light keeps only a hint of lift. */
+:root:not([data-minimal="true"])[data-theme="light"] :is(
+    .mc-btn-ghost,
+    .mc-btn-danger,
+    .mc-btn-gray-frame
+  ) {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 12%));
 }
 
 .mc-btn-ghost.mc-btn-sm,
@@ -524,6 +548,12 @@ body[data-suspend-app-drag] .mc-topbar {
 
 .mc-btn-danger {
   color: var(--status-failed);
+}
+
+/* --status-failed darkens under light for contrast on paper, but this label
+   sits on the button's dark fill art — so it takes the dark-mode hue back. */
+:root:not([data-minimal="true"])[data-theme="light"] .mc-btn-danger {
+  color: oklch(0.7 0.19 25);
 }
 
 .mc-btn-primary,
@@ -740,6 +770,20 @@ body[data-suspend-app-drag] .mc-topbar {
     drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 90%, white));
 }
 
+/* The focus glow spills off the button art onto the page. Mixed toward white
+   it reads as emission on a dark ground but vanishes on paper, so light mixes
+   toward black instead — same accent hue, opposite direction. */
+:root:not([data-minimal="true"])[data-theme="light"] :is(
+    .mc-btn-primary,
+    .mc-btn-frame,
+    .mc-btn-ghost,
+    .mc-btn-danger,
+    .mc-btn-gray-frame
+  ):focus-visible::before {
+  filter: brightness(1.08) saturate(1.15)
+    drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 90%, black));
+}
+
 .mc-btn:disabled,
 .mc-btn[aria-disabled="true"] {
   cursor: not-allowed;
@@ -797,6 +841,24 @@ body[data-suspend-app-drag] .mc-topbar {
 
 .mc-input-frame:focus-within::before {
   filter: brightness(1.12) saturate(1.1);
+}
+
+/* Same opaque-fill situation as the ghost buttons: the ::before slices with
+   `fill`, so the field's ground is dark art in both appearances. The value,
+   the placeholder and the caret all have to stay light ink, and the black
+   bloom softens to a hint on paper. */
+:root:not([data-minimal="true"])[data-theme="light"] .mc-input-frame {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 12%));
+  color: var(--mc-frame-ink);
+}
+:root:not([data-minimal="true"])[data-theme="light"] .mc-input-frame :is(input, textarea) {
+  color: var(--mc-frame-ink);
+  caret-color: var(--accent);
+}
+:root:not([data-minimal="true"])[data-theme="light"]
+  .mc-input-frame
+  :is(input, textarea)::placeholder {
+  color: var(--mc-frame-ink-dim);
 }
 
 [data-sonner-toaster] {
@@ -2534,6 +2596,23 @@ html[data-window-idle] .mc-pet * {
   animation: pinned-project-running-sweep 1.7s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
+/* `screen` against a light ground is very nearly a no-op, so the sweep is
+   invisible in light mode. Multiply darkens instead, which needs the stops
+   pushed up to read at all through the blur. */
+[data-theme="light"] .pinned-project-logo-surface--running::after {
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 26%,
+    color-mix(in srgb, var(--accent) 28%, transparent) 41%,
+    color-mix(in srgb, var(--status-running) 62%, transparent) 50%,
+    color-mix(in srgb, var(--accent) 34%, transparent) 59%,
+    transparent 74%,
+    transparent 100%
+  );
+  mix-blend-mode: multiply;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pinned-project-logo-surface--running::after {
     animation: none;
@@ -2577,6 +2656,9 @@ html[data-window-idle] .mc-pet * {
   --cursor-glow-size: 320px;
   --cursor-glow-color: color-mix(in srgb, var(--accent) 7%, transparent);
   --cursor-glow-filter: brightness(1.03) saturate(1.06);
+  /* Screen-blending an accent wash onto near-white leaves it white — the glow
+     simply never showed in light mode. Multiply tints the paper instead. */
+  mix-blend-mode: multiply;
 }
 @media (pointer: coarse) {
   .cursor-glow {
@@ -3419,6 +3501,18 @@ body[data-card-glow] .cursor-glow {
     0 10px 26px oklch(0 0 0 / 0.30),
     0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent),
     0 0 20px color-mix(in srgb, var(--accent) 20%, transparent) !important;
+}
+/* Those two black casts are depth against a near-black ground; on paper they
+   read as grime. Light keeps the accent ring (which is what actually marks
+   focus) and drops the drop-shadow to a normal elevation cue. */
+:root:not([data-minimal="true"])[data-theme="light"]
+  [data-session-grid]
+  .mc-card-frame:focus-within {
+  box-shadow:
+    0 1px 2px rgba(18, 22, 33, 0.08),
+    0 8px 20px rgba(18, 22, 33, 0.10),
+    0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent),
+    0 0 20px color-mix(in srgb, var(--accent) 22%, transparent) !important;
 }
 [data-session-grid] .mc-card-frame:focus-within [data-session-header] {
   background: color-mix(in srgb, var(--accent) 7%, transparent) !important;
@@ -4432,7 +4526,7 @@ body[data-card-glow] .cursor-glow {
   border: none;
   cursor: pointer;
   line-height: 0;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 4px 10px var(--mc-pet-shadow, rgba(0, 0, 0, 0.35)));
   transition: transform 0.15s ease;
 }
 .mc-pet-button:hover {
