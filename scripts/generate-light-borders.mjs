@@ -40,26 +40,40 @@ const checkOnly = process.argv.includes("--check");
 
 /** Lightness bands per art class. `mode: "invert"` flips contrast polarity;
  *  `mode: "lift"` keeps it. Output lightness spans [lo, hi]. */
+// `desat` scales the source saturation. It matters because the accent in this
+// art is not always signal: on the shell and the resting panel ring it is
+// grunge texture that reads as a faint glow against near-black, but turns into
+// loud speckle once the ground beneath it is lifted to paper. Where the accent
+// IS signal (the focus ring, the outlined button) it is kept.
 const BANDS = {
   // Toolbar/ghost buttons and text fields. These slice with `fill`, so the
   // band decides the chip's actual surface colour — it sits just below the
   // paper ground so the chip reads as a raised control, with a darker rim.
-  chip: { mode: "invert", lo: 0.74, hi: 0.94 },
+  chip: { mode: "invert", lo: 0.74, hi: 0.94, desat: 0.4 },
   // The accent-outlined button. Same polarity as the chip, but the band runs
-  // a little brighter so the accent rim keeps its punch.
-  btnFrame: { mode: "invert", lo: 0.72, hi: 0.96 },
-  // Session/panel rings. Must stay clearly darker than paper to read as a
-  // frame, so this lifts rather than inverts.
-  panel: { mode: "lift", lo: 0.46, hi: 0.78 },
-  // The window shell is a huge area; a mid-grey band that large would dominate,
-  // so it lands lighter than the panel rings.
-  shell: { mode: "lift", lo: 0.72, hi: 0.9 },
+  // a little brighter and the accent rim is kept at full chroma.
+  btnFrame: { mode: "invert", lo: 0.72, hi: 0.96, desat: 0 },
+  // Resting session/panel ring. Inverted like the chip: the art's body goes
+  // near-paper and its edge detail becomes the dark line, which is what a
+  // frame on a light ground should be. Lifting instead turns the body into a
+  // solid mid-grey band.
+  panel: { mode: "invert", lo: 0.54, hi: 0.93, desat: 0.7 },
+  // The focused ring, where the accent has to survive — it is what marks
+  // focus. Note this art is orange-hued THROUGHOUT (even its near-black is a
+  // fully saturated dark orange), so lifting it produces a solid orange slab;
+  // inverting keeps the body pale and leaves the accent as the edge line.
+  panelFocused: { mode: "invert", lo: 0.46, hi: 0.9, desat: 0.25 },
+  // The window shell wraps the entire app, so anything with contrast or chroma
+  // at that size dominates the page: it settles near the paper ground with just
+  // enough edge detail to read as a rim.
+  shell: { mode: "invert", lo: 0.74, hi: 0.96, desat: 0.85 },
 };
 
 function classify(name) {
   if (name.startsWith("button_filled_")) return null; // accent CTA — leave alone
   if (name === "button_gray.png") return "chip";
   if (name === "button.png" || name.startsWith("button_")) return "btnFrame";
+  if (name.startsWith("panel_focused")) return "panelFocused";
   if (name.startsWith("square_") || name.startsWith("panel_")) return "panel";
   if (name.startsWith("shell")) return "shell";
   return null;
@@ -124,7 +138,8 @@ function convert(file, cls) {
   const band = BANDS[cls];
   for (let i = 0; i < data.length; i += 4) {
     if (data[i + 3] === 0) continue;
-    const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+    const [h, s0, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+    const s = s0 * (1 - (band.desat ?? 0));
     const [r, g, b] = hslToRgb(h, s, remap(l, s, band));
     data[i] = r; data[i + 1] = g; data[i + 2] = b;
   }
