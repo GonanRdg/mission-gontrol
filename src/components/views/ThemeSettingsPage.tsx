@@ -506,19 +506,20 @@ function ThemeStyleGrid({
       {THEME_STYLE_OPTIONS.map((option) => {
         const selected = style === option.value;
         const isPainted = option.value === "painted";
-        // The painted card always wears dark pixel-art chrome — even while the
-        // app is in light mode (painted is dark-only) — so its labels take fixed
-        // light-on-dark ink rather than the theme's --text, which would be
-        // near-black and unreadable on the dark frame. The flat card's chrome
-        // follows the theme, so its labels use the theme vars.
-        const labelColor = isPainted
+        // The painted card wears its own chrome regardless of which style is
+        // active, so in DARK its labels take fixed light-on-dark ink rather
+        // than the theme's --text (which the flat theme would make near-black
+        // on the dark frame). In light the painted card drops its art fill for
+        // a paper ground, so the theme vars are correct again — same as flat.
+        const paintedInk = isPainted && theme === "dark";
+        const labelColor = paintedInk
           ? selected
             ? "#e8e6df"
             : "rgba(232, 230, 223, 0.6)"
           : selected
             ? "var(--text)"
             : "var(--text-dim)";
-        const descColor = isPainted
+        const descColor = paintedInk
           ? "rgba(232, 230, 223, 0.4)"
           : "var(--text-faint)";
         // Each card wears its own theme's chrome: the painted card gets the
@@ -537,7 +538,13 @@ function ThemeStyleGrid({
                 padding: 0,
                 backgroundColor: "transparent",
                 backgroundClip: "padding-box",
-                backgroundImage: `linear-gradient(rgba(3, 6, 8, 0.15), rgba(3, 6, 8, 0.15)), ${paintedFrame}`,
+                // Mirrors the painted-light CardFrame treatment: light drops
+                // the art fill and paints an opaque paper ground, keeping only
+                // the border-image ring.
+                backgroundImage:
+                  theme === "light"
+                    ? `linear-gradient(var(--surface-1), var(--surface-1))`
+                    : `linear-gradient(rgba(3, 6, 8, 0.15), rgba(3, 6, 8, 0.15)), ${paintedFrame}`,
                 backgroundPosition: "0% 0%, 39.0625% 39.0625%",
                 backgroundSize: "auto, 200% 200%",
                 backgroundRepeat: "repeat, no-repeat",

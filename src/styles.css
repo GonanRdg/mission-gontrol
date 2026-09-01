@@ -96,6 +96,10 @@
   --mc-frame-ink-dim: var(--text-dim);
   --mc-card-scrim: rgba(3, 6, 8, 0.1);
 
+  /* Usage-chart series that aren't already accent/text driven. */
+  --chart-output: #5cb8ff;
+  --chart-cache-create: #8a8aff;
+
   --accent: #ff5a1f;
   --accent-dim: rgba(255, 90, 31, 0.18);
   --accent-faint: rgba(255, 90, 31, 0.1);
@@ -274,6 +278,10 @@
   --banner-icon-bg: color-mix(in srgb, var(--accent) 14%, var(--surface-0));
   /* Drop-shadows tuned for a near-black ground read as grime on paper. */
   --mc-pet-shadow: rgba(18, 22, 33, 0.18);
+  /* The dark-mode series sit at roughly 2:1 on a light ground; darkened to
+     match how the status hues are re-tuned just above. */
+  --chart-output: oklch(0.58 0.15 245);
+  --chart-cache-create: oklch(0.55 0.16 285);
 }
 
 /* Scrollbar hover had a light variant for the resting thumb but not the hover

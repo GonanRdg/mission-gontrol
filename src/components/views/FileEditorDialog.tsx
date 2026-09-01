@@ -12,6 +12,7 @@ import {
 import CodeMirror, { EditorView, type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import type { Extension } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { useTheme } from "~/lib/use-theme";
 import { Modal } from "~/components/ui/Modal";
 import { Btn } from "~/components/ui/Btn";
 import { Icon } from "~/components/ui/Icon";
@@ -627,6 +628,11 @@ function SafeCodeMirror({
   onChange: (value: string) => void;
 }) {
   const [plainTextOnly, setPlainTextOnly] = useState(false);
+  // The editor is the one surface that never followed the appearance — it was
+  // pinned to oneDark, so a light user got a dark slab in the middle of the
+  // dialog. "light" is CodeMirror's own built-in, so this needs no new theme
+  // dependency.
+  const { theme: appearance } = useTheme();
   // A fresh extensions array each render makes CodeMirror reconfigure the
   // editor on every keystroke — memoize so it only changes with the inputs.
   const extensions: Extension[] = useMemo(
@@ -642,7 +648,7 @@ function SafeCodeMirror({
       <CodeMirror
         ref={cmRef}
         value={value}
-        theme={oneDark}
+        theme={appearance === "light" ? "light" : oneDark}
         extensions={extensions}
         onChange={onChange}
         basicSetup={{

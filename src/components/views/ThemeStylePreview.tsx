@@ -14,8 +14,8 @@ import type { Theme } from "~/lib/use-theme";
  * Palette values are copied from the corresponding blocks in src/styles.css
  * (:root for painted, [data-minimal] for flat) — keep them in sync when a
  * palette is retuned. Tint percentages mirror the [data-tint] recipe blocks at
- * the bottom of styles.css. Painted is dark-only; the flat miniature follows
- * the current light/dark appearance ([data-minimal][data-theme="light"]).
+ * the bottom of styles.css. Both styles follow the current light/dark
+ * appearance; their light palettes are LIGHT_PALETTES below.
  */
 
 type StylePalette = {
@@ -57,18 +57,31 @@ const STYLE_PALETTES: Record<ThemeStyle, StylePalette> = {
   },
 };
 
-// Flat's light appearance — mirrors [data-minimal][data-theme="light"] in
-// styles.css so the miniature matches the app when light mode is picked.
-// (Painted is dark-only, so it has no light variant.)
-const FLAT_LIGHT_PALETTE: StylePalette = {
-  bg: "#f4f4f6",
-  surface0: "#ffffff",
-  surface1: "#fafafb",
-  border: "rgba(18, 22, 33, 0.09)",
-  textDim: "rgba(23, 24, 28, 0.6)",
-  textFaint: "rgba(23, 24, 28, 0.4)",
-  radius: 0,
-  focus: "solid",
+// Light appearances — mirror the shared [data-theme="light"] block and
+// painted's warm-paper delta in styles.css, so each miniature matches the app
+// when light mode is picked. Painted keeps its rounded painted-frame
+// silhouette; only the ground changes.
+const LIGHT_PALETTES: Record<ThemeStyle, StylePalette> = {
+  painted: {
+    bg: "#f3f1ec",
+    surface0: "#fffefb",
+    surface1: "#faf8f3",
+    border: "rgba(18, 22, 33, 0.09)",
+    textDim: "rgba(23, 24, 28, 0.6)",
+    textFaint: "rgba(23, 24, 28, 0.4)",
+    radius: 6,
+    focus: "painted",
+  },
+  flat: {
+    bg: "#f4f4f6",
+    surface0: "#ffffff",
+    surface1: "#fafafb",
+    border: "rgba(18, 22, 33, 0.09)",
+    textDim: "rgba(23, 24, 28, 0.6)",
+    textFaint: "rgba(23, 24, 28, 0.4)",
+    radius: 0,
+    focus: "solid",
+  },
 };
 
 // Mirrors the [data-tint] recipes in styles.css: [lo, md] percentages per
@@ -92,13 +105,12 @@ export function ThemeStylePreview({
   style: ThemeStyle;
   accentId: AccentColorId;
   tint: SurfaceTint;
-  /** Current light/dark appearance. Painted is dark-only; flat follows this. */
+  /** Current light/dark appearance. Both styles follow it. */
   theme?: Theme;
 }) {
   const accent = getAccentColor(accentId);
-  // Painted is dark-only; flat swaps to its paper palette in light mode.
-  const lightFlat = style === "flat" && theme === "light";
-  const palette = lightFlat ? FLAT_LIGHT_PALETTE : STYLE_PALETTES[style];
+  const light = theme === "light";
+  const palette = light ? LIGHT_PALETTES[style] : STYLE_PALETTES[style];
   // Flat + Intense (DARK only) re-binds the ground to the Ember warm-charcoal
   // ladder (see [data-minimal][data-theme="dark"][data-tint="intense"] in
   // styles.css) rather than washing the near-black base — mirror that here so
@@ -127,7 +139,7 @@ export function ThemeStylePreview({
         }
       : {
           border: `1px solid ${accent.value}`,
-          boxShadow: lightFlat
+          boxShadow: light
             ? `0 2px 6px rgba(18, 22, 33, 0.14)`
             : `0 3px 8px rgba(0, 0, 0, 0.35)`,
         };

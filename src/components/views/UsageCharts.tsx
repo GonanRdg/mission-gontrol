@@ -1,9 +1,11 @@
 import type { DailyUsage } from "~/shared/token-usage";
 
+// Series hues live in styles.css so they re-bind per appearance like every
+// other colour; the two literals these replaced sat at ~2:1 on a light ground.
 const COLORS = {
   input: "var(--accent)",
-  output: "#5cb8ff",
-  cacheCreate: "#8a8aff",
+  output: "var(--chart-output)",
+  cacheCreate: "var(--chart-cache-create)",
   cacheRead: "var(--text-faint)",
 } as const;
 
