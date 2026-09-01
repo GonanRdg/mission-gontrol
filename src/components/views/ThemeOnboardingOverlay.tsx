@@ -224,7 +224,7 @@ function ThemeOnboardingOverlay({ onDone }: { onDone: () => void }) {
             />
             <StyleChoiceCard
               title="Flat"
-              description="Warm sepia, edge-to-edge square panes, and a clearer bundled mono. The focused session glows. Dark or light."
+              description="Warm sepia, edge-to-edge square panes, and a clearer bundled mono. The focused session glows."
               accentId={color}
               stylePreview="flat"
               selected={style === "flat"}

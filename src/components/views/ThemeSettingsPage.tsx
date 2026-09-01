@@ -470,7 +470,7 @@ const THEME_STYLE_OPTIONS: Array<{
     value: "flat",
     label: "Flat",
     description:
-      "Warm sepia near-black with edge-to-edge square panes and a clearer bundled mono. The focused session glows. Supports dark and light.",
+      "Warm sepia near-black with edge-to-edge square panes and a clearer bundled mono. The focused session glows.",
   },
 ];
 
