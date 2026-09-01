@@ -4,20 +4,29 @@ import { getElectron } from "~/lib/electron";
 
 export type Theme = "dark" | "light";
 
-/** Native window grounds per theme — keep in sync with --bg in styles.css
- *  (dark base / flat-light base) so resize gutters match the page. */
-const WINDOW_BACKGROUND: Record<Theme, string> = {
-  dark: "#000000",
-  light: "#f4f4f6",
+/** Native window grounds per style × appearance — keep in sync with --bg in
+ *  styles.css so resize gutters and the launch flash match the page. The two
+ *  light grounds differ on purpose: flat's is a cool SaaS gray, painted's is
+ *  warm paper (see the painted-light block in styles.css).
+ *
+ *  This value is also what Electron classifies by luminance to derive the
+ *  app theme and the COLORFGBG / MC_THEME hints handed to spawned agent PTYs
+ *  (electron/app-theme.ts), so it must track the appearance, never the
+ *  darkness of the painted chrome sitting on top of it. */
+const WINDOW_BACKGROUND: Record<"painted" | "flat", Record<Theme, string>> = {
+  painted: { dark: "#000000", light: "#f3f1ec" },
+  flat: { dark: "#000000", light: "#f4f4f6" },
 };
 
 /** Push the effective DOM theme's ground to the Electron window so the native
  *  frame (launch flash, resize gutters) matches. No-op in the browser. */
 export function syncWindowBackground(): void {
   if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const style = root.getAttribute("data-minimal") === "true" ? "flat" : "painted";
   const effective: Theme =
-    document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
-  void getElectron()?.setWindowBackgroundColor?.(WINDOW_BACKGROUND[effective]);
+    root.getAttribute("data-theme") === "light" ? "light" : "dark";
+  void getElectron()?.setWindowBackgroundColor?.(WINDOW_BACKGROUND[style][effective]);
 }
 
 const KEY = "mc.theme";
@@ -29,8 +38,7 @@ export const THEME_CACHE_KEY = KEY;
 /**
  * The cached dark/light preference (defaults to dark). Shared with
  * `applyThemeStyle` and the pre-hydration script so the choice survives
- * reloads with no flash. Note: only the flat theme honours "light"; painted is
- * always dark (enforced when the DOM `data-theme` is reconciled).
+ * reloads with no flash. Both theme styles honour it.
  */
 export function readCachedTheme(): Theme {
   if (typeof window === "undefined") return "dark";
@@ -41,24 +49,12 @@ export function readCachedTheme(): Theme {
   }
 }
 
-/** The flat theme is the only one that supports light; it's marked by
- *  `data-minimal` on <html> (set by applyThemeStyle / the pre-hydration
- *  script). Painted has no such attribute and stays dark. */
-function isFlatActive(): boolean {
-  return (
-    typeof document !== "undefined" &&
-    document.documentElement.getAttribute("data-minimal") === "true"
-  );
-}
-
-/** Reconcile the DOM `data-theme` with the active style: painted is always
- *  dark; flat reflects the preference. */
+/** Apply the dark/light preference. Both theme styles honour it — the two
+ *  axes (style via `data-minimal`, appearance via `data-theme`) are
+ *  independent. */
 function applyTheme(theme: Theme): void {
   if (typeof document === "undefined") return;
-  document.documentElement.setAttribute(
-    "data-theme",
-    isFlatActive() ? theme : "dark",
-  );
+  document.documentElement.setAttribute("data-theme", theme);
   syncWindowBackground();
 }
 
@@ -75,9 +71,8 @@ function persistTheme(theme: Theme): void {
  * rendering the `data-theme` attribute via JSX on `<html>`; instead it seeds
  * from the default and mutates `document.documentElement` post-hydration.
  *
- * The preference is always persisted, but only takes visible effect under the
- * flat theme — painted keeps `data-theme="dark"`. Switching back to flat
- * restores the stored preference (see applyThemeStyle).
+ * The preference applies to both theme styles and survives switching between
+ * them (see applyThemeStyle).
  */
 export function useTheme(): {
   theme: Theme;

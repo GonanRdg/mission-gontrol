@@ -216,7 +216,7 @@ function ThemeOnboardingOverlay({ onDone }: { onDone: () => void }) {
           >
             <StyleChoiceCard
               title="Painted"
-              description="Pixel-art borders and shell imagery. The full Mission Control look. Dark only."
+              description="Pixel-art borders and shell imagery. The full Mission Control look."
               accentId={color}
               stylePreview="painted"
               selected={style === "painted"}

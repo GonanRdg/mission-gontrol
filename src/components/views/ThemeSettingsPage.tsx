@@ -313,7 +313,7 @@ export function ThemeSettingsPage() {
   return (
     <SettingsSection
       title="Theme"
-      subtitle="Pick the chrome Mission Control wears: painted pixel art or the warm, flat Ember look — the latter in dark or light."
+      subtitle="Pick the chrome Mission Control wears: painted pixel art or the warm, flat Ember look — each in dark or light."
       headingLevel="h1"
     >
       <Field label="Theme style">
@@ -325,11 +325,9 @@ export function ThemeSettingsPage() {
           onChange={setThemeStyle}
         />
       </Field>
-      {themeStyle === "flat" && (
-        <Field label="Appearance">
-          <DarkLightToggle theme={theme} onChange={setTheme} />
-        </Field>
-      )}
+      <Field label="Appearance">
+        <DarkLightToggle theme={theme} onChange={setTheme} />
+      </Field>
       <Field label="Accent color">
         <AccentColorGrid
           minimal={minimalTheme}
@@ -466,7 +464,7 @@ const THEME_STYLE_OPTIONS: Array<{
   {
     value: "painted",
     label: "Painted",
-    description: "Pixel-art borders and shell imagery. The full Mission Control look. Dark only.",
+    description: "Pixel-art borders and shell imagery. The full Mission Control look.",
   },
   {
     value: "flat",
@@ -633,8 +631,8 @@ const DARK_LIGHT_OPTIONS: Record<Theme, { label: string; description: string }> 
   light: { label: "Light", description: "Clean white surfaces for bright rooms." },
 };
 
-/** Dark/light switch — only rendered for the flat theme (painted is dark-only).
- *  Preference lives in localStorage via useTheme, not server settings. */
+/** Dark/light switch. Applies to both theme styles; the preference lives in
+ *  localStorage via useTheme, not server settings. */
 function DarkLightToggle({
   theme,
   onChange,

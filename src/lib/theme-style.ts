@@ -40,20 +40,20 @@ export function readCachedThemeStyle(): ThemeStyle {
  *
  * DOM contract: painted mode is the absence of `data-minimal`; the flat theme
  * sets `data-minimal="true"` (the attribute name is retained for cascade-churn
- * reasons — read it as "the flat theme"). Also reconciles `data-theme`:
- * painted is always dark, while flat honours the cached dark/light preference.
+ * reasons — read it as "the flat theme"). Also reconciles `data-theme` from
+ * the cached dark/light preference, which both styles honour.
  */
 export function applyThemeStyle(style: ThemeStyle): void {
   if (typeof document !== "undefined") {
     const root = document.documentElement;
     if (style === "painted") {
       root.removeAttribute("data-minimal");
-      // Painted is dark-only; never let a stored light preference leak in.
-      root.setAttribute("data-theme", "dark");
     } else {
       root.setAttribute("data-minimal", "true");
-      root.setAttribute("data-theme", readCachedTheme());
     }
+    // The appearance axis is independent of the style axis, so the stored
+    // preference carries across a style switch in both directions.
+    root.setAttribute("data-theme", readCachedTheme());
     syncWindowBackground();
   }
   if (typeof window === "undefined") return;

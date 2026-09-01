@@ -2,12 +2,14 @@
 // controller (persistence + validation) and the renderer (DOM application),
 // so the enum lives here rather than in src/lib.
 //
-//  - "painted": pixel-art borders and shell imagery (the original look);
-//               always dark.
+//  - "painted": pixel-art borders and shell imagery (the original look).
 //  - "flat":    the one clean-chrome theme — warm sepia near-black, edge-to-
 //               edge flush panes with square corners, bundled JetBrains Mono +
 //               Plus Jakarta Sans faces, and a solid accent border + soft drop
-//               shadow on the focused pane. Supports dark and light.
+//               shadow on the focused pane.
+//
+// The style axis is orthogonal to the dark/light appearance (`data-theme`,
+// see src/lib/use-theme.ts); both styles support both appearances.
 //
 // Legacy note: earlier builds split the flat look into "minimal" / "noir" /
 // "ember". Those values are migrated to "flat" on every READ path

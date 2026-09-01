@@ -78,8 +78,9 @@ import { HTTP_NO_CONTENT } from "~/shared/http-status";
 export type AppSettings = {
   agentSystemBannerDisabled: boolean;
   accentColor: AccentColorId;
-  /** Which chrome to render: painted (pixel art, dark-only) or flat (clean,
-   *  Ember character, supports dark/light). */
+  /** Which chrome to render: painted (pixel art) or flat (clean, Ember
+   *  character). Orthogonal to the dark/light appearance, which both
+   *  styles support. */
   themeStyle: ThemeStyle;
   /** How much accent to mix into surface tokens (off / subtle / vivid). */
   surfaceTint: SurfaceTint;

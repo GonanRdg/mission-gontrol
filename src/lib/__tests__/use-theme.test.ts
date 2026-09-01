@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Exercises the dark/light preference logic without rendering the React hook
 // (the test env is node, no DOM renderer): readCachedTheme() and the way
-// applyThemeStyle reconciles `data-theme` — painted is always dark, the flat
-// theme honours the stored preference.
+// applyThemeStyle reconciles `data-theme` — both theme styles honour the
+// stored preference, and it survives switching between them.
 
 function mockDom() {
   const store = new Map<string, string>();
@@ -63,11 +63,30 @@ describe("use-theme + data-theme reconciliation", () => {
     expect(dom.attrs.get("data-theme")).toBe("light");
   });
 
-  it("forces dark for the painted theme even with a stored light preference", async () => {
+  it("applies the stored light preference when the painted theme is selected", async () => {
     dom.store.set("mc.theme", "light");
     const { applyThemeStyle } = await import("../theme-style");
     applyThemeStyle("painted");
     expect(dom.attrs.has("data-minimal")).toBe(false);
+    expect(dom.attrs.get("data-theme")).toBe("light");
+  });
+
+  it("keeps the light preference across a style switch in both directions", async () => {
+    dom.store.set("mc.theme", "light");
+    const { applyThemeStyle } = await import("../theme-style");
+    applyThemeStyle("painted");
+    expect(dom.attrs.get("data-theme")).toBe("light");
+    applyThemeStyle("flat");
+    expect(dom.attrs.get("data-theme")).toBe("light");
+    applyThemeStyle("painted");
+    expect(dom.attrs.get("data-theme")).toBe("light");
+  });
+
+  it("leaves the appearance dark for either style with no stored preference", async () => {
+    const { applyThemeStyle } = await import("../theme-style");
+    applyThemeStyle("painted");
+    expect(dom.attrs.get("data-theme")).toBe("dark");
+    applyThemeStyle("flat");
     expect(dom.attrs.get("data-theme")).toBe("dark");
   });
 });

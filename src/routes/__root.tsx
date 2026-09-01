@@ -163,7 +163,7 @@ const useThemeLayoutEffect =
 // theme state (`data-minimal` + `data-theme` + accent CSS vars) is in place
 // before any CSS layout. Without this, the SSR'd HTML paints with default
 // (painted+orange, dark) theme for one frame — every accent-tinted surface
-// flashes before React/useSettings hydrate, and a flat-light user sees a dark
+// flashes before React/useSettings hydrate, and a light user sees a dark
 // flash. Mirrors `applyThemeStyle` (src/lib/theme-style.ts), `useTheme`
 // (src/lib/use-theme.ts), `applySurfaceTint` (src/lib/surface-tint.ts),
 // `applyBackgroundGrid` (src/lib/background-grid.ts) and
@@ -176,7 +176,7 @@ if(st!=="painted"&&st!=="flat"&&st!=="minimal"&&st!=="noir"&&st!=="ember"){st=lo
 var flat=(st!=="painted");
 if(flat){d.setAttribute("data-minimal","true");}
 var th=localStorage.getItem(${JSON.stringify(THEME_CACHE_KEY)})==="light"?"light":"dark";
-d.setAttribute("data-theme",(flat&&th==="light")?"light":"dark");
+d.setAttribute("data-theme",th);
 var tt=localStorage.getItem(${JSON.stringify(SURFACE_TINT_CACHE_KEY)});
 if(tt==="subtle"||tt==="vivid"||tt==="intense"){d.setAttribute("data-tint",tt);}
 var bg=localStorage.getItem(${JSON.stringify(BACKGROUND_IMAGE_CACHE_KEY)});
