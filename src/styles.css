@@ -309,15 +309,45 @@
      dark, at #050607 against #0b0d10), so on paper it stays a touch under
      --surface-0 rather than going pure white the way flat-light does. */
   --terminal-bg: color-mix(in srgb, var(--surface-tint) var(--tint-lo), #fdfbf6);
-  /* Ink over the opaque frame art stays LIGHT — the art itself is near-black
-     in both appearances, so the shared block's #17181c would be black-on-black.
-     These mirror painted's dark-mode --text / --text-dim exactly. */
-  --mc-frame-ink: #e8e6df;
-  --mc-frame-ink-dim: rgba(232, 230, 223, 0.78);
+  /* The frame art has a light cut in this appearance (the "-light" PNGs bound
+     below), so the opaque button/input fills are now pale — ink over them is
+     the ordinary dark text, same as any other light surface. */
+  --mc-frame-ink: var(--text);
+  --mc-frame-ink-dim: var(--text-dim);
+  /* Painted frame art, light cut. These four are also written as inline styles
+     by frameArtVars (src/lib/accent-colors.ts) for every accent — that path is
+     what actually wins at runtime, since CSS cannot build a per-accent url().
+     Kept here so the DEFAULT accent is still correct if that JS never runs.
+     button_filled has no light cut: a solid accent CTA reads fine on paper. */
+  --mc-panel-focused-image: url("/borders/panel_focused_deep-orange-light.png");
+  --mc-panel-image: url("/borders/square_deep-orange-light.png");
+  --mc-shell-image: url("/borders/shell_deep-orange-light.png");
   /* Cards drop the art fill entirely and take an opaque paper ground; the
-     border-image ring stays dark ink and keeps the painted silhouette. */
+     border-image ring keeps the painted silhouette. */
   --mc-card-fill: none;
   --mc-card-scrim: var(--surface-0);
+}
+
+/* The accent-independent cuts. These are plain URLs rather than per-accent
+   ones, so unlike the four above they can be re-bound in CSS alone. */
+:root:not([data-minimal="true"])[data-theme="light"] :is(
+    .mc-btn-ghost,
+    .mc-btn-danger,
+    .mc-btn-gray-frame
+  ) {
+  --mc-btn-slice-image: url("/borders/button_gray-light.png");
+}
+:root:not([data-minimal="true"])[data-theme="light"] .mc-btn-frame {
+  --mc-btn-slice-image: url("/borders/button-light.png");
+}
+:root:not([data-minimal="true"])[data-theme="light"] .mc-input-frame::before {
+  border-image-source: url("/borders/button_gray-light.png");
+}
+:root:not([data-minimal="true"])[data-theme="light"] .mc-toast-success {
+  --mc-toast-frame: url("/borders/square_green-light.png");
+}
+:root:not([data-minimal="true"])[data-theme="light"] .mc-toast-error {
+  --mc-toast-frame: url("/borders/square_red-light.png");
 }
 
 /* Painted's card interior. No base rule exists for these (CardFrame sets the
@@ -558,11 +588,7 @@ body[data-suspend-app-drag] .mc-topbar {
   color: var(--status-failed);
 }
 
-/* --status-failed darkens under light for contrast on paper, but this label
-   sits on the button's dark fill art — so it takes the dark-mode hue back. */
-:root:not([data-minimal="true"])[data-theme="light"] .mc-btn-danger {
-  color: oklch(0.7 0.19 25);
-}
+
 
 .mc-btn-primary,
 .mc-btn-frame {

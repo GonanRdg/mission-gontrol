@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { getElectron } from "~/lib/electron";
+import { applyFrameArt } from "~/lib/accent-colors";
 
 export type Theme = "dark" | "light";
 
@@ -55,6 +56,9 @@ export function readCachedTheme(): Theme {
 function applyTheme(theme: Theme): void {
   if (typeof document === "undefined") return;
   document.documentElement.setAttribute("data-theme", theme);
+  // The painted frame art has a separate light cut, and its URLs are inline
+  // styles, so the appearance flip has to rebind them explicitly.
+  applyFrameArt();
   syncWindowBackground();
 }
 

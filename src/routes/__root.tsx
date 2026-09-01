@@ -198,11 +198,19 @@ if(c&&a&&a!==${JSON.stringify(DEFAULT_ACCENT_COLOR)}){
   s.setProperty("--accent-faint","rgba("+c.r+", 0.1)");
   s.setProperty("--accent-border","rgba("+c.r+", 0.38)");
   s.setProperty("--accent-glow","rgba("+c.r+", 0.48)");
-  s.setProperty("--mc-btn-filled-image",'url("/borders/button_filled_'+a+'.png")');
-  s.setProperty("--mc-panel-focused-image",'url("/borders/panel_focused_'+a+'.png")');
-  s.setProperty("--mc-panel-image",'url("/borders/square_'+a+'.png")');
-  s.setProperty("--mc-shell-image",'url("/borders/shell_'+a+'.png")');
 }
+/* Frame art: the light appearance uses the "-light" cut of every painted PNG.
+   Unlike the accent vars above this runs for EVERY accent including the
+   default, because the default's URLs live in :root and would otherwise paint
+   the near-black art for a frame before React rebinds them. Mirrors
+   frameArtVars (src/lib/accent-colors.ts). */
+var ai=(a&&t[a])?a:${JSON.stringify(DEFAULT_ACCENT_COLOR)};
+var cut=(th==="light")?"-light":"";
+var s2=d.style;
+s2.setProperty("--mc-btn-filled-image",'url("/borders/button_filled_'+ai+'.png")');
+s2.setProperty("--mc-panel-focused-image",'url("/borders/panel_focused_'+ai+cut+'.png")');
+s2.setProperty("--mc-panel-image",'url("/borders/square_'+ai+cut+'.png")');
+s2.setProperty("--mc-shell-image",'url("/borders/shell_'+ai+cut+'.png")');
 }catch(e){}})();`;
 const LAUNCH_AIRLOCK_AUDIO_MS = 1440;
 const LAUNCH_WELCOME_AUDIO_OFFSET_SECONDS = 0.1;

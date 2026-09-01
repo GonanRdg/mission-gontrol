@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 function mockDom() {
   const store = new Map<string, string>();
   const attrs = new Map<string, string>();
+  // Frame-art URLs are written as inline custom properties, so the stub needs
+  // a `style` surface for applyFrameArt to write into.
+  const props = new Map<string, string>();
   const previousWindow = globalThis.window;
 
   globalThis.window = {
@@ -23,12 +26,16 @@ function mockDom() {
       getAttribute: (name: string) => attrs.get(name) ?? null,
       setAttribute: (name: string, value: string) => void attrs.set(name, value),
       removeAttribute: (name: string) => void attrs.delete(name),
+      style: {
+        setProperty: (name: string, value: string) => void props.set(name, value),
+      },
     },
   });
 
   return {
     store,
     attrs,
+    props,
     restore() {
       globalThis.window = previousWindow;
       vi.unstubAllGlobals();
@@ -80,6 +87,25 @@ describe("use-theme + data-theme reconciliation", () => {
     expect(dom.attrs.get("data-theme")).toBe("light");
     applyThemeStyle("painted");
     expect(dom.attrs.get("data-theme")).toBe("light");
+  });
+
+  it("binds the light cut of the painted frame art in light mode", async () => {
+    dom.store.set("mc.theme", "light");
+    const { applyThemeStyle } = await import("../theme-style");
+    applyThemeStyle("painted");
+    expect(dom.props.get("--mc-panel-image")).toContain("square_deep-orange-light.png");
+    expect(dom.props.get("--mc-shell-image")).toContain("shell_deep-orange-light.png");
+    // The solid accent CTA has no light cut — it reads fine on paper as-is.
+    expect(dom.props.get("--mc-btn-filled-image")).toContain(
+      "button_filled_deep-orange.png",
+    );
+  });
+
+  it("binds the original frame art in dark mode", async () => {
+    const { applyThemeStyle } = await import("../theme-style");
+    applyThemeStyle("painted");
+    expect(dom.props.get("--mc-panel-image")).toContain("square_deep-orange.png");
+    expect(dom.props.get("--mc-panel-image")).not.toContain("-light");
   });
 
   it("leaves the appearance dark for either style with no stored preference", async () => {

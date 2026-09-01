@@ -4,6 +4,7 @@ import {
   type ThemeStyle,
 } from "~/shared/theme-style";
 import { readCachedTheme, syncWindowBackground } from "~/lib/use-theme";
+import { applyFrameArt } from "~/lib/accent-colors";
 
 export { isCleanChromeStyle } from "~/shared/theme-style";
 export type { ThemeStyle } from "~/shared/theme-style";
@@ -54,6 +55,7 @@ export function applyThemeStyle(style: ThemeStyle): void {
     // The appearance axis is independent of the style axis, so the stored
     // preference carries across a style switch in both directions.
     root.setAttribute("data-theme", readCachedTheme());
+    applyFrameArt();
     syncWindowBackground();
   }
   if (typeof window === "undefined") return;
