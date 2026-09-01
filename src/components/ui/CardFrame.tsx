@@ -66,7 +66,12 @@ export const CardFrame = forwardRef<HTMLElement, CardFrameProps>(function CardFr
         ...frameStyle,
         ...style,
         backgroundColor: "transparent",
-        backgroundImage: `linear-gradient(${solid ? "rgba(3, 6, 8, 0.15)" : "rgba(3, 6, 8, 0.10)"}, ${solid ? "rgba(3, 6, 8, 0.15)" : "rgba(3, 6, 8, 0.10)"}), ${focused ? "var(--mc-panel-focused-image)" : "var(--mc-panel-image)"}`,
+        // The scrim and the art layer both go through CSS vars so a theme can
+        // re-bind them: painted-light drops the art (--mc-card-fill: none) and
+        // turns the scrim into an opaque paper ground, leaving only the
+        // border-image ring. The `solid` variant's heavier scrim is applied by
+        // the [data-solid="true"] rule in styles.css, not here.
+        backgroundImage: `linear-gradient(var(--mc-card-scrim), var(--mc-card-scrim)), var(--mc-card-fill, ${focused ? "var(--mc-panel-focused-image)" : "var(--mc-panel-image)"})`,
         backgroundPosition: "0% 0%, 39.0625% 39.0625%",
         backgroundSize: "auto, 200% 200%",
         backgroundRepeat: "repeat, no-repeat",
