@@ -8,20 +8,26 @@ import {
 
 const DIAGRAM_SKILL_NAME = "diagram";
 
-function bundledSkillsCandidates(skillName: string): string[] {
-  const candidates: string[] = [];
+/** Directories that may hold the bundled skill trees, most specific first. */
+export function bundledSkillsRoots(): string[] {
+  const roots: string[] = [];
   const serverEntry = process.env.SERVER_ENTRY?.trim();
   if (serverEntry) {
-    candidates.push(
-      path.resolve(path.dirname(serverEntry), "..", "bundled-skills", skillName),
-    );
+    roots.push(path.resolve(path.dirname(serverEntry), "..", "bundled-skills"));
   }
-  candidates.push(path.resolve(process.cwd(), ".agents", "skills", skillName));
-  candidates.push(path.resolve(process.cwd(), "dist", "bundled-skills", skillName));
-  candidates.push(
-    path.resolve(process.cwd(), "dist-server", "bundled-skills", skillName),
-  );
-  return candidates;
+  roots.push(path.resolve(process.cwd(), ".agents", "skills"));
+  roots.push(path.resolve(process.cwd(), "dist", "bundled-skills"));
+  roots.push(path.resolve(process.cwd(), "dist-server", "bundled-skills"));
+  return roots;
+}
+
+/** First bundled root that exists on disk, or null in a build without one. */
+export function resolveBundledSkillsRoot(): string | null {
+  return bundledSkillsRoots().find((root) => fs.existsSync(root)) ?? null;
+}
+
+function bundledSkillsCandidates(skillName: string): string[] {
+  return bundledSkillsRoots().map((root) => path.join(root, skillName));
 }
 
 export function resolveBundledSkillDir(skillName: string): string {

@@ -1,19 +1,7 @@
 import * as fs from "node:fs";
+import { splitFrontmatter } from "~/shared/frontmatter";
 
 const MAX_CODEX_DESCRIPTION_LENGTH = 1024;
-
-function splitFrontmatter(content: string) {
-  const lines = content.split(/\r?\n/);
-  if (lines[0] !== "---") return null;
-
-  const endIndex = lines.findIndex((line, index) => index > 0 && line === "---");
-  if (endIndex === -1) return null;
-
-  return {
-    frontmatterLines: lines.slice(1, endIndex),
-    body: lines.slice(endIndex + 1).join("\n"),
-  };
-}
 
 function readScalar(lines: string[], key: string): string | null {
   const prefix = `${key}:`;
