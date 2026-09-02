@@ -761,6 +761,59 @@ body[data-suspend-app-drag] .mc-topbar {
   outline: 2px solid color-mix(in srgb, var(--accent) 82%, white);
   outline-offset: 2px;
 }
+
+/* Keep optional header tools from stealing the project action lane on laptop
+   widths. Expanded tools stay mounted and interactive, but open as an anchored
+   tray instead of widening the right side of the top bar. */
+.mc-header-tools-cluster,
+.mc-header-tools-extra {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.mc-header-tools-cluster {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1599px) {
+  .mc-topbar-wordmark {
+    display: none !important;
+  }
+
+  .mc-header-tools-extra {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 10000;
+    padding: 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42);
+  }
+}
+
+/* Minimum-width window: retain every action, shorten only redundant visible
+   labels. aria-label/title still expose the full action names. */
+@media (max-width: 1150px) {
+  .mc-provider-usage-label,
+  .mc-branch-label,
+  .mc-git-fetch-label {
+    display: none;
+  }
+
+  .mc-worktree-branch,
+  .mc-branch-control {
+    flex-shrink: 0 !important;
+  }
+
+  .mc-branch-control .mc-btn,
+  .mc-git-fetch-button {
+    padding-inline: 10px !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mc-topbar-home {
     transition: none;

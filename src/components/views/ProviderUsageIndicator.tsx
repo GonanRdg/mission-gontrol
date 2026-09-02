@@ -180,6 +180,7 @@ export function ProviderUsageIndicator() {
           )}
           {soloPct === null && collapsed && (
             <span
+              className="mc-provider-usage-label"
               style={{
                 fontVariantNumeric: "tabular-nums",
                 whiteSpace: "nowrap",

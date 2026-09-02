@@ -49,9 +49,9 @@ export function HeaderToolsCluster() {
   if (!anyVisible) return null;
 
   return (
-    <>
+    <span className="mc-header-tools-cluster">
       {expanded && (
-        <>
+        <span className="mc-header-tools-extra">
           {visibility.scratchPad && (
             <ScratchPadButton onContextMenu={hideElementContextMenu("header-button:scratchPad")} />
           )}
@@ -65,7 +65,7 @@ export function HeaderToolsCluster() {
               onContextMenu={hideElementContextMenu("header-button:voice")}
             />
           )}
-        </>
+        </span>
       )}
       <Btn
         variant="ghost"
@@ -81,6 +81,6 @@ export function HeaderToolsCluster() {
         }
       />
       {hideableMenu}
-    </>
+    </span>
   );
 }

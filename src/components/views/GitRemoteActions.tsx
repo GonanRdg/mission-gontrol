@@ -333,13 +333,15 @@ export function GitRemoteActions({
           variant="ghost"
           size={size}
           icon="refresh"
-          className="mc-btn-attached-right"
+          className="mc-btn-attached-right mc-git-fetch-button"
           onClick={runFetch}
           disabled={fetchState.disabled}
           aria-label={fetchState.ariaLabel}
           style={{ fontFamily: "var(--mono)" }}
         >
-          {busyAction ? BUSY_LABEL[busyAction] : "Fetch"}
+          <span className="mc-git-fetch-label">
+            {busyAction ? BUSY_LABEL[busyAction] : "Fetch"}
+          </span>
         </Btn>
       </Tooltip>
       <Btn

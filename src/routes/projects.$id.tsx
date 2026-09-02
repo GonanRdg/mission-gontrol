@@ -4486,6 +4486,7 @@ function WorktreeToggleGroup({
       ) : (
         // Badge dots sit above the branch button via the relative parent.
         <div
+          className="mc-worktree-branch"
           style={{
             position: "relative",
             display: "inline-flex",

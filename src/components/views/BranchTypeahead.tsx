@@ -857,6 +857,7 @@ export function BranchTypeahead({
     <>
       <div
         ref={anchorRef}
+        className="mc-branch-control"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -895,6 +896,7 @@ export function BranchTypeahead({
             }}
           >
             <span
+              className="mc-branch-label"
               style={{
                 minWidth: 0,
                 overflow: "hidden",

@@ -84,6 +84,7 @@ export function TopBar({
             style={{ borderRadius: 5, display: "block" }}
           />
           <span
+            className="mc-topbar-wordmark"
             style={{
               fontFamily: "var(--mono)",
               fontSize: 13,
