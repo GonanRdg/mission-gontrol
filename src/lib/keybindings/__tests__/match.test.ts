@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { matchBinding, eventToBinding, bindingComboKey, bindingsEqual, isValidBinding, matchPinnedSlotBinding, matchAnyPinnedSlot } from "../match";
 import { DEFAULT_BINDINGS } from "../defaults";
 import { HOTKEY_ACTIONS } from "../types";
@@ -13,11 +13,18 @@ function ev(init: { key: string; metaKey?: boolean; ctrlKey?: boolean; shiftKey?
   } as unknown as KeyboardEvent;
 }
 
+function primaryMod(): { metaKey: boolean; ctrlKey: boolean } {
+  const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+  return { metaKey: isMac, ctrlKey: !isMac };
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
 describe("matchBinding", () => {
   it("matches every default binding against an event built from it", () => {
     for (const action of HOTKEY_ACTIONS) {
       const b = DEFAULT_BINDINGS[action];
-      const e = ev({ metaKey: b.mod, shiftKey: b.shift, altKey: b.alt, key: b.key });
+      const e = ev({ ...primaryMod(), shiftKey: b.shift, altKey: b.alt, key: b.key });
       expect(matchBinding(e, b)).toBe(true);
     }
   });
@@ -29,25 +36,42 @@ describe("matchBinding", () => {
 
   it("treats Shift+~ as a match for `", () => {
     expect(
-      matchBinding(ev({ metaKey: true, shiftKey: false, key: "~" }), { mod: true, shift: false, alt: false, key: "`" }),
+      matchBinding(ev({ ...primaryMod(), shiftKey: false, key: "~" }), { mod: true, shift: false, alt: false, key: "`" }),
     ).toBe(true);
   });
 
   it("treats Shift+} as a match for ] with shift", () => {
     expect(
-      matchBinding(ev({ metaKey: true, shiftKey: true, key: "}" }), { mod: true, shift: true, alt: false, key: "]" }),
+      matchBinding(ev({ ...primaryMod(), shiftKey: true, key: "}" }), { mod: true, shift: true, alt: false, key: "]" }),
     ).toBe(true);
   });
 
   it("matches pinned slots that share modifiers with the slot-1 binding", () => {
     const base = { mod: true, shift: false, alt: false, key: "1" };
-    expect(matchPinnedSlotBinding(ev({ metaKey: true, key: "3" }), base, 3)).toBe(true);
-    expect(matchAnyPinnedSlot(ev({ metaKey: true, key: "2" }), base)).toBe(2);
+    expect(matchPinnedSlotBinding(ev({ ...primaryMod(), key: "3" }), base, 3)).toBe(true);
+    expect(matchAnyPinnedSlot(ev({ ...primaryMod(), key: "2" }), base)).toBe(2);
   });
 
   it("is case-insensitive for letter keys", () => {
     const b = { mod: true, shift: false, alt: false, key: "n" };
-    expect(matchBinding(ev({ metaKey: true, key: "N" }), b)).toBe(true);
+    expect(matchBinding(ev({ ...primaryMod(), key: "N" }), b)).toBe(true);
+  });
+
+  it("does not claim Ctrl shortcuts from terminal apps on macOS", () => {
+    vi.stubGlobal("navigator", { platform: "MacIntel" });
+    const binding = { mod: true, shift: false, alt: false, key: "t" };
+
+    expect(matchBinding(ev({ metaKey: true, key: "t" }), binding)).toBe(true);
+    expect(matchBinding(ev({ ctrlKey: true, key: "t" }), binding)).toBe(false);
+    expect(eventToBinding(ev({ ctrlKey: true, key: "t" }))).toMatchObject({ mod: false, key: "t" });
+  });
+
+  it("uses Ctrl as the primary modifier outside macOS", () => {
+    vi.stubGlobal("navigator", { platform: "Linux x86_64" });
+    const binding = { mod: true, shift: false, alt: false, key: "t" };
+
+    expect(matchBinding(ev({ ctrlKey: true, key: "t" }), binding)).toBe(true);
+    expect(matchBinding(ev({ metaKey: true, key: "t" }), binding)).toBe(false);
   });
 });
 
@@ -56,8 +80,8 @@ describe("eventToBinding", () => {
     expect(eventToBinding(ev({ key: "Meta", metaKey: true }))).toBeNull();
   });
 
-  it("captures Cmd+Shift+P", () => {
-    const b = eventToBinding(ev({ metaKey: true, shiftKey: true, key: "P" }));
+  it("captures primary-modifier Shift+P", () => {
+    const b = eventToBinding(ev({ ...primaryMod(), shiftKey: true, key: "P" }));
     expect(b).toEqual({ mod: true, shift: true, alt: false, key: "p" });
   });
 });

@@ -5,11 +5,16 @@ function normalizeKey(key: string): string {
   return key;
 }
 
+function primaryModifierPressed(e: KeyboardEvent): boolean {
+  const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+  return isMac ? e.metaKey : e.ctrlKey;
+}
+
 export function eventToBinding(e: KeyboardEvent): Binding | null {
   const key = e.key;
   if (key === "Meta" || key === "Control" || key === "Shift" || key === "Alt") return null;
   return {
-    mod: e.metaKey || e.ctrlKey,
+    mod: primaryModifierPressed(e),
     shift: e.shiftKey,
     alt: e.altKey,
     key: normalizeKey(key),
@@ -28,7 +33,7 @@ function keyMatches(e: KeyboardEvent, b: Binding): boolean {
 }
 
 export function matchBinding(e: KeyboardEvent, b: Binding): boolean {
-  const mod = e.metaKey || e.ctrlKey;
+  const mod = primaryModifierPressed(e);
   if (mod !== b.mod) return false;
   if (e.shiftKey !== b.shift) return false;
   if (e.altKey !== b.alt) return false;
