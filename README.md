@@ -70,11 +70,18 @@ mission-control/
 
 ## Download
 
-- **GitHub Releases:** [AgentSystemLabs/mission-control/releases](https://github.com/AgentSystemLabs/mission-control/releases) — signed macOS / Windows / Linux installers attached automatically when a `v*` tag ships (manual install / dogfooding)
-- **Stable + in-app updates:** [agentsystem.dev](https://agentsystem.dev) — same installers after a release is **approved** there; the Electron updater and in-app Update UI only advance on approval
-- **PR CI Artifacts:** pull requests build an unsigned Linux AppImage (`MissionControl-linux-x64`) — open the workflow run → **Artifacts**
+This is a fork. Builds here are **unsigned and not notarized**, and **automatic updates are off** — this fork does not run an update server, and it deliberately does not use the upstream project's. Update by downloading a newer release and replacing the app.
 
-After download: macOS open the `.dmg` and drag the app to Applications; Windows run the Setup `.exe`; Linux make the `.AppImage` executable (`chmod +x`) and run it (FUSE 2 may be required on some distros).
+- **GitHub Releases:** [GonanRdg/mission-control/releases](https://github.com/GonanRdg/mission-control/releases) — unsigned macOS builds, installed manually
+- **Build it yourself:** `pnpm install:local` builds and swaps the app in place, signing on your own machine (no Gatekeeper prompt at all)
+
+After download on macOS: open the `.dmg` and drag the app to Applications. Because the build is unsigned, Gatekeeper will refuse it with *"MissionControl is damaged and can't be opened"* — clear the quarantine flag once:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/MissionControl.app
+```
+
+Upstream's signed installers and in-app updates live at [AgentSystemLabs/mission-control](https://github.com/AgentSystemLabs/mission-control).
 
 ## Getting started
 

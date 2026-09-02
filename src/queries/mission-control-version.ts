@@ -1,10 +1,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { academyUrl } from "~/shared/academy";
-import { isNewerSemver, stripVersionPrefix } from "~/shared/semver";
 
 declare const __MC_VERSION__: string;
 
-const DOWNLOADS_URL = academyUrl("/downloads");
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 
@@ -17,18 +14,19 @@ type LatestRelease = {
   isUpdateAvailable: boolean;
 };
 
+// FORK BUILD — no release feed.
+//
+// Upstream polls agentsystem.dev for the newest published release and offers a
+// download when it outranks the running build. This fork is distributed
+// independently and must not report another project's releases as its own
+// updates, so the check is inert: no request is made, and every consumer sees
+// "no update, nowhere to download". Releases for this fork are published on its
+// own GitHub repo and installed manually.
+//
+// The shape is kept so callers compile unchanged and the upstream version of
+// this file stays easy to merge.
 async function fetchLatest(): Promise<LatestRelease> {
-  const url = academyUrl("/api/mission-control/releases?limit=1");
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`mc-releases ${res.status}`);
-  const body = (await res.json()) as { releases?: Array<{ version?: string }> };
-  const raw = body.releases?.[0]?.version ?? null;
-  const remote = raw ? stripVersionPrefix(raw) : null;
-  return {
-    latestVersion: remote,
-    downloadUrl: DOWNLOADS_URL,
-    isUpdateAvailable: !!remote && isNewerSemver(remote, CURRENT_MC_VERSION),
-  };
+  return { latestVersion: null, downloadUrl: "", isUpdateAvailable: false };
 }
 
 export const latestMissionControlVersionQueryOptions = queryOptions({

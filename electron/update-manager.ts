@@ -38,16 +38,27 @@ const DEFAULT_AUTOMATIC_UPDATE_INSTALL_ON_QUIT_ENABLED = false;
 const PROGRESS_LOG_STEP = 10;
 let lastLoggedProgressBucket = -1;
 
-// A build installed by scripts/install-local.mjs carries a `-local.<n>` semver
-// prerelease (see scripts/lib/build-version.mjs). It sits between two published
-// releases, so the feed will eventually offer a version that outranks it — and
-// installing that would silently throw away the build being dogfooded. Local
-// builds therefore never load the updater at all.
-const isLocalBuild = /-local\.\d+/.test(app.getVersion());
+// FORK BUILD — automatic updates are off unconditionally.
+//
+// Upstream ships an electron-updater feed hosted on agentsystem.dev. This fork
+// is distributed independently, so pointing at that feed would hand control of
+// what is installed here to a server this repo does not own: any release
+// published there outranks a build from this fork and would silently replace
+// it. The `publish` block that supplied the feed URL is gone from package.json,
+// so there is nothing to check against either way.
+//
+// Everything below still short-circuits on this flag rather than being deleted,
+// so the wiring stays intact for merging upstream and can be re-enabled by
+// pointing this at a feed you control.
+//
+// (This also covers the original reason the flag existed: builds from
+// scripts/install-local.mjs carry a `-local.<n>` prerelease that any published
+// release would outrank.)
+const updatesDisabled = true;
 
 let currentState: UpdateState = !app.isPackaged
   ? { kind: "unsupported-dev" }
-  : isLocalBuild
+  : updatesDisabled
   ? { kind: "local-build", version: app.getVersion() }
   : { kind: "idle", lastCheckedAt: null };
 
@@ -237,7 +248,7 @@ async function loadUpdater(): Promise<AutoUpdater | null> {
 type CheckTrigger = "startup" | "interval" | "ipc";
 
 async function safeCheck(trigger: CheckTrigger = "ipc"): Promise<void> {
-  if (!app.isPackaged || isLocalBuild) return;
+  if (!app.isPackaged || updatesDisabled) return;
   const au = await loadUpdater();
   if (!au) return;
   const prefs = applyUpdaterPreferences(au);
@@ -257,7 +268,7 @@ async function safeCheck(trigger: CheckTrigger = "ipc"): Promise<void> {
 
 async function safeDownload(): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!app.isPackaged) return { ok: false, error: "not-packaged" };
-  if (isLocalBuild) return { ok: false, error: "local-build" };
+  if (updatesDisabled) return { ok: false, error: "local-build" };
   const au = await loadUpdater();
   if (!au) return { ok: false, error: "updater-unavailable" };
   applyUpdaterPreferences(au);
@@ -303,7 +314,7 @@ async function safeDownload(): Promise<{ ok: true } | { ok: false; error: string
 
 function safeInstall(): { ok: true } | { ok: false; error: string } {
   if (!app.isPackaged) return { ok: false, error: "not-packaged" };
-  if (isLocalBuild) return { ok: false, error: "local-build" };
+  if (updatesDisabled) return { ok: false, error: "local-build" };
   if (!updater) return { ok: false, error: "updater-not-loaded" };
   log.info("update.install.requested", {
     event: "update.install.requested",
@@ -341,7 +352,7 @@ export function registerUpdateManager(
     return;
   }
 
-  if (isLocalBuild) {
+  if (updatesDisabled) {
     log.info("update.check.skipped", {
       event: "update.check.skipped",
       reason: "local-build",
@@ -358,9 +369,8 @@ export function registerUpdateManager(
   setTimeout(() => void safeCheck("startup"), UPDATE_STARTUP_DELAY_MS);
   setInterval(() => void safeCheck("interval"), UPDATE_CHECK_INTERVAL_MS);
 
-  // TODO(academy auto-update infra): this only activates once academy serves the
-  // generic-provider artifacts (latest-mac.yml, latest.yml, latest-linux.yml,
-  // *.blockmap, *.zip) at https://agentsystem.dev/downloads/mission-control/auto-update.
-  // Until then autoUpdater will report `error` here and the renderer falls back to
-  // openExternal(downloadUrl).
+  // Unreachable while `updatesDisabled` is set — kept for the day this fork
+  // points at a feed it owns. To re-enable: restore a `publish` block in
+  // package.json aimed at that feed (electron-builder's `github` provider works
+  // straight off this repo's Releases) and flip the flag.
 }
