@@ -920,6 +920,10 @@ export function TerminalPane({
         // thinning dark ink on the light theme's paper. Set BEFORE the theme
         // so xterm computes the new background alpha under the right rule.
         term.options.allowTransparency = terminalNeedsTransparency(colorScheme);
+        // Truecolour output from agent CLIs is only readable on the light ground
+        // once xterm lifts it to the AA ratio; keep this in step with the theme
+        // or a live dark→light switch leaves the pane washed out until reload.
+        term.options.minimumContrastRatio = colorScheme === "light" ? 4.5 : 1;
         term.options.theme = createTerminalTheme({ cursorColor, colorScheme });
         // A theme with a bundled face (ember → JetBrains Mono) or an
         // appearance-settings change swaps typography live; any of these

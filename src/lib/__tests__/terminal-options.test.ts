@@ -8,6 +8,44 @@ import {
 } from "../terminal-options";
 
 describe("terminal options", () => {
+  it("keeps every light ANSI slot readable on both light grounds", () => {
+    // The bright slots shipped at 2.5-3.9:1 on paper, which is what made agent
+    // status lines wash out. "Bright" on a light ground has to mean more
+    // saturated, not lighter — lighter is the direction that loses contrast.
+    const srgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const luminance = (c: number[]) => {
+      const f = (v: number) => {
+        const x = v / 255;
+        return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * f(c[0]!) + 0.7152 * f(c[1]!) + 0.0722 * f(c[2]!);
+    };
+    const contrast = (a: string, b: string) => {
+      const [l1, l2] = [luminance(srgb(a)), luminance(srgb(b))];
+      return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    };
+    const theme = createTerminalTheme({ colorScheme: "light" }) as Record<string, string>;
+    // painted-light's warm paper and flat-light's white.
+    for (const ground of ["#fdfbf6", "#ffffff"]) {
+      for (const [slot, value] of Object.entries(theme)) {
+        if (!/^#[0-9a-f]{6}$/i.test(value ?? "")) continue;
+        if (["background", "white", "brightWhite", "cursor", "cursorAccent"].includes(slot)) continue;
+        expect(
+          contrast(value, ground),
+          `${slot} (${value}) on ${ground}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("lifts low-contrast foregrounds only on the light ground", () => {
+    // Agent CLIs emit truecolour tuned for dark terminals, which bypasses the
+    // ANSI ramp entirely; this is the only setting that reaches it. Dark must
+    // stay at 1 or the hand-tuned dark palettes get flattened.
+    expect(createTerminalOptions({ colorScheme: "light" }).minimumContrastRatio).toBe(4.5);
+    expect(createTerminalOptions({ colorScheme: "dark" }).minimumContrastRatio).toBe(1);
+  });
+
   it("defaults to the dark terminal theme", () => {
     expect(createTerminalOptions()).toMatchObject({
       lineHeight: 1,

@@ -45,15 +45,23 @@ const TERMINAL_THEMES: Record<TerminalColorScheme, TerminalTheme> = {
     red: "#b42318",
     brightRed: "#d92d20",
     green: "#087443",
-    brightGreen: "#099250",
-    yellow: "#a15c07",
-    brightYellow: "#c07213",
+    // On a light ground "bright" cannot mean lighter — that is the direction
+    // that loses contrast. These four sat at 2.5-3.9:1 against the paper, which
+    // is what made agent status lines read as washed out. They now clear 4.5:1
+    // by carrying more saturation instead of more lightness, and each still
+    // reads as a step away from its base slot.
+    brightGreen: "#0a7f46",
+    // Claude's status line uses this amber pair. The base was legible at 5:1 but
+    // sat close enough to the warm paper that it swam; both are pulled down a
+    // step, keeping bright the lighter of the two.
+    yellow: "#8a4c05",
+    brightYellow: "#a15c07",
     blue: "#175cd3",
-    brightBlue: "#2e90fa",
+    brightBlue: "#2563eb",
     magenta: "#9e165f",
     brightMagenta: "#c11574",
     cyan: "#0e7090",
-    brightCyan: "#06aed4",
+    brightCyan: "#0d7791",
     white: "#f1f0eb",
     brightWhite: "#ffffff",
   },
@@ -286,6 +294,19 @@ export function createTerminalOptions({
     // A live theme switch flips it via term.options — the WebGL renderer
     // rebuilds its char atlas on any option change, so it applies in place.
     allowTransparency: terminalNeedsTransparency(colorScheme),
+    // Agent CLIs emit 256-colour and truecolour SGR directly, so most of what
+    // they print never touches the 16-slot ANSI ramp above — and those literals
+    // are chosen for a dark terminal. On the light ground they land pale: Claude's
+    // amber status line and Codex's whole palette wash out to barely-there.
+    //
+    // xterm lifts any foreground that falls under this ratio against the current
+    // background, which is the only lever that reaches truecolour output too.
+    // 4.5 is the WCAG AA text threshold — enough to read comfortably without
+    // crushing every colour to near-black, which is what higher values do.
+    //
+    // Dark keeps 1 (off): its ground already carries the CLIs' intended colours,
+    // and lifting there would flatten the palette the terminal themes tune by hand.
+    minimumContrastRatio: colorScheme === "light" ? 4.5 : 1,
     allowProposedApi: true,
     // Option must act as Meta on macOS or Claude Code's meta bindings
     // (Option+P model picker, etc.) never arrive: xterm's default composes
