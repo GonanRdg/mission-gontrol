@@ -54,6 +54,8 @@
     "package": "pnpm build && pnpm native:electron && electron-builder",
     "dist": "pnpm build && pnpm native:electron && electron-builder --publish never",
     "dist:mac": "pnpm build && pnpm native:electron && electron-builder --mac --publish never",
+    "native:electron:sqlite:x64": "node scripts/stage-electron-sqlite-arch.mjs --arch x64",
+    "dist:mac:x64": "pnpm build && pnpm native:electron && pnpm native:electron:sqlite:x64 && electron-builder --mac --x64 --publish never && pnpm native:node",
     "dist:win": "pnpm build && pnpm native:electron && electron-builder --win --publish never",
     "dist:linux": "pnpm build && pnpm native:electron && electron-builder --linux --publish never",
     "dist:all": "pnpm build && pnpm native:electron && electron-builder -mwl --publish never",
