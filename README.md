@@ -232,6 +232,16 @@ When investigating "the update never installed," start with `rg 'event: "update\
 
 A drop-in skill for Claude Code / Codex / Cursor CLI lives in `docs/skills/missioncontrol-notify.md`. Paste it into the CLI's instructions or memory so the agent knows to POST its lifecycle events back to MissionControl.
 
+## Credits
+
+Mission Control was created by **AgentSystem Labs**
+([AgentSystemLabs/mission-control](https://github.com/AgentSystemLabs/mission-control)).
+
+This repository is an independent fork, evolved and maintained by
+**[GonanRdg](https://github.com/GonanRdg)** — git actions without an agent
+session, the Painted Light theme, local build tooling, and assorted fixes.
+
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — copyright AgentSystem Labs, with fork modifications copyright
+GonanRdg. The original notice is preserved as the license requires.

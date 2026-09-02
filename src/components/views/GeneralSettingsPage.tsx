@@ -614,6 +614,26 @@ function AboutSection() {
           )}
         </div>
       </Field>
+      <Field label="Credits">
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "var(--surface-0)",
+            border: "1px solid var(--border)",
+            borderRadius: 7,
+            fontSize: 12,
+            lineHeight: 1.55,
+            color: "var(--text-dim)",
+          }}
+        >
+          <div style={{ color: "var(--text)", fontWeight: 600, marginBottom: 4 }}>
+            Mission Control
+          </div>
+          Created by AgentSystem Labs. Released under the MIT License.
+          <br />
+          This build is an independent fork, evolved and maintained by GonanRdg.
+        </div>
+      </Field>
     </SettingsSection>
   );
 }

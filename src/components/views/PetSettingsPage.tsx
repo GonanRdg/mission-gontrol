@@ -38,7 +38,6 @@ export function PetSettingsPage() {
   const petEnabled = settings?.petEnabled ?? true;
   const petMessagesEnabled = settings?.petMessagesEnabled ?? true;
   const petSoundsEnabled = settings?.petSoundsEnabled ?? false;
-  const petMultiplayerEnabled = settings?.petMultiplayerEnabled ?? false;
   const petHomeSide = settings?.petHomeSide ?? DEFAULT_PET_HOME_SIDE;
   const petState = settings?.petState ?? null;
   const [petNameDraft, setPetNameDraft] = useState("");
@@ -118,16 +117,6 @@ export function PetSettingsPage() {
           description="A soft chime when the pet levels up. XP comes only from finished sessions, ships, and PRs."
           checked={petSoundsEnabled}
           onChange={(enabled: boolean) => void updateSettings({ petSoundsEnabled: enabled })}
-          disabled={!petEnabled}
-          label="Enable"
-        />
-      </Field>
-      <Field label="Multiplayer">
-        <ToggleRow
-          title="Show teammates' pets"
-          description="When you have a running session on a repo, broadcast your pet to anyone else working on the same git repo — and see theirs along the bottom. Only your pet's name and species are ever sent, keyed by a one-way hash of the repo — the raw repo URL, project name, path, and your identity never leave your machine. Nothing connects while this is off."
-          checked={petMultiplayerEnabled}
-          onChange={(enabled: boolean) => void updateSettings({ petMultiplayerEnabled: enabled })}
           disabled={!petEnabled}
           label="Enable"
         />
