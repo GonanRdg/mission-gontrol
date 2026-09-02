@@ -435,6 +435,11 @@ async function dispatch(
     return aiRuntimeModelsController.list(url);
   }
 
+  // Actions — skills carrying an `mc-action` block
+  if (pathname === "/api/skills/actions" && method === "GET") {
+    return skillsController.listActions(url);
+  }
+
   // Diagram skill (local bundled install)
   if (pathname === "/api/skills/install/diagram/installed" && method === "GET") {
     return skillsController.diagramInstalled(url);

@@ -139,6 +139,7 @@
     "tar": "7.5.15",
     "web-tree-sitter": "0.26.10",
     "ws": "8.21.0",
+    "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

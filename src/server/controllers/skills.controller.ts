@@ -7,7 +7,9 @@ import {
   installShipSkills,
   readShipSkillInstallStatus,
 } from "../services/install-ship-skills";
-import { handleDomainError, json, jsonError, parseJsonBody } from "./_helpers";
+import { discoverActions } from "../services/skill-discovery";
+import { getProject } from "../services/projects";
+import { handleDomainError, json, jsonError, notFound, parseJsonBody } from "./_helpers";
 import { HTTP_BAD_REQUEST } from "~/shared/http-status";
 
 const harnessSelectionBody = z
@@ -28,6 +30,21 @@ const shipInstallBody = z.object({
   projectPath: z.string().min(1, "projectPath is required"),
   harnesses: harnessSelectionBody,
 });
+
+/**
+ * Actions visible from a project. Without `projectId` the project tier is
+ * dropped and only the global and bundled roots are scanned.
+ */
+export function listActions(url: URL): Response {
+  const projectId = url.searchParams.get("projectId")?.trim();
+  let projectPath: string | null = null;
+  if (projectId) {
+    const project = getProject(projectId);
+    if (!project) return notFound("project not found");
+    projectPath = project.path;
+  }
+  return json({ actions: discoverActions({ projectPath }) });
+}
 
 export function diagramInstalled(url: URL): Response {
   const projectPath = url.searchParams.get("projectPath") ?? "";
