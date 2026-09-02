@@ -23,4 +23,4 @@ Renderer never spawns a process — it calls `electron.pty.*` / `electron.remote
 
 ## Components
 
-`ui/` = primitives (Btn, Modal, Icon, TextField, Tooltip, CardFrame, StatusDot…) — reuse before inventing. `views/` = features (SessionGrid, TerminalPane, ProjectBar, GitDiffView/, *SettingsPage, dialogs, overlays). `pet/` = the Mission Pet. Design tokens + keyframes live in `src/styles.css`; two theme families (painted pixel-art, dark-only; flat, dark+light) plus accent color and surface tint. Read `PRODUCT.md` design principles before UI changes.
+`ui/` = primitives (Btn, Modal, Icon, TextField, Tooltip, CardFrame, StatusDot…) — reuse before inventing. `views/` = features (SessionGrid, TerminalPane, ProjectBar, GitDiffView/, *SettingsPage, dialogs, overlays). `pet/` = the Mission Pet. Design tokens + keyframes live in `src/styles.css`; two theme styles (painted pixel-art, flat) on an axis orthogonal to dark/light — **both styles support both appearances** — plus accent color and surface tint. Token layers, the painted light art cuts, and terminal ANSI/contrast rules: `mem:frontend/theming`. Read `PRODUCT.md` design principles before UI changes.
