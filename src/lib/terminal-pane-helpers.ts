@@ -9,6 +9,7 @@ import {
   shouldSuppressTerminalKey,
   terminalClipboardAction,
 } from "./terminal-keymap";
+import { matchBinding } from "./keybindings/match";
 import type { TaskStatus } from "~/shared/domain";
 
 type Electron = NonNullable<ReturnType<typeof getElectron>>;
@@ -87,6 +88,21 @@ export function terminalExitTaskStatus(exitCode?: number): TaskStatus {
 }
 
 export type TerminalZoomIntent = "in" | "out" | "reset";
+
+export type TerminalManagementShortcutKey = "t" | "[" | "]" | `${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`;
+
+/**
+ * Non-rebindable terminal-management shortcut pressed while xterm owns focus.
+ */
+export function terminalManagementShortcutKeyFromKeyboard(
+  e: KeyboardEvent,
+): TerminalManagementShortcutKey | null {
+  if (e.type !== "keydown") return null;
+  const key = e.key.toLowerCase();
+  if (!(key === "t" || key === "[" || key === "]" || /^[1-9]$/.test(key))) return null;
+  const binding = { mod: true, shift: false, alt: false, key };
+  return matchBinding(e, binding) ? (key as TerminalManagementShortcutKey) : null;
+}
 
 /**
  * Cmd/Ctrl + =/+ zoom in, Cmd/Ctrl + - zoom out, Cmd/Ctrl + 0 reset to default;

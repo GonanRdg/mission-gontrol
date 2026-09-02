@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   attachTerminalKeyHandler,
   stripTerminalSelectionFormatting,
   terminalExitTaskStatus,
+  terminalManagementShortcutKeyFromKeyboard,
   wireTerminalFileDrop,
 } from "../terminal-pane-helpers";
 
@@ -23,6 +24,8 @@ function keyEvent(overrides: Partial<KeyboardEvent>): KeyboardEvent {
 async function flushPromises() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+afterEach(() => vi.unstubAllGlobals());
 
 function createHarness(opts: { selection?: string } = {}) {
   let handler: ((e: KeyboardEvent) => boolean) | null = null;
@@ -78,6 +81,15 @@ describe("terminalExitTaskStatus", () => {
   it("marks failed or unknown exits as terminated", () => {
     expect(terminalExitTaskStatus(1)).toBe("terminated");
     expect(terminalExitTaskStatus(undefined)).toBe("terminated");
+  });
+});
+
+describe("terminalManagementShortcutKeyFromKeyboard", () => {
+  it("leaves Ctrl+T to the focused terminal on macOS", () => {
+    vi.stubGlobal("navigator", { platform: "MacIntel" });
+
+    expect(terminalManagementShortcutKeyFromKeyboard(keyEvent({ ctrlKey: true, key: "t" }))).toBeNull();
+    expect(terminalManagementShortcutKeyFromKeyboard(keyEvent({ metaKey: true, key: "t" }))).toBe("t");
   });
 });
 

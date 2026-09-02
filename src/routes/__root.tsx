@@ -115,7 +115,12 @@ import {
   type AppNotification,
 } from "~/lib/session-notification-store";
 import { DiagramDialogHost } from "~/lib/use-diagram-events";
-import { isUserTerminalXtermFocused, isTerminalXtermFocused, terminalZoomIntentFromKeyboard } from "~/lib/terminal-pane-helpers";
+import {
+  isUserTerminalXtermFocused,
+  isTerminalXtermFocused,
+  terminalManagementShortcutKeyFromKeyboard,
+  terminalZoomIntentFromKeyboard,
+} from "~/lib/terminal-pane-helpers";
 import { useWarmCliAvailability } from "~/lib/cli-availability";
 import {
   CLEAR_USER_TERMINAL_EVENT,
@@ -753,26 +758,27 @@ function Shell() {
   // Capture phase: a focused xterm textarea swallows these on bubble.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      if ((e.key === "t" || e.key === "T") && !e.shiftKey && !e.altKey) {
+      const shortcutKey = terminalManagementShortcutKeyFromKeyboard(e);
+      if (shortcutKey === null) return;
+      if (shortcutKey === "t") {
         e.preventDefault();
         e.stopPropagation();
         void createTerminal();
         return;
       }
-      if (e.key === "[" && !e.shiftKey && !e.altKey) {
+      if (shortcutKey === "[") {
         e.preventDefault();
         e.stopPropagation();
         cyclePrev();
         return;
       }
-      if (e.key === "]" && !e.shiftKey && !e.altKey) {
+      if (shortcutKey === "]") {
         e.preventDefault();
         e.stopPropagation();
         cycleNext();
         return;
       }
-      if (!e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
+      if (/^[1-9]$/.test(shortcutKey)) {
         // Pinned-project nav is disabled while the active sandbox resumes.
         if (activeResuming) return;
         if (e.repeat) {
@@ -780,7 +786,7 @@ function Shell() {
           e.preventDefault();
           return;
         }
-        const digit = Number(e.key);
+        const digit = Number(shortcutKey);
         // Same clusters the rail renders — badges and hotkeys must agree.
         const clusters = getRailClusters(projects ?? [], groups, activeGroup);
         const navigateTo = (id: string) => {
