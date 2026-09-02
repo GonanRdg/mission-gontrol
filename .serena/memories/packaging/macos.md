@@ -2,6 +2,30 @@
 
 Applies to local/fork builds. Upstream's signed+notarized CI path is `mem:release`.
 
+## Procedure: build both arches
+
+Node 24 + pnpm on PATH first (see Toolchain). Run from a clean tree — an untracked file stamps the build `.dirty`.
+
+```bash
+# 1. version (calver YYYY.M.D, plain X.Y.Z — see mem:release), commit it
+pnpm version 2026.9.4 --no-git-tag-version && git commit -am "..."
+
+# 2. build. Order matters: dist:mac:x64 leaves node_modules staged for x64
+pnpm dist:mac        # → dist-electron-out/MissionControl-<v>-arm64.dmg
+pnpm dist:mac:x64    # → dist-electron-out/MissionControl-<v>.dmg   ← NO arch suffix
+
+# 3. tag the commit that was actually built, then publish
+git tag -a v<v> -m "..." && git push origin main v<v>
+gh release create v<v> <arm64.dmg> <x64.dmg> --title "..." --notes-file <notes>
+```
+
+Gotchas that cost time:
+
+- **The x64 dmg has no arch in its name** (electron-builder's default for x64): `MissionControl-<v>.dmg` next to `MissionControl-<v>-arm64.dmg`. Copy it to `-x64.dmg` before uploading or colleagues cannot tell them apart.
+- `dist-electron-out/` is never cleaned — artifacts from older versions pile up. Upload by exact filename.
+- Tag **after** building, on the built commit. Artifacts are frozen at build time; a later commit is not in them and a tag ahead of the build cannot reproduce it.
+- Verify before publishing (below). Both dmgs must be mounted and checked — the failure modes here are invisible on the machine that built them.
+
 ## Arch: the one thing that breaks Intel builds
 
 `src/db/better-sqlite3-native-binding.ts` resolves the binding at RUNTIME from `process.arch`:
@@ -29,7 +53,23 @@ Re-sealing the whole bundle ad-hoc makes the signature valid but anonymous → G
 
 - `scripts/afterpack-adhoc-sign.mjs` (electron-builder `afterPack`) re-signs before the dmg is built from the app, and **fails the build if the seal does not verify** — the broken signature shipped precisely because packaging succeeded and the fault only appeared on someone else's Mac.
 - `mac.identity: null` so electron-builder deterministically skips its own signing rather than leaving a stale seal; `mac.notarize: false` because the fork has no credentials. With a real Developer ID, restore both and drop the hook.
-- Verify artifacts by mounting the dmg, not the build dir: `codesign --verify --deep --strict` (silence = valid) and `spctl -a -t exec -vv`.
+## Verify an artifact before publishing
+
+Check the dmg, not `dist-electron-out/mac*/` — the dmg is what people get.
+
+```bash
+MNT=$(hdiutil attach -nobrowse -readonly <dmg> | grep -o '/Volumes/.*'); APP="$MNT/MissionControl.app"
+codesign --verify --deep --strict "$APP"      # SILENCE = valid seal
+spctl -a -t exec -vv "$APP"                   # want plain "rejected"; anything
+                                              # mentioning resources = broken seal
+file -b "$APP/Contents/MacOS/MissionControl"  # x86_64 | arm64 — must match the dmg
+ls "$APP/Contents/Resources/app.asar.unpacked/node_modules/better-sqlite3/bin/"
+                                              # must list BOTH darwin-arm64-* and darwin-x64-*
+hdiutil detach "$MNT"
+```
+
+Both failure modes are invisible on the building machine: the wrong-arch binding only throws on the other CPU, and quarantine (which triggers the signature check) is only applied on download.
+
 
 ## Toolchain
 
