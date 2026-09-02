@@ -1,6 +1,6 @@
 {
   "name": "mission-control",
-  "version": "2026.9.2",
+  "version": "2026.9.3",
   "description": "Desktop control surface for managing agentic coding work across many projects.",
   "license": "MIT",
   "private": true,
@@ -198,6 +198,7 @@
       "scripts/remote-vm.mjs",
       "package.json"
     ],
+    "afterPack": "scripts/afterpack-adhoc-sign.mjs",
     "directories": {
       "output": "dist-electron-out",
       "buildResources": "build"
@@ -233,7 +234,8 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "notarize": true
+      "identity": null,
+      "notarize": false
     },
     "linux": {
       "icon": "build/icon.png",
