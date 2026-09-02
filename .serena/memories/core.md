@@ -2,7 +2,7 @@
 
 Electron desktop "control surface" for running agentic coding CLIs (Claude Code, Codex, Cursor CLI, opencode) across many git projects. Real PTYs in a terminal grid + a loopback HTTP API those CLIs post back to. MIT. `package.json` version is the single version source (`__MC_VERSION__` vite define).
 
-**This checkout is a public fork** (`GonanRdg/mission-control`, from `AgentSystemLabs/mission-control`) that diverges from upstream on distribution: auto-update removed, CI disabled, unsigned local builds, calver versions. Before releasing, packaging or touching update code, read `mem:release`.
+**This checkout is a public fork** of `AgentSystemLabs/mission-control` that diverges from upstream on distribution: auto-update removed, CI disabled, unsigned local builds, calver versions. Before releasing, packaging or touching update code, read `mem:release`.
 
 ## Three processes, one repo
 

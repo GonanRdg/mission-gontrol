@@ -2,16 +2,16 @@
 
 **This fork does not use the upstream release pipeline.** Read which situation you are in first.
 
-## This fork (GonanRdg/mission-control) — current reality
+## This fork — current reality
 
-Public fork of `AgentSystemLabs/mission-control`, MIT, original copyright preserved with the fork's added beside it (LICENSE, README, Settings → About).
+Public fork of `AgentSystemLabs/mission-control`, MIT, with upstream copyright preserved alongside the fork's attribution (LICENSE, README, Settings → About).
 
 - **GitHub Actions is disabled** (workflows registered, 0 runs). Keep it that way: `auto-tag-release.yml` fires on every push to `main` and `release.yml` is wired to upstream's academy + Apple signing secrets, so enabling it produces failing runs and unwanted auto-tags.
 - Releases are **built locally and published by hand**: build, `git tag -a vX && git push origin vX`, `gh release create`. Packaging rules (arch, signing, what breaks Intel) are `mem:packaging/macos` — read it before cutting one.
 - Builds are **unsigned/not notarized**; release notes must carry the Gatekeeper step.
 - Versioning is **calver `YYYY.M.D`** — upstream lives in `0.x` and patch-bumps on every merge, so a dated version cannot collide and reads as a fork build. Must stay a plain `X.Y.Z`: `scripts/lib/build-version.mjs` `nextPatch()` rejects anything else, so no `-fork.1` suffixes.
 - **Auto-update is removed**, not merely disabled: no `publish` block, `updatesDisabled` in `electron/update-manager.ts`, the release poll is inert and the update UI is gone. The upstream feed belongs to a server this repo does not own; anything published there outranks a fork build and would silently replace it. Wiring short-circuits on a flag rather than being deleted, so upstream stays mergeable.
-- `gh` may be authenticated as a different account than the repo owner; its failure mode is a misleading *"workflow scope may be required"*. The remote URL carries a PAT that can be passed as `GH_TOKEN` as a fallback.
+- `gh` must authenticate with access to the fork. Keep remote URLs credential-free; use the system credential manager or an ephemeral `GH_TOKEN` when needed.
 - Artifacts are frozen at build time — a commit made after packaging is **not** in the dmg. Tag the commit you actually built, or the tag cannot reproduce the release.
 
 ## Upstream (for merges / historical context)
