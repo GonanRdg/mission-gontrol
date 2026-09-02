@@ -56,7 +56,6 @@ import {
 import { apiTokenQueryOptions, useSettings, useScopedProjects, useSandboxes } from "~/queries";
 import { SandboxResumingOverlay } from "~/components/views/SandboxResumingOverlay";
 import { ScopeDropdown } from "~/components/views/ScopeDropdown";
-import { UpdateAvailableButton } from "~/components/ui/UpdateAvailableButton";
 import { ProviderUsageIndicator } from "~/components/views/ProviderUsageIndicator";
 import {
   ACCENT_CACHE_KEY,
@@ -915,7 +914,6 @@ function Shell() {
           dragRegion
           right={
             <>
-              <UpdateAvailableButton />
               <ProviderUsageIndicator />
               {/* Scratch pads / prompt search / voice collapse behind "…" so
                * the rail stays at status + settings; grid view moved into the
