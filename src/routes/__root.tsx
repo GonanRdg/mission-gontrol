@@ -88,6 +88,7 @@ const SettingsPanel = lazy(() =>
 );
 import { OPEN_SETTINGS_EVENT } from "~/lib/design-meta";
 import {
+  isOpenSettingsShortcut,
   requestCloseSettings,
   setSettingsOverlayOpen,
 } from "~/lib/settings-navigation";
@@ -363,9 +364,9 @@ function Shell() {
     panel: SettingsPanelId | null;
   } | null>(null);
   const settingsOpen = settingsRequest !== null;
-  const openSettings = (initial: SettingsPanelId | null = null) => {
+  const openSettings = useCallback((initial: SettingsPanelId | null = null) => {
     setSettingsRequest((current) => current ?? { panel: initial });
-  };
+  }, []);
   const closeSettingsPanel = () => setSettingsRequest(null);
 
   // Mirror the React open-state into the module flag that non-React global
@@ -385,7 +386,18 @@ function Shell() {
     };
     window.addEventListener(OPEN_SETTINGS_EVENT, handler);
     return () => window.removeEventListener(OPEN_SETTINGS_EVENT, handler);
-  }, [router]);
+  }, [openSettings]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isOpenSettingsShortcut(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openSettings();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [openSettings]);
   useTheme();
   // Battery saver: drives the data-power-save root attribute from the
   // powerMonitor signal + setting (see src/lib/power-save.ts).

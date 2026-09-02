@@ -20,6 +20,18 @@ export function isSettingsOverlayOpen() {
   return overlayOpen;
 }
 
+export function isOpenSettingsShortcut(
+  event: Pick<KeyboardEvent, "altKey" | "code" | "ctrlKey" | "key" | "metaKey" | "shiftKey">,
+) {
+  return (
+    event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey &&
+    (event.key === "," || event.code === "Comma")
+  );
+}
+
 /** Ask the open settings overlay to animate out and close itself. */
 export function requestCloseSettings() {
   if (typeof window === "undefined") return;
