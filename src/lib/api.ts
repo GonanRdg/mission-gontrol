@@ -9,7 +9,9 @@ import type {
   GitBranch,
   GitBranchesResult,
   GitCheckoutResult,
+  GitCommitFilesResult,
   GitDiff,
+  GitHistoryResult,
   GitStatus,
   PullResult,
   PushResult,
@@ -825,6 +827,14 @@ export const api = {
     req<GitStatus>(`/api/projects/${projectId}/git/status${worktreeQuery(worktreeId)}`),
   getGitBranches: (projectId: string, worktreeId?: string | null) =>
     req<GitBranchesResult>(`/api/projects/${projectId}/git/branches${worktreeQuery(worktreeId)}`),
+  getGitHistory: (projectId: string, worktreeId?: string | null, branch?: string | null) =>
+    req<GitHistoryResult>(
+      `/api/projects/${projectId}/git/history${gitReadQuery(worktreeId, { branch })}`,
+    ),
+  getGitCommitFiles: (projectId: string, sha: string, worktreeId?: string | null) =>
+    req<GitCommitFilesResult>(
+      `/api/projects/${projectId}/git/commit-files${gitReadQuery(worktreeId, { sha })}`,
+    ),
   gitCheckout: (
     projectId: string,
     branch: string,
@@ -940,6 +950,19 @@ export const api = {
 function worktreeQuery(worktreeId?: string | null): string {
   if (worktreeId === undefined) return "";
   return `?worktreeId=${encodeURIComponent(worktreeId || "main")}`;
+}
+
+function gitReadQuery(
+  worktreeId: string | null | undefined,
+  values: Record<string, string | null | undefined>,
+): string {
+  const params = new URLSearchParams();
+  if (worktreeId !== undefined) params.set("worktreeId", worktreeId || "main");
+  for (const [key, value] of Object.entries(values)) {
+    if (value) params.set(key, value);
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }
 
 function scopedWorktreeQuery(worktreeId?: string | null, scopeId?: string | null): string {

@@ -43,6 +43,32 @@ const COMMIT_MESSAGE_DIFF_BUDGET = 200_000;
 import type { GitFileStatus, GitChangedFile, GitStatus, GitDiff } from "~/shared/git-status";
 export type { GitFileStatus, GitChangedFile, GitStatus, GitDiff };
 
+export type GitCommitSummary = {
+  sha: string;
+  shortSha: string;
+  subject: string;
+  authorName: string;
+  authoredAt: string;
+  refs: string[];
+};
+
+export type GitHistoryResult = {
+  commits: GitCommitSummary[];
+  branch: string | null;
+  truncated: boolean;
+};
+
+export type GitCommitFile = {
+  status: string;
+  path: string;
+  previousPath?: string;
+};
+
+export type GitCommitFilesResult = {
+  sha: string;
+  files: GitCommitFile[];
+};
+
 class GitError extends Error {
   constructor(message: string, public stderr?: string) {
     super(message);
@@ -863,6 +889,112 @@ async function assertValidBranchName(cwd: string, branch: string): Promise<void>
 async function listBranchRefNames(cwd: string, refPrefix: string): Promise<string> {
   const r = await runGit(cwd, ["for-each-ref", "--format=%(refname:short)", refPrefix]);
   return r.code === 0 ? r.stdout : "";
+}
+
+const GIT_HISTORY_LIMIT = 100;
+const GIT_LOG_FIELD_SEPARATOR = "\x1f";
+const GIT_LOG_RECORD_SEPARATOR = "\x1e";
+
+function parseCommitRefs(raw: string): string[] {
+  const refs = raw
+    .split(",")
+    .map((ref) => ref.trim().replace(/^HEAD -> /, ""))
+    .filter((ref) => ref && !ref.endsWith("/HEAD") && !ref.includes("/HEAD ->"));
+  return [...new Set(refs)];
+}
+
+function parseGitHistory(raw: string): GitCommitSummary[] {
+  return raw
+    .split(GIT_LOG_RECORD_SEPARATOR)
+    .map((record) => record.replace(/^\s+/, ""))
+    .filter(Boolean)
+    .flatMap((record) => {
+      const [sha, shortSha, authorName, authoredAt, subject, refs = ""] = record.split(
+        GIT_LOG_FIELD_SEPARATOR,
+      );
+      if (!sha || !shortSha || !authorName || !authoredAt || subject === undefined) return [];
+      return [{ sha, shortSha, authorName, authoredAt, subject, refs: parseCommitRefs(refs) }];
+    });
+}
+
+async function resolveHistoryBranchRef(cwd: string, branch: string): Promise<string> {
+  const [localOut, remoteOut] = await Promise.all([
+    listBranchRefNames(cwd, "refs/heads/"),
+    listBranchRefNames(cwd, "refs/remotes/"),
+  ]);
+  const match = parseBranchList(localOut, remoteOut).find((candidate) => candidate.name === branch);
+  if (!match) throw new GitError(`Branch "${branch}" was not found`);
+  return match.local ? `refs/heads/${match.name}` : `refs/remotes/${match.remoteRef}`;
+}
+
+export async function listGitHistory(
+  projectId: string,
+  worktreeId?: string | null,
+  branch?: string | null,
+): Promise<GitHistoryResult> {
+  const cwd = projectCwd(projectId, worktreeId);
+  await assertGitRepository(cwd);
+  const selectedBranch = branch?.trim() || null;
+  const revision = selectedBranch
+    ? await resolveHistoryBranchRef(cwd, selectedBranch)
+    : "--all";
+  const format = ["%H", "%h", "%an", "%aI", "%s", "%D"].join("%x1f") + "%x1e";
+  const r = await runGit(cwd, [
+    "log",
+    "--topo-order",
+    "--date-order",
+    "--decorate=short",
+    `--max-count=${GIT_HISTORY_LIMIT + 1}`,
+    `--format=${format}`,
+    revision,
+  ]);
+  if (r.code !== 0) {
+    if (/does not have any commits|unknown revision|bad revision/i.test(r.stderr)) {
+      return { commits: [], branch: selectedBranch, truncated: false };
+    }
+    throw new GitError("git log failed", r.stderr.trim() || `exit ${r.code}`);
+  }
+  const parsed = parseGitHistory(r.stdout);
+  return {
+    commits: parsed.slice(0, GIT_HISTORY_LIMIT),
+    branch: selectedBranch,
+    truncated: parsed.length > GIT_HISTORY_LIMIT,
+  };
+}
+
+export async function getGitCommitFiles(
+  projectId: string,
+  sha: string,
+  worktreeId?: string | null,
+): Promise<GitCommitFilesResult> {
+  const cwd = projectCwd(projectId, worktreeId);
+  await assertGitRepository(cwd);
+  const commitSha = sha.trim();
+  if (!/^[0-9a-f]{7,40}$/i.test(commitSha)) throw new GitError("Invalid commit SHA");
+  await gitOk(cwd, ["rev-parse", "--verify", `${commitSha}^{commit}`]);
+  const output = await gitOk(cwd, [
+    "show",
+    "--format=",
+    "--name-status",
+    "--find-renames",
+    "-z",
+    commitSha,
+  ]);
+  const tokens = output.split("\0");
+  const files: GitCommitFile[] = [];
+  for (let index = 0; index < tokens.length; ) {
+    const status = tokens[index++]?.replace(/^\s+/, "");
+    if (!status) continue;
+    if (status.startsWith("R") || status.startsWith("C")) {
+      const previousPath = tokens[index++];
+      const filePath = tokens[index++];
+      if (previousPath && filePath) files.push({ status, path: filePath, previousPath });
+      continue;
+    }
+    const filePath = tokens[index++];
+    if (filePath) files.push({ status, path: filePath });
+  }
+  return { sha: commitSha, files };
 }
 
 export async function listGitBranches(

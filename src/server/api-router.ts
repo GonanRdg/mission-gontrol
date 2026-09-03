@@ -290,6 +290,8 @@ async function dispatch(
     const action = m[2]!;
     if (action === "status" && method === "GET") return gitController.status(id, url);
     if (action === "branches" && method === "GET") return gitController.branches(id, url);
+    if (action === "history" && method === "GET") return gitController.history(id, url);
+    if (action === "commit-files" && method === "GET") return gitController.commitFiles(id, url);
     if (action === "diff" && method === "GET") return gitController.diff(id, url);
     if (action === "stage" && method === "POST") return gitController.stage(id, request);
     if (action === "unstage" && method === "POST") return gitController.unstage(id, request);

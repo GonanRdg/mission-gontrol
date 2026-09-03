@@ -4,10 +4,12 @@ import {
   commit as gitCommit,
   createPullRequest as gitCreatePullRequest,
   fetchRemote as gitFetch,
+  getGitCommitFiles,
   getGitDiff,
   getGitStatus,
   gitErrorPayload,
   listGitBranches,
+  listGitHistory,
   pull as gitPull,
   push as gitPush,
   stageFiles,
@@ -68,6 +70,37 @@ export async function branches(rawId: string, url: URL): Promise<Response> {
   if (!parsed.success) return notFound();
   try {
     return json(await listGitBranches(parsed.data, queryWorktreeId(url)));
+  } catch (e) {
+    return handleDomainError(e) ?? asGitErrorResponse(e);
+  }
+}
+
+export async function history(rawId: string, url: URL): Promise<Response> {
+  const parsed = idParam.safeParse(rawId);
+  if (!parsed.success) return notFound();
+  const branchRaw = url.searchParams.get("branch");
+  const branch = branchRaw === null ? null : z.string().trim().min(1).max(255).safeParse(branchRaw);
+  if (branch && !branch.success) return jsonError(HTTP_BAD_REQUEST, "invalid branch");
+  try {
+    return json(
+      await listGitHistory(
+        parsed.data,
+        queryWorktreeId(url),
+        branch ? branch.data : null,
+      ),
+    );
+  } catch (e) {
+    return handleDomainError(e) ?? asGitErrorResponse(e);
+  }
+}
+
+export async function commitFiles(rawId: string, url: URL): Promise<Response> {
+  const parsed = idParam.safeParse(rawId);
+  if (!parsed.success) return notFound();
+  const sha = url.searchParams.get("sha");
+  if (!sha) return jsonError(HTTP_BAD_REQUEST, "sha is required");
+  try {
+    return json(await getGitCommitFiles(parsed.data, sha, queryWorktreeId(url)));
   } catch (e) {
     return handleDomainError(e) ?? asGitErrorResponse(e);
   }

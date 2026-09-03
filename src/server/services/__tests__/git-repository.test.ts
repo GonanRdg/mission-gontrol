@@ -8,7 +8,14 @@ const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mc-git-test-"));
 process.env.MC_USER_DATA_DIR = tmpRoot;
 
 const { createProject } = await import("../projects");
-const { fetchRemote, getGitStatus, listGitBranches, pull } = await import("../git");
+const {
+  fetchRemote,
+  getGitCommitFiles,
+  getGitStatus,
+  listGitBranches,
+  listGitHistory,
+  pull,
+} = await import("../git");
 const { getDb } = await import("~/db/client");
 const { appSettings, groups, projects, tasks, worktrees } = await import("~/db/schema");
 
@@ -65,6 +72,51 @@ describe("git repository guard", () => {
     await expect(listGitBranches(project.id)).resolves.toMatchObject({
       current: "main",
       branches: [],
+    });
+    await expect(listGitHistory(project.id)).resolves.toEqual({
+      commits: [],
+      branch: null,
+      truncated: false,
+    });
+  });
+
+  it("lists history across branches and the files changed by a commit", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mc-git-history-"));
+    tempDirs.push(dir);
+    git(dir, ["init", "--initial-branch=main"]);
+    writeCommit(dir, "README.md", "base\n", "Initial commit");
+    git(dir, ["switch", "-c", "feature/history"]);
+    fs.writeFileSync(path.join(dir, "README.md"), "changed\n");
+    fs.writeFileSync(path.join(dir, "feature.txt"), "new\n");
+    git(dir, ["add", "."]);
+    git(dir, [
+      "-c",
+      "user.email=test@example.com",
+      "-c",
+      "user.name=Test",
+      "commit",
+      "-m",
+      "Add history view",
+    ]);
+    const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" }).trim();
+    git(dir, ["switch", "main"]);
+    const project = createProject({ name: "history", path: dir });
+
+    const allHistory = await listGitHistory(project.id);
+    expect(allHistory.commits.find((commit) => commit.sha === sha)).toMatchObject({
+      subject: "Add history view",
+      refs: ["feature/history"],
+    });
+
+    const branchHistory = await listGitHistory(project.id, null, "feature/history");
+    expect(branchHistory.commits[0]).toMatchObject({ sha, subject: "Add history view" });
+
+    await expect(getGitCommitFiles(project.id, sha)).resolves.toEqual({
+      sha,
+      files: [
+        { status: "M", path: "README.md" },
+        { status: "A", path: "feature.txt" },
+      ],
     });
   });
 });

@@ -32,6 +32,7 @@ import {
 } from "~/queries/git";
 import type { CommitResult, PullMode } from "~/server/services/git";
 import { CommitMessageDialog } from "~/components/views/CommitMessageDialog";
+import { GitHistoryModal } from "~/components/views/GitHistoryModal";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
 
 export type GitHandoffFailure = NonNullable<GitHandoffContext["failure"]>;
@@ -83,6 +84,7 @@ export function GitRemoteActions({
   const prM = useGitCreatePullRequest(projectId, worktreeId);
 
   const [manualCommitReason, setManualCommitReason] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   useSuspendAppDragRegion(menuOpen);
   const [menuRect, setMenuRect] = useState<{ top: number; right: number } | null>(null);
@@ -428,6 +430,14 @@ export function GitRemoteActions({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
+              icon="list"
+              disabled={!enabled}
+              onClick={runFromMenu(() => setHistoryOpen(true))}
+              title="Browse commits across local and fetched remote branches"
+            >
+              Commit history
+            </DropdownMenuItem>
+            <DropdownMenuItem
               icon="github"
               disabled={!enabled || prM.isPending}
               onClick={runFromMenu(() => void runCreatePullRequest())}
@@ -457,6 +467,13 @@ export function GitRemoteActions({
         busy={busyAction === "commit"}
         onClose={() => setManualCommitReason(null)}
         onCommit={(message) => void runCommitAndPush(message)}
+      />
+      <GitHistoryModal
+        open={historyOpen}
+        projectId={projectId}
+        worktreeId={worktreeId}
+        projectName={projectName}
+        onClose={() => setHistoryOpen(false)}
       />
     </div>
   );
