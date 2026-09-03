@@ -15,6 +15,7 @@ import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
 export const queryKeys = {
   projects: ["projects"] as const,
   project: (id: string) => ["projects", id] as const,
+  actions: (projectId: string) => ["projects", projectId, "actions"] as const,
   sandboxes: ["sandboxes"] as const,
   groups: ["groups"] as const,
   tasks: (projectId: string, worktreeId?: string | null, scopeId?: string | null) =>
@@ -69,6 +70,12 @@ export const projectQueryOptions = (id: string) =>
   queryOptions({
     queryKey: queryKeys.project(id),
     queryFn: async () => (await api.getProject(id)).project,
+  });
+
+export const actionsQueryOptions = (projectId: string) =>
+  queryOptions({
+    queryKey: queryKeys.actions(projectId),
+    queryFn: async () => (await api.listActions(projectId)).actions,
   });
 
 // Full sandbox state for the header scope dropdown: the sandboxes, whether the
@@ -326,6 +333,7 @@ export const useScopedProjects = () => {
   return { ...query, data };
 };
 export const useProject = (id: string) => useQuery(projectQueryOptions(id));
+export const useActions = (projectId: string) => useQuery(actionsQueryOptions(projectId));
 export const useGroups = () => useQuery(groupsQueryOptions());
 export const useTasks = (projectId: string, worktreeId?: string | null, scopeId?: string | null) =>
   useQuery(tasksQueryOptions(projectId, worktreeId, scopeId));

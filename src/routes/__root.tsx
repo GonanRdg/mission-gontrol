@@ -49,6 +49,7 @@ import { PromptSearchProvider } from "~/lib/prompt-search-store";
 import { ScratchPadProvider } from "~/lib/scratch-pad-store";
 import { HeaderToolsCluster } from "~/components/views/HeaderToolsCluster";
 import { projectIdFromPath } from "~/lib/project-id-from-path";
+import { isProjectActionsPath } from "~/lib/project-actions-route";
 import {
   HeaderActionsProvider,
   HeaderActionsSlot,
@@ -487,6 +488,7 @@ function Shell() {
 
   const path = useRouterState({ select: (state) => state.location.pathname });
   const projectId = projectIdFromPath(path);
+  const actionsActive = isProjectActionsPath(path);
   // Flip-only: true iff this project has a materialized active session. Gates
   // the expanded-terminal layout without subscribing to the churning data slice.
   const hasActiveSession = useHasActiveSession(projectId);
@@ -542,7 +544,7 @@ function Shell() {
     });
   }, [expandedKey]);
   const sessionExpanded =
-    !!projectId && terminalExpanded && hasActiveSession;
+    !!projectId && !actionsActive && terminalExpanded && hasActiveSession;
   // Grid view takes over the whole workspace: the Outlet (which renders the
   // grid below the project header) spans full width and the single right-hand
   // terminal panel is hidden.
@@ -562,7 +564,17 @@ function Shell() {
     : projectId
     ? [
         ...groupCrumb,
-        { label: "Project", node: <ProjectPicker projectId={projectId} disabled={activeResuming} /> },
+        {
+          label: "Project",
+          node: (
+            <ProjectPicker
+              projectId={projectId}
+              disabled={activeResuming}
+              destination={actionsActive ? "actions" : "project"}
+            />
+          ),
+        },
+        ...(actionsActive ? [{ label: "Actions", className: "mc-actions-topbar-crumb" }] : []),
       ]
       : activePanel === "usage"
         ? [{ label: "Usage" }]
@@ -980,14 +992,14 @@ function Shell() {
                 // right; floor the left panel so dragging the terminal wider
                 // shrinks the terminal instead of wrapping the session columns.
                 // In grid view the panel is hidden, so let the Outlet go full width.
-                minWidth: projectId && !gridActive ? 640 : 0,
+                minWidth: projectId && !gridActive && !actionsActive ? 640 : 0,
                 minHeight: 0,
               }}
             >
               <Outlet />
               {activeResuming && activeSandbox && <SandboxResumingOverlay name={activeSandbox.name} />}
             </div>
-            {projectId && !gridActive && (
+            {projectId && !gridActive && !actionsActive && (
               <ProjectTerminalPanel
                 projectId={projectId}
                 onClose={close}
