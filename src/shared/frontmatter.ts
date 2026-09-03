@@ -12,7 +12,9 @@ export type SplitFrontmatter = {
  * frontmatter that swallows the whole file.
  */
 export function splitFrontmatter(content: string): SplitFrontmatter | null {
-  const lines = content.split(/\r?\n/);
+  // A UTF-8 BOM ahead of the fence is invisible in an editor but would
+  // otherwise make the whole document read as having no frontmatter.
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/);
   if (lines[0] !== "---") return null;
 
   const endIndex = lines.findIndex((line, index) => index > 0 && line === "---");

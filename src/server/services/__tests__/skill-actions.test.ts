@@ -105,11 +105,62 @@ describe("parseSkillAction", () => {
     expect(parsed.error).toContain('duplicate source id "jira"');
   });
 
-  it("rejects sourcesMin larger than the declared source types", () => {
+  it("allows sourcesMin above the number of declared types, since rows repeat", () => {
     const parsed = parseSkillAction(skill(MINIMAL.replace("  prompt:", "  sourcesMin: 3\n  prompt:")), "x");
+    expect(parsed?.ok).toBe(true);
+    if (!parsed?.ok) return;
+    expect(parsed.action.sourcesMin).toBe(3);
+  });
+
+  it("rejects a sourcesMin the action can never satisfy", () => {
+    const noSources = MINIMAL.replace(
+      "  sources:\n    - { id: jira, label: Jira ticket, widget: url }",
+      "  sourcesMin: 1",
+    );
+    const parsed = parseSkillAction(skill(noSources), "x");
     expect(parsed?.ok).toBe(false);
     if (parsed?.ok !== false) return;
     expect(parsed.error).toContain("sourcesMin");
+  });
+
+  it("accepts an action with fixed inputs and no source rows", () => {
+    const inputsOnly = MINIMAL.replace(
+      "  sources:\n    - { id: jira, label: Jira ticket, widget: url }",
+      "  inputs:\n    - { id: base, label: Base ref, widget: branch }",
+    );
+    const parsed = parseSkillAction(skill(inputsOnly), "x");
+    expect(parsed?.ok).toBe(true);
+    if (!parsed?.ok) return;
+    expect(parsed.action.sources).toEqual([]);
+    expect(parsed.action.inputs).toHaveLength(1);
+  });
+
+  it("accepts a known session icon and accent", () => {
+    const styled = MINIMAL.replace("  skill:", "  icon: folder\n  accent: blue\n  skill:");
+    const parsed = parseSkillAction(skill(styled), "x");
+    expect(parsed?.ok).toBe(true);
+    if (!parsed?.ok) return;
+    expect(parsed.action.icon).toBe("folder");
+    expect(parsed.action.accent).toBe("blue");
+  });
+
+  it("rejects an icon outside the session icon set", () => {
+    const parsed = parseSkillAction(skill(MINIMAL.replace("  skill:", "  icon: not-an-icon\n  skill:")), "x");
+    expect(parsed?.ok).toBe(false);
+    if (parsed?.ok !== false) return;
+    expect(parsed.error).toContain("icon");
+  });
+
+  it("rejects an accent outside the palette", () => {
+    const parsed = parseSkillAction(skill(MINIMAL.replace("  skill:", "  accent: chartreuse\n  skill:")), "x");
+    expect(parsed?.ok).toBe(false);
+    if (parsed?.ok !== false) return;
+    expect(parsed.error).toContain("accent");
+  });
+
+  it("reads frontmatter behind a UTF-8 BOM", () => {
+    const parsed = parseSkillAction(`\uFEFF${skill(MINIMAL)}`, "x");
+    expect(parsed?.ok).toBe(true);
   });
 
   it("rejects a select without choices", () => {

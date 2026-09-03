@@ -32,7 +32,7 @@ const projectClaude = () => path.join(project, ".claude", "skills");
 const projectCodex = () => path.join(project, ".codex", "skills");
 
 function discover() {
-  return discoverActions({ projectPath: project, homeDir: home, bundledRoot: bundled });
+  return discoverActions({ projectPath: project, homeDir: home, bundledRoots: [bundled] });
 }
 
 beforeEach(() => {
@@ -126,13 +126,29 @@ describe("discoverActions", () => {
   it("drops the project tier when no project is in scope", () => {
     writeSkill(projectClaude(), "implement", action("implement", "Project"));
     writeSkill(userClaude(), "implement", action("implement", "User"));
-    const found = discoverActions({ homeDir: home, bundledRoot: bundled });
+    const found = discoverActions({ homeDir: home, bundledRoots: [bundled] });
     expect(found[0]?.origin.kind).toBe("user-claude");
   });
 
   it("skips the bundled tier when the build has no bundled root", () => {
     writeSkill(bundled, "implement", action("implement", "Bundled"));
-    expect(discoverActions({ homeDir: home, bundledRoot: null })).toEqual([]);
+    expect(discoverActions({ homeDir: home, bundledRoots: null })).toEqual([]);
+  });
+
+  it("scans every bundled root, not just the first that exists", () => {
+    const second = fs.mkdtempSync(path.join(os.tmpdir(), "mc-actions-bundled2-"));
+    writeSkill(bundled, "first", action("first", "First"));
+    writeSkill(second, "second", action("second", "Second"));
+    const found = discoverActions({ homeDir: home, bundledRoots: [bundled, second] });
+    expect(found.map((a) => a.name)).toEqual(["first", "second"]);
+  });
+
+  it("resolves a name collision inside one root by directory order", () => {
+    writeSkill(userClaude(), "b-dir", action("implement", "Second"));
+    writeSkill(userClaude(), "a-dir", action("implement", "First"));
+    const found = discover();
+    expect(found).toHaveLength(1);
+    expect(found[0]?.origin.dir.endsWith("a-dir")).toBe(true);
   });
 
   it("carries the worktree default through discovery", () => {

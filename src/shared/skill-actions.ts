@@ -1,13 +1,16 @@
-import { parse as parseYaml } from "yaml";
 import { z } from "zod";
+import { isAccentColorId } from "~/lib/accent-colors";
+import { isSessionIcon } from "~/lib/session-icons";
 import { TASK_AGENTS } from "./domain";
-import { splitFrontmatter } from "./frontmatter";
 
 /**
  * An action is a skill that opts in by carrying an `mc-action` block in its
  * frontmatter. The block declares the form Mission Control renders and the
  * prompt template it fills; the `skill` key names the workflow skill the action
  * drives. Skills without the block are never actions.
+ *
+ * Schema and vocabulary live here so the renderer can type a form against them;
+ * reading them off disk lives in `src/server/services/skill-actions.ts`.
  */
 export const MC_ACTION_KEY = "mc-action";
 
@@ -41,7 +44,7 @@ const fieldBase = {
   id: identifier,
   label: z.string().min(1),
   widget: z.enum(ACTION_WIDGETS),
-  icon: z.string().min(1).optional(),
+  icon: z.string().refine(isSessionIcon, "unknown session icon").optional(),
   placeholder: z.string().optional(),
   help: z.string().optional(),
   /** Choices for `widget: select`; ignored by every other widget. */
@@ -66,18 +69,22 @@ const actionOption = z
   })
   .strict();
 
-function rejectDuplicateIds(
-  items: { id: string }[],
-  label: string,
-  ctx: z.RefinementCtx,
-  path: string,
-): void {
+type Field = { id: string; widget: ActionWidget; choices?: unknown };
+
+function checkFields(fields: Field[], label: string, path: string, ctx: z.RefinementCtx): void {
   const seen = new Set<string>();
-  for (const [index, item] of items.entries()) {
-    if (seen.has(item.id)) {
-      ctx.addIssue({ code: "custom", path: [path, index, "id"], message: `duplicate ${label} id "${item.id}"` });
+  for (const [index, field] of fields.entries()) {
+    if (seen.has(field.id)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [path, index, "id"],
+        message: `duplicate ${label} id "${field.id}"`,
+      });
     }
-    seen.add(item.id);
+    seen.add(field.id);
+    if (field.widget === "select" && !field.choices) {
+      ctx.addIssue({ code: "custom", path: [path, index, "choices"], message: "select needs choices" });
+    }
   }
 }
 
@@ -88,16 +95,20 @@ function rejectDuplicateIds(
 export const skillActionSchema = z
   .object({
     title: z.string().min(1),
-    icon: z.string().min(1).optional(),
-    accent: z.string().min(1).optional(),
+    icon: z.string().refine(isSessionIcon, "unknown session icon").optional(),
+    accent: z.string().refine(isAccentColorId, "unknown accent colour").optional(),
     /** Name of the workflow skill this action drives. */
     skill: z.string().min(1),
     /** Narrows which agents may run it; absent means every launcher-visible agent. */
     agents: z.array(z.enum(TASK_AGENTS)).min(1).optional(),
     /** Absent means true, so forgetting the key yields the isolated behaviour. */
     worktree: z.boolean().default(true),
-    sources: z.array(actionSource).min(1),
-    /** Rows that must be filled before the action can start. */
+    /** Selectable types of context row; an action may take fixed inputs only. */
+    sources: z.array(actionSource).default([]),
+    /**
+     * How many context *rows* must be filled before the action can start. Rows
+     * repeat per type, so this is not bounded by how many types are declared.
+     */
     sourcesMin: z.number().int().min(0).default(0),
     inputs: z.array(actionInput).default([]),
     options: z.array(actionOption).default([]),
@@ -105,25 +116,25 @@ export const skillActionSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    rejectDuplicateIds(value.sources, "source", ctx, "sources");
-    rejectDuplicateIds(value.inputs, "input", ctx, "inputs");
-    rejectDuplicateIds(value.options, "option", ctx, "options");
-    if (value.sourcesMin > value.sources.length) {
+    checkFields(value.sources, "source", "sources", ctx);
+    checkFields(value.inputs, "input", "inputs", ctx);
+    const seenOptions = new Set<string>();
+    for (const [index, option] of value.options.entries()) {
+      if (seenOptions.has(option.id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["options", index, "id"],
+          message: `duplicate option id "${option.id}"`,
+        });
+      }
+      seenOptions.add(option.id);
+    }
+    if (value.sourcesMin > 0 && value.sources.length === 0) {
       ctx.addIssue({
         code: "custom",
         path: ["sourcesMin"],
-        message: `sourcesMin (${value.sourcesMin}) exceeds the ${value.sources.length} declared source types`,
+        message: "sourcesMin needs at least one declared source type",
       });
-    }
-    for (const [index, source] of value.sources.entries()) {
-      if (source.widget === "select" && !source.choices) {
-        ctx.addIssue({ code: "custom", path: ["sources", index, "choices"], message: "select needs choices" });
-      }
-    }
-    for (const [index, input] of value.inputs.entries()) {
-      if (input.widget === "select" && !input.choices) {
-        ctx.addIssue({ code: "custom", path: ["inputs", index, "choices"], message: "select needs choices" });
-      }
     }
   });
 
@@ -134,50 +145,11 @@ export type SkillActionParse =
   | { ok: false; name: string; error: string };
 
 /** Compact, human-readable summary of the first few schema violations. */
-function formatIssues(error: z.ZodError): string {
+export function formatActionIssues(error: z.ZodError): string {
   const issues = error.issues.slice(0, 4).map((issue) => {
     const at = issue.path.join(".");
     return at ? `${at}: ${issue.message}` : issue.message;
   });
   const rest = error.issues.length - issues.length;
   return rest > 0 ? `${issues.join("; ")} (+${rest} more)` : issues.join("; ");
-}
-
-/** Cheap textual probe used when the YAML itself won't parse. */
-function mentionsActionBlock(frontmatter: string): boolean {
-  return frontmatter.split(/\r?\n/).some((line) => line.startsWith(`${MC_ACTION_KEY}:`));
-}
-
-/**
- * `null` means "not an action" — no frontmatter, or no `mc-action` block. A
- * returned result is an action either way: a failed parse surfaces as a broken
- * entry carrying its error, because a card that vanishes is indistinguishable
- * from a file that was never there.
- */
-export function parseSkillAction(content: string, fallbackName: string): SkillActionParse | null {
-  const split = splitFrontmatter(content);
-  if (!split) return null;
-
-  const frontmatterText = split.frontmatterLines.join("\n");
-  let frontmatter: unknown;
-  try {
-    frontmatter = parseYaml(frontmatterText);
-  } catch (e: any) {
-    // Only claim the file as a broken action when it looks like one; every
-    // other unparseable skill on disk stays invisible instead of flooding the
-    // grid with errors for skills that were never actions.
-    if (!mentionsActionBlock(frontmatterText)) return null;
-    return { ok: false, name: fallbackName, error: `invalid YAML frontmatter: ${e?.message ?? String(e)}` };
-  }
-
-  if (!frontmatter || typeof frontmatter !== "object" || Array.isArray(frontmatter)) return null;
-  const record = frontmatter as Record<string, unknown>;
-  if (!(MC_ACTION_KEY in record)) return null;
-
-  const declaredName = typeof record.name === "string" ? record.name.trim() : "";
-  const name = declaredName || fallbackName;
-
-  const parsed = skillActionSchema.safeParse(record[MC_ACTION_KEY]);
-  if (!parsed.success) return { ok: false, name, error: formatIssues(parsed.error) };
-  return { ok: true, name, action: parsed.data };
 }

@@ -1,8 +1,9 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseSkillAction, type SkillAction } from "~/shared/skill-actions";
-import { resolveBundledSkillsRoot } from "../bundled-skills-path";
+import type { SkillActionParse } from "~/shared/skill-actions";
+import { bundledSkillsRoots } from "../bundled-skills-path";
+import { parseSkillAction } from "./skill-actions";
 
 /**
  * Where an action was found. Ordered by precedence: a project-local skill
@@ -23,24 +24,20 @@ export type ActionOrigin = {
   dir: string;
 };
 
-export type DiscoveredAction =
-  | { name: string; origin: ActionOrigin; ok: true; action: SkillAction }
-  | { name: string; origin: ActionOrigin; ok: false; error: string };
+export type DiscoveredAction = SkillActionParse & { origin: ActionOrigin };
 
 export type DiscoverActionsOptions = {
   /** Absolute path of the project in scope; omitted drops the project tier. */
   projectPath?: string | null;
   /** Overridable for tests. */
   homeDir?: string;
-  /** Overridable for tests; `null` skips the bundled tier. */
-  bundledRoot?: string | null;
+  /** Overridable for tests; empty or `null` skips the bundled tier. */
+  bundledRoots?: string[] | null;
 };
 
-type Root = { kind: ActionRootKind; dir: string };
-
-function actionRoots(opts: DiscoverActionsOptions): Root[] {
+function actionRoots(opts: DiscoverActionsOptions): ActionOrigin[] {
   const home = opts.homeDir ?? os.homedir();
-  const roots: Root[] = [];
+  const roots: ActionOrigin[] = [];
   if (opts.projectPath) {
     const project = path.resolve(opts.projectPath);
     roots.push({ kind: "project-claude", dir: path.join(project, ".claude", "skills") });
@@ -48,17 +45,21 @@ function actionRoots(opts: DiscoverActionsOptions): Root[] {
   }
   roots.push({ kind: "user-claude", dir: path.join(home, ".claude", "skills") });
   roots.push({ kind: "user-codex", dir: path.join(home, ".codex", "skills") });
-  const bundled = opts.bundledRoot === undefined ? resolveBundledSkillsRoot() : opts.bundledRoot;
-  if (bundled) roots.push({ kind: "bundled", dir: bundled });
+  // Every bundled root, not just the first that exists: a development tree has
+  // both `.agents/skills` and `dist/bundled-skills`, and skipping the rest
+  // would hide actions that install fine through the per-skill resolver.
+  const bundled = opts.bundledRoots === undefined ? bundledSkillsRoots() : opts.bundledRoots;
+  for (const dir of bundled ?? []) roots.push({ kind: "bundled", dir });
   return roots;
 }
 
 /**
- * Skill directories directly under `root`. Dot-directories are skipped, which
- * is what keeps `~/.codex/skills/.system/` — Codex's own built-ins — out.
- * Plugin marketplaces are not scanned at all: they mirror the same skill under
- * `skills/`, `.cursor/skills/` and `.windsurf/skills/`, so they need dedupe
- * rules of their own first.
+ * Skill directories directly under `root`, in name order so two skills in one
+ * root declaring the same name resolve the same way on every filesystem.
+ * Dot-directories are skipped, which is what keeps `~/.codex/skills/.system/` —
+ * Codex's own built-ins — out. Plugin marketplaces are not scanned at all: they
+ * mirror the same skill under `skills/`, `.cursor/skills/` and
+ * `.windsurf/skills/`, so they need dedupe rules of their own first.
  */
 function skillDirsIn(root: string): string[] {
   let entries: fs.Dirent[];
@@ -69,7 +70,9 @@ function skillDirsIn(root: string): string[] {
   }
   return entries
     .filter((entry) => (entry.isDirectory() || entry.isSymbolicLink()) && !entry.name.startsWith("."))
-    .map((entry) => path.join(root, entry.name))
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => path.join(root, name))
     .filter((dir) => fs.existsSync(path.join(dir, "SKILL.md")));
 }
 
@@ -93,14 +96,7 @@ export function discoverActions(opts: DiscoverActionsOptions = {}): DiscoveredAc
       const parsed = parseSkillAction(content, path.basename(dir));
       if (!parsed) continue;
       if (found.has(parsed.name)) continue;
-
-      const origin: ActionOrigin = { kind: root.kind, dir };
-      found.set(
-        parsed.name,
-        parsed.ok
-          ? { name: parsed.name, origin, ok: true, action: parsed.action }
-          : { name: parsed.name, origin, ok: false, error: parsed.error },
-      );
+      found.set(parsed.name, { ...parsed, origin: { kind: root.kind, dir } });
     }
   }
 

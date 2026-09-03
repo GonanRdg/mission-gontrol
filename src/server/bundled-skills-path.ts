@@ -21,11 +21,6 @@ export function bundledSkillsRoots(): string[] {
   return roots;
 }
 
-/** First bundled root that exists on disk, or null in a build without one. */
-export function resolveBundledSkillsRoot(): string | null {
-  return bundledSkillsRoots().find((root) => fs.existsSync(root)) ?? null;
-}
-
 function bundledSkillsCandidates(skillName: string): string[] {
   return bundledSkillsRoots().map((root) => path.join(root, skillName));
 }
