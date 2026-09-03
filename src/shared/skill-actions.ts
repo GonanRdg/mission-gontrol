@@ -40,27 +40,48 @@ const choice = z.object({
   label: z.string().min(1),
 });
 
+/**
+ * A repeatable context row holds one value the agent should read, so the
+ * single-valued configuration widgets are not offered there: repeating a
+ * project picker or a checkbox per row means nothing.
+ */
+export const SOURCE_WIDGETS = ["text", "url", "textarea", "path", "select"] as const;
+export const INPUT_WIDGETS = ACTION_WIDGETS;
+
+/**
+ * Cosmetic keys degrade rather than fail: an id this build doesn't know is
+ * dropped so the action still renders with the default, because a skill written
+ * against a newer icon set should not become an unusable card on an older app.
+ */
+const optionalIcon = z
+  .string()
+  .optional()
+  .transform((value) => (value && isSessionIcon(value) ? value : undefined));
+
 const fieldBaseSchema = z.object({
   id: identifier,
   label: z.string().min(1),
-  widget: z.enum(ACTION_WIDGETS),
-  icon: z.string().refine(isSessionIcon, "unknown session icon").optional(),
+  icon: optionalIcon,
   placeholder: z.string().optional(),
   help: z.string().optional(),
   /** Choices for `widget: select`; ignored by every other widget. */
   choices: z.array(choice).min(1).optional(),
 });
 
-type ActionField = z.infer<typeof fieldBaseSchema>;
-
 /**
  * One selectable type of context row. `token` names the extractor a later phase
  * uses to derive a worktree name from the row's value; unknown extractors fall
  * back to the generated name rather than failing the action.
  */
-const actionSource = fieldBaseSchema.extend({ token: z.string().min(1).optional() }).strict();
+const actionSource = fieldBaseSchema
+  .extend({ widget: z.enum(SOURCE_WIDGETS), token: z.string().min(1).optional() })
+  .strict();
 
-const actionInput = fieldBaseSchema.extend({ required: z.boolean().default(false) }).strict();
+const actionInput = fieldBaseSchema
+  .extend({ widget: z.enum(INPUT_WIDGETS), required: z.boolean().default(false) })
+  .strict();
+
+type ActionField = z.infer<typeof actionSource> | z.infer<typeof actionInput>;
 
 const actionOption = z
   .object({
@@ -103,8 +124,11 @@ function checkSelectChoices(fields: ActionField[], plural: string, ctx: z.Refine
 export const skillActionSchema = z
   .object({
     title: z.string().min(1),
-    icon: z.string().refine(isSessionIcon, "unknown session icon").optional(),
-    accent: z.string().refine(isAccentColorId, "unknown accent colour").optional(),
+    icon: optionalIcon,
+    accent: z
+      .string()
+      .optional()
+      .transform((value) => (value && isAccentColorId(value) ? value : undefined)),
     /** Name of the workflow skill this action drives. */
     skill: z.string().min(1),
     /** Narrows which agents may run it; absent means every launcher-visible agent. */

@@ -151,18 +151,48 @@ describe("parseSkillAction", () => {
     expect(parsed.action.accent).toBe("blue");
   });
 
-  it("rejects an icon outside the session icon set", () => {
+  it("drops an unknown icon rather than breaking the card", () => {
     const parsed = parseSkillAction(skill(MINIMAL.replace("  skill:", "  icon: not-an-icon\n  skill:")), "x");
-    expect(parsed?.ok).toBe(false);
-    if (parsed?.ok !== false) return;
-    expect(parsed.error).toContain("icon");
+    expect(parsed?.ok).toBe(true);
+    if (!parsed?.ok) return;
+    expect(parsed.action.icon).toBeUndefined();
   });
 
-  it("rejects an accent outside the palette", () => {
+  it("drops an unknown accent rather than breaking the card", () => {
     const parsed = parseSkillAction(skill(MINIMAL.replace("  skill:", "  accent: chartreuse\n  skill:")), "x");
-    expect(parsed?.ok).toBe(false);
-    if (parsed?.ok !== false) return;
-    expect(parsed.error).toContain("accent");
+    expect(parsed?.ok).toBe(true);
+    if (!parsed?.ok) return;
+    expect(parsed.action.accent).toBeUndefined();
+  });
+
+  it("drops an unknown icon on a source row too", () => {
+    const parsed = parseSkillAction(
+      skill(MINIMAL.replace("widget: url }", "widget: url, icon: not-an-icon }")),
+      "x",
+    );
+    expect(parsed?.ok).toBe(true);
+    if (!parsed?.ok) return;
+    expect(parsed.action.sources[0]?.icon).toBeUndefined();
+  });
+
+  it("rejects a single-valued widget on a repeatable source row", () => {
+    for (const widget of ["project", "branch", "checkbox"]) {
+      const parsed = parseSkillAction(skill(MINIMAL.replace("widget: url", `widget: ${widget}`)), "x");
+      expect(parsed?.ok, widget).toBe(false);
+      if (parsed?.ok !== false) continue;
+      expect(parsed.error).toContain("sources.0.widget");
+    }
+  });
+
+  it("accepts the single-valued widgets on a fixed input", () => {
+    const withInputs = MINIMAL.replace(
+      "  prompt:",
+      "  inputs:\n    - { id: repo, label: Repository, widget: project }\n    - { id: base, label: Base ref, widget: branch }\n  prompt:",
+    );
+    const parsed = parseSkillAction(skill(withInputs), "x");
+    expect(parsed?.ok).toBe(true);
+    if (!parsed?.ok) return;
+    expect(parsed.action.inputs.map((i) => i.widget)).toEqual(["project", "branch"]);
   });
 
   it("reads frontmatter behind a UTF-8 BOM", () => {
