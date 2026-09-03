@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouter, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -203,10 +203,16 @@ import {
 } from "~/lib/design-meta";
 import { useSyncProjectDiagrams } from "~/lib/use-diagram-events";
 import { useGitDiffViewOpen } from "~/lib/git-diff-view-store";
+import { isProjectActionsPath } from "~/lib/project-actions-route";
 
 export const Route = createFileRoute("/projects/$id")({
-  component: ProjectPage,
+  component: ProjectRoute,
 });
+
+function ProjectRoute() {
+  const path = useRouterState({ select: (state) => state.location.pathname });
+  return isProjectActionsPath(path) ? <Outlet /> : <ProjectPage />;
+}
 
 type DeleteWorktreeMode = "clean" | "stash" | "discard";
 type SessionView = "active" | "pinned" | "archived";
@@ -2808,6 +2814,15 @@ function ProjectPage() {
         }
         onStop={stopLaunch}
       />
+      <Btn
+        variant="ghost"
+        icon="sparkles"
+        onClick={() => void router.navigate({ to: "/projects/$id/actions", params: { id } })}
+        aria-label="Open project actions"
+        title="Open project actions"
+      >
+        Actions
+      </Btn>
       {worktreesEnabled && (
         // "New worktree" now lives inside the branch dropdown (below), so the
         // standalone create-worktree button is gone — one fewer control, and no

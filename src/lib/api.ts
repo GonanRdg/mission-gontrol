@@ -45,6 +45,7 @@ import type {
 } from "~/shared/terminal-appearance";
 import type { ThemeStyle } from "~/shared/theme-style";
 import type { SurfaceTint } from "~/shared/surface-tint";
+import type { SkillActionParse } from "~/shared/skill-actions";
 import type {
   MarkdownRefineRequest,
   MarkdownRefineResponse,
@@ -383,6 +384,10 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   listProjects: () => req<{ projects: ProjectWithCounts[] }>("/api/projects"),
+  listActions: (projectId: string) =>
+    req<{ actions: SkillActionParse[] }>(
+      `/api/skills/actions?projectId=${encodeURIComponent(projectId)}`,
+    ),
   getProject: (id: string) => req<{ project: ProjectWithCounts }>(`/api/projects/${id}`),
   getProjectPathStatus: (id: string, worktreeId?: string | null) =>
     req<{ status: ProjectPathStatus }>(
