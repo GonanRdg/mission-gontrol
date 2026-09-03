@@ -40,7 +40,7 @@ const choice = z.object({
   label: z.string().min(1),
 });
 
-const fieldBase = {
+const fieldBaseSchema = z.object({
   id: identifier,
   label: z.string().min(1),
   widget: z.enum(ACTION_WIDGETS),
@@ -49,16 +49,18 @@ const fieldBase = {
   help: z.string().optional(),
   /** Choices for `widget: select`; ignored by every other widget. */
   choices: z.array(choice).min(1).optional(),
-};
+});
+
+type ActionField = z.infer<typeof fieldBaseSchema>;
 
 /**
  * One selectable type of context row. `token` names the extractor a later phase
  * uses to derive a worktree name from the row's value; unknown extractors fall
  * back to the generated name rather than failing the action.
  */
-const actionSource = z.object({ ...fieldBase, token: z.string().min(1).optional() }).strict();
+const actionSource = fieldBaseSchema.extend({ token: z.string().min(1).optional() }).strict();
 
-const actionInput = z.object({ ...fieldBase, required: z.boolean().default(false) }).strict();
+const actionInput = fieldBaseSchema.extend({ required: z.boolean().default(false) }).strict();
 
 const actionOption = z
   .object({
@@ -69,21 +71,27 @@ const actionOption = z
   })
   .strict();
 
-type Field = { id: string; widget: ActionWidget; choices?: unknown };
+/** Singular for the message, plural for the issue path. */
+type ListName = { singular: string; plural: string };
 
-function checkFields(fields: Field[], label: string, path: string, ctx: z.RefinementCtx): void {
+function checkDuplicateIds(items: { id: string }[], name: ListName, ctx: z.RefinementCtx): void {
   const seen = new Set<string>();
-  for (const [index, field] of fields.entries()) {
-    if (seen.has(field.id)) {
+  for (const [index, item] of items.entries()) {
+    if (seen.has(item.id)) {
       ctx.addIssue({
         code: "custom",
-        path: [path, index, "id"],
-        message: `duplicate ${label} id "${field.id}"`,
+        path: [name.plural, index, "id"],
+        message: `duplicate ${name.singular} id "${item.id}"`,
       });
     }
-    seen.add(field.id);
+    seen.add(item.id);
+  }
+}
+
+function checkSelectChoices(fields: ActionField[], plural: string, ctx: z.RefinementCtx): void {
+  for (const [index, field] of fields.entries()) {
     if (field.widget === "select" && !field.choices) {
-      ctx.addIssue({ code: "custom", path: [path, index, "choices"], message: "select needs choices" });
+      ctx.addIssue({ code: "custom", path: [plural, index, "choices"], message: "select needs choices" });
     }
   }
 }
@@ -107,28 +115,22 @@ export const skillActionSchema = z
     sources: z.array(actionSource).default([]),
     /**
      * How many context *rows* must be filled before the action can start. Rows
-     * repeat per type, so this is not bounded by how many types are declared.
+     * repeat per type, so this is not bounded by how many types are declared —
+     * only by the point past which a form stops being a form, since an action
+     * demanding more rows than anyone will fill can never start.
      */
-    sourcesMin: z.number().int().min(0).default(0),
+    sourcesMin: z.number().int().min(0).max(20).default(0),
     inputs: z.array(actionInput).default([]),
     options: z.array(actionOption).default([]),
     prompt: z.string().min(1),
   })
   .strict()
   .superRefine((value, ctx) => {
-    checkFields(value.sources, "source", "sources", ctx);
-    checkFields(value.inputs, "input", "inputs", ctx);
-    const seenOptions = new Set<string>();
-    for (const [index, option] of value.options.entries()) {
-      if (seenOptions.has(option.id)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["options", index, "id"],
-          message: `duplicate option id "${option.id}"`,
-        });
-      }
-      seenOptions.add(option.id);
-    }
+    checkDuplicateIds(value.sources, { singular: "source", plural: "sources" }, ctx);
+    checkDuplicateIds(value.inputs, { singular: "input", plural: "inputs" }, ctx);
+    checkDuplicateIds(value.options, { singular: "option", plural: "options" }, ctx);
+    checkSelectChoices(value.sources, "sources", ctx);
+    checkSelectChoices(value.inputs, "inputs", ctx);
     if (value.sourcesMin > 0 && value.sources.length === 0) {
       ctx.addIssue({
         code: "custom",

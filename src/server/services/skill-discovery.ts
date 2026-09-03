@@ -54,8 +54,9 @@ function actionRoots(opts: DiscoverActionsOptions): ActionOrigin[] {
 }
 
 /**
- * Skill directories directly under `root`, in name order so two skills in one
- * root declaring the same name resolve the same way on every filesystem.
+ * Skill directories directly under `root`, in codepoint order so two skills in
+ * one root declaring the same name resolve the same way on every filesystem and
+ * in every locale.
  * Dot-directories are skipped, which is what keeps `~/.codex/skills/.system/` —
  * Codex's own built-ins — out. Plugin marketplaces are not scanned at all: they
  * mirror the same skill under `skills/`, `.cursor/skills/` and
@@ -71,7 +72,7 @@ function skillDirsIn(root: string): string[] {
   return entries
     .filter((entry) => (entry.isDirectory() || entry.isSymbolicLink()) && !entry.name.startsWith("."))
     .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
     .map((name) => path.join(root, name))
     .filter((dir) => fs.existsSync(path.join(dir, "SKILL.md")));
 }

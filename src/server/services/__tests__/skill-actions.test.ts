@@ -112,6 +112,13 @@ describe("parseSkillAction", () => {
     expect(parsed.action.sourcesMin).toBe(3);
   });
 
+  it("rejects a sourcesMin no one would ever fill", () => {
+    const parsed = parseSkillAction(skill(MINIMAL.replace("  prompt:", "  sourcesMin: 500\n  prompt:")), "x");
+    expect(parsed?.ok).toBe(false);
+    if (parsed?.ok !== false) return;
+    expect(parsed.error).toContain("sourcesMin");
+  });
+
   it("rejects a sourcesMin the action can never satisfy", () => {
     const noSources = MINIMAL.replace(
       "  sources:\n    - { id: jira, label: Jira ticket, widget: url }",
