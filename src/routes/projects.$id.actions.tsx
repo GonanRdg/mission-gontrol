@@ -1,7 +1,10 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
+import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 import { Btn } from "~/components/ui/Btn";
 import { EmptyState } from "~/components/ui/EmptyState";
-import { ActionsView } from "~/components/views/ActionsView";
+import { ActionsView, type ActionStartRequest } from "~/components/views/ActionsView";
+import { markActionLaunchIntent } from "~/lib/action-launch-intent";
 import { useActions, useProject } from "~/queries";
 
 export const Route = createFileRoute("/projects/$id/actions")({
@@ -13,7 +16,19 @@ function ProjectActionsPage() {
   const router = useRouter();
   const projectQuery = useProject(id);
   const actionsQuery = useActions(id);
+  const [pendingLaunch, setPendingLaunch] = useState<ActionStartRequest | null>(null);
   const back = () => void router.navigate({ to: "/projects/$id", params: { id } });
+  const launch = async ({ project, intent }: ActionStartRequest) => {
+    markActionLaunchIntent(project.id, intent);
+    await router.navigate({ to: "/projects/$id", params: { id: project.id } });
+  };
+  const start = async (request: ActionStartRequest) => {
+    if (!request.intent.worktree && request.project.taskCounts.activeNonDone > 0) {
+      setPendingLaunch(request);
+      return;
+    }
+    await launch(request);
+  };
 
   if (projectQuery.isLoading || actionsQuery.isLoading) {
     return (
@@ -64,5 +79,50 @@ function ProjectActionsPage() {
     );
   }
 
-  return <ActionsView project={projectQuery.data} actions={actionsQuery.data} onBack={back} />;
+  return (
+    <>
+      <ActionsView
+        project={projectQuery.data}
+        actions={actionsQuery.data}
+        onBack={back}
+        onStart={start}
+      />
+      <ConfirmDialog
+        open={pendingLaunch !== null}
+        onClose={() => setPendingLaunch(null)}
+        onConfirm={async () => {
+          if (!pendingLaunch) return;
+          const request = pendingLaunch;
+          setPendingLaunch(null);
+          await launch(request);
+        }}
+        title="This project already has an active run"
+        confirmLabel="Start anyway"
+        variant="primary"
+        icon="play"
+      >
+        <div style={{ display: "grid", gap: 14 }}>
+          <p style={{ margin: 0, color: "var(--text-dim)", lineHeight: 1.55 }}>
+            Starting without a worktree shares the current checkout with that run. Changes from
+            both agents may overlap.
+          </p>
+          <div>
+            <Btn
+              type="button"
+              variant="ghost"
+              icon="arrow-up-right"
+              onClick={() => {
+                if (!pendingLaunch) return;
+                const projectId = pendingLaunch.project.id;
+                setPendingLaunch(null);
+                void router.navigate({ to: "/projects/$id", params: { id: projectId } });
+              }}
+            >
+              Jump to current run
+            </Btn>
+          </div>
+        </div>
+      </ConfirmDialog>
+    </>
+  );
 }

@@ -55,6 +55,7 @@ export function createTask(input: {
   scopeId?: string | null;
   title: string;
   agent: TaskAgent;
+  action?: string | null;
   branch?: string;
   status?: TaskStatus;
   preview?: string;
@@ -79,6 +80,7 @@ export function createTask(input: {
     title: input.title.trim(),
     titleManuallySet: false,
     icon: null,
+    action: input.action?.trim() || null,
     agent: input.agent,
     status: input.status ?? DEFAULT_TASK_STATUS,
     branch: input.branch || DEFAULT_BRANCH,

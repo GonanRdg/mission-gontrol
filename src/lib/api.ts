@@ -472,10 +472,13 @@ export const api = {
 
   listWorktrees: (projectId: string) =>
     req<{ worktrees: WorktreeInfo[] }>(`/api/projects/${projectId}/worktrees`),
-  createWorktree: (projectId: string) =>
+  createWorktree: (
+    projectId: string,
+    input?: { name?: string; freeText?: string; prefix?: string; agent?: TaskAgent },
+  ) =>
     req<{ worktree: WorktreeInfo; setupCommand: string | null }>(
       `/api/projects/${projectId}/worktrees`,
-      { method: "POST" },
+      { method: "POST", body: input ? JSON.stringify(input) : undefined },
     ),
   deleteWorktree: async (
     projectId: string,
@@ -628,6 +631,7 @@ export const api = {
       id?: string;
       title: string;
       agent: TaskAgent;
+      action?: string | null;
       branch?: string;
       claudeSessionId?: string | null;
       claudeSkipPermissions?: boolean;

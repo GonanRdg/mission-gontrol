@@ -3,6 +3,7 @@ import type { SkillAction } from "~/shared/skill-actions";
 import {
   buildActionTemplateContext,
   createActionFormState,
+  validateActionForm,
 } from "../action-form";
 
 const action: SkillAction = {
@@ -102,5 +103,23 @@ describe("action form state", () => {
       sources: [{ sourceId: "kind", value: "bug" }],
       inputs: { priority: "normal" },
     });
+  });
+
+  it("reports missing context rows and required inputs", () => {
+    const state = createActionFormState(action, project);
+
+    expect(validateActionForm(action, state)).toEqual([
+      "Add at least 2 filled context rows.",
+      "Confirm is required.",
+    ]);
+  });
+
+  it("accepts a complete action form", () => {
+    const state = createActionFormState(action, project);
+    state.sources[0].value = "MC-123";
+    state.sources[1].value = "release notes";
+    state.inputs.confirm = true;
+
+    expect(validateActionForm(action, state)).toEqual([]);
   });
 });

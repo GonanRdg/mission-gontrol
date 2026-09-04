@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Btn } from "~/components/ui/Btn";
 import { CardFrame } from "~/components/ui/CardFrame";
 import { Icon } from "~/components/ui/Icon";
@@ -12,10 +12,13 @@ import {
   buildActionTemplateContext,
   createActionFormState,
   getActionFieldInitialValue,
+  validateActionForm,
   type ActionFormProject,
   type ActionFormState,
 } from "~/lib/action-form";
+import type { ActionLaunchIntent } from "~/lib/action-launch-intent";
 import { renderActionPrompt } from "~/lib/action-template";
+import { resolveActionWorktreeSuggestion } from "~/lib/action-worktree-name";
 import { accentCssVars } from "~/lib/accent-colors";
 import { AGENT_REGISTRY, UI_AGENTS } from "~/shared/agents";
 import { useGitBranches } from "~/queries/git";
@@ -105,18 +108,19 @@ function ActionProjectField({
   label,
   hint,
   project,
+  projects,
   value,
   onChange,
 }: {
   label: string;
   hint?: string;
   project: ActionFormProject;
+  projects: ProjectWithCounts[];
   value: string;
   onChange: (value: string) => void;
 }) {
   const labelId = useId();
-  const { data: projects } = useProjects();
-  const selectedProject = projects?.find((candidate) => candidate.path === value) ?? project;
+  const selectedProject = projects.find((candidate) => candidate.path === value) ?? project;
   return (
     <div role="group" aria-labelledby={labelId} style={{ display: "grid", gap: 6 }}>
       <span id={labelId} style={fieldLabelStyle}>
@@ -128,7 +132,7 @@ function ActionProjectField({
           hotkeyEnabled={false}
           fullWidth
           onSelectProject={(projectId) => {
-            const nextProject = projects?.find((candidate) => candidate.id === projectId);
+            const nextProject = projects.find((candidate) => candidate.id === projectId);
             if (nextProject) onChange(nextProject.path);
           }}
         />
@@ -192,12 +196,14 @@ function ActionFieldControl({
   field,
   value,
   project,
+  projects,
   onChange,
   onBrowse,
 }: {
   field: RenderableField;
   value: string | boolean;
   project: ActionFormProject;
+  projects: ProjectWithCounts[];
   onChange: (value: string | boolean) => void;
   onBrowse: () => void;
 }) {
@@ -268,6 +274,7 @@ function ActionFieldControl({
         label={field.label}
         hint={field.help}
         project={project}
+        projects={projects}
         value={String(value)}
         onChange={(nextValue) => onChange(nextValue)}
       />
@@ -330,7 +337,24 @@ function FormSection({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-function ActionEditor({ action, project }: { action: SkillAction; project: ProjectWithCounts }) {
+export type ActionStartRequest = {
+  project: ProjectWithCounts;
+  intent: ActionLaunchIntent;
+};
+
+function ActionEditor({
+  action,
+  actionName,
+  project,
+  projects,
+  onStart,
+}: {
+  action: SkillAction;
+  actionName: string;
+  project: ProjectWithCounts;
+  projects: ProjectWithCounts[];
+  onStart: (request: ActionStartRequest) => void | Promise<void>;
+}) {
   const formProject: ActionFormProject = {
     id: project.id,
     name: project.name,
@@ -341,20 +365,36 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
     createActionFormState(action, formProject),
   );
   const sourceKey = useRef(state.sources.length);
+  const issueSummaryRef = useRef<HTMLDivElement>(null);
+  const [issues, setIssues] = useState<string[]>([]);
+  const [launching, setLaunching] = useState(false);
   const [fileTarget, setFileTarget] = useState<
     { kind: "source"; key: string } | { kind: "input"; id: string } | null
   >(null);
   const availableAgents = (action.agents ?? UI_AGENTS).filter(
     (agent) => AGENT_REGISTRY[agent].uiVisible,
   );
+  const projectInput = action.inputs.find((input) => input.widget === "project");
+  const selectedProject = projectInput
+    ? projects.find((candidate) => candidate.path === state.inputs[projectInput.id]) ?? null
+    : project;
+  const activeFormProject: ActionFormProject = selectedProject
+    ? {
+        id: selectedProject.id,
+        name: selectedProject.name,
+        path: selectedProject.path,
+        branch: selectedProject.branch,
+      }
+    : formProject;
+  const promptContext = useMemo(
+    () => buildActionTemplateContext(action, state, activeFormProject),
+    [action, activeFormProject.branch, activeFormProject.id, activeFormProject.name, activeFormProject.path, state],
+  );
   const preview = useMemo(() => {
     try {
       return {
         ok: true as const,
-        value: renderActionPrompt(
-          action.prompt,
-          buildActionTemplateContext(action, state, formProject),
-        ),
+        value: renderActionPrompt(action.prompt, promptContext),
       };
     } catch (error) {
       return {
@@ -362,17 +402,26 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
         error: error instanceof Error ? error.message : "Could not render prompt",
       };
     }
-  }, [action, formProject.branch, formProject.id, formProject.name, formProject.path, state]);
+  }, [action.prompt, promptContext]);
+  useEffect(() => {
+    if (issues.length > 0) issueSummaryRef.current?.focus();
+  }, [issues]);
 
-  const setInput = (id: string, value: string | boolean) =>
+  const setInput = (id: string, value: string | boolean) => {
+    setIssues([]);
     setState((current) => ({ ...current, inputs: { ...current.inputs, [id]: value } }));
-  const setOption = (id: string, value: boolean) =>
+  };
+  const setOption = (id: string, value: boolean) => {
+    setIssues([]);
     setState((current) => ({ ...current, options: { ...current.options, [id]: value } }));
-  const setSource = (key: string, change: Partial<{ sourceId: string; value: string }>) =>
+  };
+  const setSource = (key: string, change: Partial<{ sourceId: string; value: string }>) => {
+    setIssues([]);
     setState((current) => ({
       ...current,
       sources: current.sources.map((row) => (row.key === key ? { ...row, ...change } : row)),
     }));
+  };
 
   const pickFile = (path: string) => {
     if (fileTarget?.kind === "source") setSource(fileTarget.key, { value: path });
@@ -380,8 +429,50 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
     setFileTarget(null);
   };
 
+  const start = async () => {
+    const nextIssues = validateActionForm(action, state);
+    if (!selectedProject) nextIssues.push("Choose a project that is still available.");
+    if (!preview.ok) nextIssues.push(preview.error);
+    setIssues(nextIssues);
+    if (nextIssues.length > 0 || !selectedProject || !preview.ok || launching) return;
+
+    const branchInput = action.inputs.find((input) => input.widget === "branch");
+    const branch = branchInput
+      ? String(state.inputs[branchInput.id] ?? "").trim() || selectedProject.branch
+      : selectedProject.branch;
+    const suggestion = resolveActionWorktreeSuggestion(action, state);
+    setLaunching(true);
+    try {
+      await onStart({
+        project: selectedProject,
+        intent: {
+          actionName,
+          agent: state.agent,
+          branch,
+          promptTemplate: action.prompt,
+          promptContext,
+          worktree: action.worktree,
+          preferredWorktreeName: suggestion.preferredName,
+          worktreeFreeText: suggestion.freeText,
+          worktreePrefix: suggestion.prefix,
+        },
+      });
+    } catch (error) {
+      setIssues([error instanceof Error ? error.message : "Could not start this action."]);
+    } finally {
+      setLaunching(false);
+    }
+  };
+
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void start();
+      }}
+      aria-busy={launching}
+      style={{ display: "grid", gap: 24 }}
+    >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
         <SessionIcon name={action.icon ?? "workflow"} size={20} style={{ color: "var(--accent)", marginTop: 3 }} />
         <div style={{ minWidth: 0 }}>
@@ -402,7 +493,10 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
             value: agent,
             label: AGENT_REGISTRY[agent].label,
           }))}
-          onChange={(agent) => setState((current) => ({ ...current, agent: agent as TaskAgent }))}
+          onChange={(agent) => {
+            setIssues([]);
+            setState((current) => ({ ...current, agent: agent as TaskAgent }));
+          }}
         />
       </FormSection>
 
@@ -433,7 +527,8 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
                   <ActionFieldControl
                     field={source}
                     value={row.value}
-                    project={formProject}
+                    project={activeFormProject}
+                    projects={projects}
                     onChange={(value) => setSource(row.key, { value: String(value) })}
                     onBrowse={() => setFileTarget({ kind: "source", key: row.key })}
                   />
@@ -443,12 +538,13 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
                     icon="trash"
                     aria-label={`Remove source ${index + 1}`}
                     title="Remove source"
-                    onClick={() =>
+                    onClick={() => {
+                      setIssues([]);
                       setState((current) => ({
                         ...current,
                         sources: current.sources.filter((candidate) => candidate.key !== row.key),
-                      }))
-                    }
+                      }));
+                    }}
                     style={{ width: 38, minWidth: 38, height: 38, padding: 0, alignSelf: "end" }}
                   />
                 </div>
@@ -462,6 +558,7 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
                 onClick={() => {
                   const first = action.sources[0];
                   if (!first) return;
+                  setIssues([]);
                   sourceKey.current += 1;
                   setState((current) => ({
                     ...current,
@@ -496,7 +593,8 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
                 key={input.id}
                 field={input}
                 value={state.inputs[input.id] ?? ""}
-                project={formProject}
+                project={activeFormProject}
+                projects={projects}
                 onChange={(value) => setInput(input.id, value)}
                 onBrowse={() => setFileTarget({ kind: "input", id: input.id })}
               />
@@ -552,13 +650,45 @@ function ActionEditor({ action, project }: { action: SkillAction; project: Proje
         )}
       </details>
 
+      <div style={{ display: "grid", gap: 10 }}>
+        {issues.length > 0 && (
+          <div
+            role="alert"
+            ref={issueSummaryRef}
+            tabIndex={-1}
+            style={{
+              padding: "10px 12px",
+              borderRadius: 7,
+              background: "color-mix(in srgb, var(--status-failed) 10%, transparent)",
+              color: "var(--status-failed)",
+              fontFamily: "var(--mono)",
+              fontSize: 11,
+              lineHeight: 1.55,
+            }}
+          >
+            {issues.map((issue) => <div key={issue}>{issue}</div>)}
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 10.5 }}>
+            {action.worktree ? "Creates an isolated worktree." : "Runs in the current project checkout."}
+            {action.inputs.some((input) => input.widget === "branch")
+              ? " Branch is prompt context; it is not checked out."
+              : ""}
+          </span>
+          <Btn type="submit" variant="primary" icon="play" disabled={launching || !preview.ok}>
+            {launching ? "Starting…" : "Start action"}
+          </Btn>
+        </div>
+      </div>
+
       <FileFinderDialog
         open={fileTarget !== null}
         projectRoot={project.path}
         onClose={() => setFileTarget(null)}
         onPick={pickFile}
       />
-    </div>
+    </form>
   );
 }
 
@@ -628,12 +758,15 @@ export function ActionsView({
   project,
   actions,
   onBack,
+  onStart,
 }: {
   project: ProjectWithCounts;
   actions: SkillActionParse[];
   onBack: () => void;
+  onStart: (request: ActionStartRequest) => void | Promise<void>;
 }) {
   const [selectedName, setSelectedName] = useState(actions[0]?.name ?? "");
+  const { data: allProjects } = useProjects();
   const selected = actions.find((action) => action.name === selectedName) ?? actions[0] ?? null;
 
   return (
@@ -667,8 +800,11 @@ export function ActionsView({
               <div style={selected.action.accent ? accentCssVars(selected.action.accent) : undefined}>
                 <ActionEditor
                   key={`${project.id}:${selected.name}`}
+                  actionName={selected.name}
                   action={selected.action}
                   project={project}
+                  projects={allProjects ?? [project]}
+                  onStart={onStart}
                 />
               </div>
             ) : selected ? (
