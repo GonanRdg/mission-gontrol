@@ -8,6 +8,7 @@ import {
 
 const intent: ActionLaunchIntent = {
   actionName: "implement-feature",
+  workflowSkill: "implement-ticket",
   agent: "codex",
   branch: "main",
   promptTemplate: "Implement {{worktree.branch}} for {{project.name}}.",
@@ -40,6 +41,24 @@ describe("action launch intent", () => {
     expect(renderActionLaunchPrompt(intent, "implement-mc-1234")).toBe(
       "Implement implement-mc-1234 for Mission Control.",
     );
+  });
+
+  it("uses Codex skill mention syntax in the submitted prompt", () => {
+    expect(
+      renderActionLaunchPrompt(
+        { ...intent, promptTemplate: "  /implement-ticket\nTicket: MC-123" },
+        "implement-mc-123",
+      ),
+    ).toBe("  $implement-ticket\nTicket: MC-123");
+  });
+
+  it("keeps slash invocation syntax for Claude Code", () => {
+    expect(
+      renderActionLaunchPrompt(
+        { ...intent, agent: "claude-code", promptTemplate: "/implement-ticket\nTicket: MC-123" },
+        "implement-mc-123",
+      ),
+    ).toBe("/implement-ticket\nTicket: MC-123");
   });
 
   it("omits worktree context when launching in the project root", () => {

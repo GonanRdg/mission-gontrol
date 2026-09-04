@@ -3,6 +3,7 @@ import { renderActionPrompt, type ActionTemplateContext } from "~/lib/action-tem
 
 export type ActionLaunchIntent = {
   actionName: string;
+  workflowSkill: string;
   agent: TaskAgent;
   branch: string;
   promptTemplate: string;
@@ -13,14 +14,32 @@ export type ActionLaunchIntent = {
   worktreePrefix: string;
 };
 
+export function adaptActionPromptForAgent(
+  prompt: string,
+  workflowSkill: string,
+  agent: TaskAgent,
+): string {
+  if (agent !== "codex") return prompt;
+
+  const firstContent = prompt.search(/\S/);
+  if (firstContent < 0) return prompt;
+  const invocation = `/${workflowSkill}`;
+  if (!prompt.startsWith(invocation, firstContent)) return prompt;
+
+  const boundary = prompt[firstContent + invocation.length];
+  if (boundary && !/\s/.test(boundary)) return prompt;
+  return `${prompt.slice(0, firstContent)}$${workflowSkill}${prompt.slice(firstContent + invocation.length)}`;
+}
+
 export function renderActionLaunchPrompt(
   intent: ActionLaunchIntent,
   worktreeBranch: string | null,
 ): string {
-  return renderActionPrompt(intent.promptTemplate, {
+  const prompt = renderActionPrompt(intent.promptTemplate, {
     ...intent.promptContext,
     worktree: intent.worktree && worktreeBranch ? { branch: worktreeBranch } : null,
   });
+  return adaptActionPromptForAgent(prompt, intent.workflowSkill, intent.agent);
 }
 
 const pending = new Map<string, ActionLaunchIntent>();
