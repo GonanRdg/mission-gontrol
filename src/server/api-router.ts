@@ -439,6 +439,9 @@ async function dispatch(
   if (pathname === "/api/skills/actions" && method === "GET") {
     return skillsController.listActions(url);
   }
+  if (pathname === "/api/skills/actions/install" && method === "POST") {
+    return skillsController.installAction(request);
+  }
 
   // Diagram skill (local bundled install)
   if (pathname === "/api/skills/install/diagram/installed" && method === "GET") {

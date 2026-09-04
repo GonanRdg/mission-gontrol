@@ -1,11 +1,13 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 import { Btn } from "~/components/ui/Btn";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { ActionsView, type ActionStartRequest } from "~/components/views/ActionsView";
 import { markActionLaunchIntent } from "~/lib/action-launch-intent";
-import { useActions, useProject } from "~/queries";
+import { api } from "~/lib/api";
+import { queryKeys, useActions, useProject } from "~/queries";
 
 export const Route = createFileRoute("/projects/$id/actions")({
   component: ProjectActionsPage,
@@ -14,6 +16,7 @@ export const Route = createFileRoute("/projects/$id/actions")({
 function ProjectActionsPage() {
   const { id } = Route.useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const projectQuery = useProject(id);
   const actionsQuery = useActions(id);
   const [pendingLaunch, setPendingLaunch] = useState<ActionStartRequest | null>(null);
@@ -28,6 +31,10 @@ function ProjectActionsPage() {
       return;
     }
     await launch(request);
+  };
+  const installWorkflow = async (actionName: string, agent: ActionStartRequest["intent"]["agent"]) => {
+    await api.installActionWorkflow({ projectId: id, actionName, agent });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.actions(id) });
   };
 
   if (projectQuery.isLoading || actionsQuery.isLoading) {
@@ -86,6 +93,7 @@ function ProjectActionsPage() {
         actions={actionsQuery.data}
         onBack={back}
         onStart={start}
+        onInstallWorkflow={installWorkflow}
       />
       <ConfirmDialog
         open={pendingLaunch !== null}

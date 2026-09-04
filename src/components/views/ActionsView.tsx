@@ -25,7 +25,11 @@ import { useGitBranches } from "~/queries/git";
 import { useProjects } from "~/queries";
 import type { TaskAgent } from "~/shared/domain";
 import type { ProjectWithCounts } from "~/shared/projects";
-import type { SkillAction, SkillActionParse } from "~/shared/skill-actions";
+import type {
+  ActionListItem,
+  ActionWorkflowAvailability,
+  SkillAction,
+} from "~/shared/skill-actions";
 
 const selectStyle: CSSProperties = {
   width: "100%",
@@ -345,15 +349,19 @@ export type ActionStartRequest = {
 function ActionEditor({
   action,
   actionName,
+  workflows,
   project,
   projects,
   onStart,
+  onInstallWorkflow,
 }: {
   action: SkillAction;
   actionName: string;
+  workflows: Record<TaskAgent, ActionWorkflowAvailability>;
   project: ProjectWithCounts;
   projects: ProjectWithCounts[];
   onStart: (request: ActionStartRequest) => void | Promise<void>;
+  onInstallWorkflow: (actionName: string, agent: TaskAgent) => Promise<void>;
 }) {
   const formProject: ActionFormProject = {
     id: project.id,
@@ -368,12 +376,14 @@ function ActionEditor({
   const issueSummaryRef = useRef<HTMLDivElement>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [launching, setLaunching] = useState(false);
+  const [installingWorkflow, setInstallingWorkflow] = useState(false);
   const [fileTarget, setFileTarget] = useState<
     { kind: "source"; key: string } | { kind: "input"; id: string } | null
   >(null);
   const availableAgents = (action.agents ?? UI_AGENTS).filter(
     (agent) => AGENT_REGISTRY[agent].uiVisible,
   );
+  const workflow = workflows[state.agent];
   const projectInput = action.inputs.find((input) => input.widget === "project");
   const selectedProject = projectInput
     ? projects.find((candidate) => candidate.path === state.inputs[projectInput.id]) ?? null
@@ -431,6 +441,9 @@ function ActionEditor({
 
   const start = async () => {
     const nextIssues = validateActionForm(action, state);
+    if (workflow.status !== "available") {
+      nextIssues.push(`Install the ${action.skill} workflow skill for ${AGENT_REGISTRY[state.agent].label} first.`);
+    }
     if (!selectedProject) nextIssues.push("Choose a project that is still available.");
     if (!preview.ok) nextIssues.push(preview.error);
     setIssues(nextIssues);
@@ -461,6 +474,19 @@ function ActionEditor({
       setIssues([error instanceof Error ? error.message : "Could not start this action."]);
     } finally {
       setLaunching(false);
+    }
+  };
+
+  const installWorkflow = async () => {
+    if (workflow.status !== "installable" || installingWorkflow) return;
+    setIssues([]);
+    setInstallingWorkflow(true);
+    try {
+      await onInstallWorkflow(actionName, state.agent);
+    } catch (error) {
+      setIssues([error instanceof Error ? error.message : "Could not install workflow skill."]);
+    } finally {
+      setInstallingWorkflow(false);
     }
   };
 
@@ -650,6 +676,51 @@ function ActionEditor({
         )}
       </details>
 
+      {workflow.status !== "available" && (
+        <div
+          role="status"
+          style={{
+            display: "grid",
+            gap: 10,
+            padding: "12px 14px",
+            borderRadius: 8,
+            border: "1px solid color-mix(in srgb, var(--status-needs) 35%, var(--border))",
+            background: "color-mix(in srgb, var(--status-needs) 7%, var(--surface-1))",
+          }}
+        >
+          <div style={{ color: "var(--text)", fontSize: 13, fontWeight: 600 }}>
+            {action.skill} is not available to {AGENT_REGISTRY[state.agent].label}
+          </div>
+          {workflow.status === "installable" && workflow.sourcePath ? (
+            <>
+              <div style={{ display: "grid", gap: 4, color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 10.5 }}>
+                <span style={{ overflowWrap: "anywhere" }}>From: {workflow.sourcePath}</span>
+                <span style={{ overflowWrap: "anywhere" }}>To: {workflow.targetPath}</span>
+              </div>
+              <Btn
+                type="button"
+                variant="solid"
+                size="sm"
+                icon="download"
+                disabled={installingWorkflow}
+                onClick={() => void installWorkflow()}
+                style={{ justifySelf: "start" }}
+              >
+                {installingWorkflow
+                  ? "Installing…"
+                  : workflow.installMethod === "symlink"
+                    ? "Mirror workflow skill"
+                    : "Install bundled workflow"}
+              </Btn>
+            </>
+          ) : (
+            <div style={{ color: "var(--text-dim)", fontSize: 12, lineHeight: 1.5 }}>
+              No copy exists in another skill root or this app build.
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "grid", gap: 10 }}>
         {issues.length > 0 && (
           <div
@@ -676,7 +747,12 @@ function ActionEditor({
               ? " Branch is prompt context; it is not checked out."
               : ""}
           </span>
-          <Btn type="submit" variant="primary" icon="play" disabled={launching || !preview.ok}>
+          <Btn
+            type="submit"
+            variant="primary"
+            icon="play"
+            disabled={launching || installingWorkflow || !preview.ok || workflow.status !== "available"}
+          >
             {launching ? "Starting…" : "Start action"}
           </Btn>
         </div>
@@ -697,7 +773,7 @@ function ActionChoice({
   selected,
   onSelect,
 }: {
-  parsed: SkillActionParse;
+  parsed: ActionListItem;
   selected: boolean;
   onSelect: () => void;
 }) {
@@ -759,11 +835,13 @@ export function ActionsView({
   actions,
   onBack,
   onStart,
+  onInstallWorkflow,
 }: {
   project: ProjectWithCounts;
-  actions: SkillActionParse[];
+  actions: ActionListItem[];
   onBack: () => void;
   onStart: (request: ActionStartRequest) => void | Promise<void>;
+  onInstallWorkflow: (actionName: string, agent: TaskAgent) => Promise<void>;
 }) {
   const [selectedName, setSelectedName] = useState(actions[0]?.name ?? "");
   const { data: allProjects } = useProjects();
@@ -802,9 +880,11 @@ export function ActionsView({
                   key={`${project.id}:${selected.name}`}
                   actionName={selected.name}
                   action={selected.action}
+                  workflows={selected.workflows}
                   project={project}
                   projects={allProjects ?? [project]}
                   onStart={onStart}
+                  onInstallWorkflow={onInstallWorkflow}
                 />
               </div>
             ) : selected ? (

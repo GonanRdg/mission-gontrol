@@ -75,6 +75,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; pathname: string }> = [
   { method: "GET", pathname: "/api/settings" },
   { method: "POST", pathname: "/api/settings" },
   // Diagram skill
+  { method: "POST", pathname: "/api/skills/actions/install" },
   { method: "GET", pathname: "/api/skills/install/diagram/installed" },
   { method: "POST", pathname: "/api/skills/install/diagram" },
   // Keybindings

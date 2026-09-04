@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isAccentColorId } from "~/lib/accent-colors";
 import { isSessionIcon } from "~/lib/session-icons";
-import { TASK_AGENTS } from "./domain";
+import { TASK_AGENTS, type TaskAgent } from "./domain";
 
 /**
  * An action is a skill that opts in by carrying an `mc-action` block in its
@@ -168,6 +168,20 @@ export type SkillAction = z.infer<typeof skillActionSchema>;
 
 export type SkillActionParse =
   | { ok: true; name: string; action: SkillAction }
+  | { ok: false; name: string; error: string };
+
+export type ActionWorkflowAvailability = {
+  agent: TaskAgent;
+  status: "available" | "installable" | "unavailable";
+  sourcePath: string | null;
+  targetPath: string;
+  installMethod: "symlink" | "copy" | null;
+};
+
+export type ActionListItem =
+  | ({ ok: true; name: string; action: SkillAction } & {
+      workflows: Record<TaskAgent, ActionWorkflowAvailability>;
+    })
   | { ok: false; name: string; error: string };
 
 /** Compact, human-readable summary of the first few schema violations. */
