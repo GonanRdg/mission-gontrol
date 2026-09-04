@@ -16,7 +16,10 @@ import {
   type ActionFormProject,
   type ActionFormState,
 } from "~/lib/action-form";
-import type { ActionLaunchIntent } from "~/lib/action-launch-intent";
+import {
+  adaptActionPromptForAgent,
+  type ActionLaunchIntent,
+} from "~/lib/action-launch-intent";
 import { renderActionPrompt } from "~/lib/action-template";
 import { resolveActionWorktreeSuggestion } from "~/lib/action-worktree-name";
 import { accentCssVars } from "~/lib/accent-colors";
@@ -404,7 +407,11 @@ function ActionEditor({
     try {
       return {
         ok: true as const,
-        value: renderActionPrompt(action.prompt, promptContext),
+        value: adaptActionPromptForAgent(
+          renderActionPrompt(action.prompt, promptContext),
+          action.skill,
+          state.agent,
+        ),
       };
     } catch (error) {
       return {
@@ -412,7 +419,7 @@ function ActionEditor({
         error: error instanceof Error ? error.message : "Could not render prompt",
       };
     }
-  }, [action.prompt, promptContext]);
+  }, [action.prompt, action.skill, promptContext, state.agent]);
   useEffect(() => {
     if (issues.length > 0) issueSummaryRef.current?.focus();
   }, [issues]);
@@ -460,6 +467,7 @@ function ActionEditor({
         project: selectedProject,
         intent: {
           actionName,
+          workflowSkill: action.skill,
           agent: state.agent,
           branch,
           promptTemplate: action.prompt,
@@ -506,7 +514,7 @@ function ActionEditor({
             {action.title}
           </h2>
           <div style={{ marginTop: 4, color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 11 }}>
-            Drives /{action.skill}
+            Drives {action.skill}
           </div>
         </div>
       </div>
