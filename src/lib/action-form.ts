@@ -81,3 +81,23 @@ export function buildActionTemplateContext(
     worktree: action.worktree ? { branch: "generated-on-start" } : null,
   };
 }
+
+export function validateActionForm(action: SkillAction, state: ActionFormState): string[] {
+  const issues: string[] = [];
+  const filledSources = state.sources.filter((row) => row.value.trim()).length;
+  if (filledSources < action.sourcesMin) {
+    issues.push(
+      `Add at least ${action.sourcesMin} filled context ${action.sourcesMin === 1 ? "row" : "rows"}.`,
+    );
+  }
+
+  for (const input of action.inputs) {
+    if (!input.required) continue;
+    const value = state.inputs[input.id];
+    if (input.widget === "checkbox" ? value !== true : !String(value ?? "").trim()) {
+      issues.push(`${input.label} is required.`);
+    }
+  }
+
+  return issues;
+}

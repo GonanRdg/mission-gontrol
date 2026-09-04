@@ -7,6 +7,16 @@ import {
 } from "../services/worktrees";
 import { handleDomainError, idParam, json, jsonError, noContent, notFound, parseJsonBody } from "./_helpers";
 import { HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_CREATED } from "~/shared/http-status";
+import { TASK_AGENTS } from "~/shared/domain";
+import { WORKTREE_NAME_RE } from "~/shared/worktrees";
+import { generateActionWorktreeName } from "../services/action-worktree-name";
+
+const createBody = z.object({
+  name: z.string().regex(WORKTREE_NAME_RE).optional(),
+  freeText: z.string().trim().min(1).max(8_000).optional(),
+  prefix: z.string().regex(/^[a-z0-9]+$/).optional(),
+  agent: z.enum(TASK_AGENTS).optional(),
+});
 
 const deleteBody = z.object({
   force: z.boolean().optional(),
@@ -34,11 +44,23 @@ export async function list(rawProjectId: string, _request: Request): Promise<Res
   }
 }
 
-export async function create(rawProjectId: string, _request: Request): Promise<Response> {
+export async function create(rawProjectId: string, request: Request): Promise<Response> {
   const parsed = idParam.safeParse(rawProjectId);
   if (!parsed.success) return notFound();
+  const body = await parseJsonBody(request, createBody);
+  if (!body.ok) return body.response;
   try {
-    return json(await createWorktree(parsed.data), { status: HTTP_CREATED });
+    const generatedName =
+      !body.data.name && body.data.freeText && body.data.prefix && body.data.agent
+        ? await generateActionWorktreeName({
+            agent: body.data.agent,
+            prefix: body.data.prefix,
+            text: body.data.freeText,
+          })
+        : null;
+    return json(await createWorktree(parsed.data, body.data.name ?? generatedName ?? undefined), {
+      status: HTTP_CREATED,
+    });
   } catch (e) {
     return handleDomainError(e) ?? asWorktreeErrorResponse(e);
   }

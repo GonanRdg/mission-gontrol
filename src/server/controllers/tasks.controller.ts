@@ -33,6 +33,7 @@ const createTaskBody = z.object({
   id: z.string().min(1).optional(),
   title: z.string().min(1, "title required"),
   agent: z.enum(TASK_AGENTS),
+  action: z.string().trim().min(1).max(64).nullable().optional(),
   branch: z.string().optional(),
   status: z.enum(TASK_STATUSES).optional(),
   preview: z.string().optional(),

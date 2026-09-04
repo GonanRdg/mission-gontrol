@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+import { mcToastLoading } from "~/lib/mc-toast";
 import { Btn } from "~/components/ui/Btn";
 import { CardFrame } from "~/components/ui/CardFrame";
 import { DropdownMenuItem, DropdownMenuSeparator } from "~/components/ui/DropdownMenuItem";
@@ -39,6 +40,7 @@ import { SessionGrid } from "~/components/views/SessionGrid";
 import { archiveOpenSession, invalidateSessionQueries } from "~/lib/archive-session";
 import { enterFocusSession } from "~/lib/focus-session";
 import { consumeProjectOnboardIntent, type ProjectOnboardIntent } from "~/lib/project-onboard-intent";
+import { consumeActionLaunchIntent, renderActionLaunchPrompt } from "~/lib/action-launch-intent";
 import { sandboxUsableForProject } from "~/lib/project-scoped-sandboxes";
 import { useHideableMenu } from "~/lib/hideable-elements";
 import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
@@ -1473,36 +1475,47 @@ function ProjectPage() {
         submitInitialInput?: boolean;
         focusOnCreate?: boolean;
         model?: AiModelId | null;
+        action?: string | null;
+        target?: { worktreeId: string | null; path: string };
       },
     ) => {
-      if (!project || !terminalProject) return;
+      if (!project || !scopedProject) return;
+      const sessionWorktreeId = opts?.target ? opts.target.worktreeId : selectedWorktreeId;
+      const sessionProject = opts?.target
+        ? {
+            ...scopedProject,
+            path: opts.target.path,
+            activeWorktreeId: opts.target.worktreeId,
+          }
+        : terminalProject;
+      if (!sessionProject) return;
       const selectedAvailability = availabilityFor(cliAvailability, payload.agent);
       if (selectedAvailability.status === "outdated") {
         showAgentUpdateRequired(payload.agent, selectedAvailability);
-        return;
+        return false;
       }
       if (selectedAvailability.status === "missing") {
         setShowNewAgent(true);
-        return;
+        return false;
       }
 
-      const tasksKey = queryKeys.tasks(project.id, selectedWorktreeId, activeRuntimeScopeId);
+      const tasksKey = queryKeys.tasks(project.id, sessionWorktreeId, activeRuntimeScopeId);
       void queryClient.cancelQueries({ queryKey: tasksKey });
 
       // A voice-seeded prompt can't ride a pre-spawned warm slot (it was launched
       // before we knew the prompt), so fall back to the cold path when set.
       const warmSlot = (await isDockerSandboxRuntime()) || opts?.initialInput
         ? null
-        : takeSessionWarmSlot(payload, terminalProject.path);
+        : takeSessionWarmSlot(payload, sessionProject.path);
       if (warmSlot) {
         appendOptimisticTask(
           queryClient,
           project.id,
-          selectedWorktreeId,
+          sessionWorktreeId,
           warmSlot.draftTask,
           activeRuntimeScopeId,
         );
-        terminals.openSession(terminalProject, warmSlot.draftTask, { ptyId: warmSlot.ptyId });
+        terminals.openSession(sessionProject, warmSlot.draftTask, { ptyId: warmSlot.ptyId });
         // Clone/new-session focus: put the caret in the just-added grid cell so
         // the user can type immediately. focusGridSession retries until the pane
         // mounts, so calling it before the surface exists is fine.
@@ -1514,21 +1527,21 @@ function ProjectPage() {
             const task = await persistWarmSlotTask(
               project.id,
               warmSlot,
-              selectedWorktreeId,
+              sessionWorktreeId,
               activeRuntimeScopeId,
             );
             replaceOptimisticTask(
               queryClient,
               project.id,
-              selectedWorktreeId,
+              sessionWorktreeId,
               warmSlot.clientTaskId,
               task,
               activeRuntimeScopeId,
             );
-            terminals.openSession(terminalProject, task, { ptyId: warmSlot.ptyId });
+            terminals.openSession(sessionProject, task, { ptyId: warmSlot.ptyId });
             void Promise.all([invalidateProject(), invalidateTasks(), invalidateProjects()]);
             replenishSessionWarmSlot({
-              project: terminalProject,
+              project: sessionProject,
               payload: defaultSessionPayload(project),
             });
             if (payload.agent === "codex" && !hasSeenCodexHooksNotice()) {
@@ -1538,19 +1551,19 @@ function ProjectPage() {
             removeOptimisticTask(
               queryClient,
               project.id,
-              selectedWorktreeId,
+              sessionWorktreeId,
               warmSlot.clientTaskId,
               activeRuntimeScopeId,
             );
             await terminals.close(warmSlot.clientTaskId);
             toast.error(e instanceof Error ? e.message : "Could not create session");
             replenishSessionWarmSlot({
-              project: terminalProject,
+              project: sessionProject,
               payload: defaultSessionPayload(project),
             });
           }
         })();
-        return;
+        return true;
       }
 
       const isLocal = !!getElectron();
@@ -1562,9 +1575,10 @@ function ProjectPage() {
       const optimisticTask = buildOptimisticTask({
         id: clientTaskId,
         projectId: project.id,
-        worktreeId: selectedWorktreeId,
+        worktreeId: sessionWorktreeId,
         scopeId: activeRuntimeScopeId,
         agent: payload.agent,
+        action: opts?.action,
         branch: payload.branch,
         claudeSessionId,
         claudeSkipPermissions: agentSupportsSkipPermissions(payload.agent)
@@ -1572,7 +1586,7 @@ function ProjectPage() {
           : undefined,
         claudeBareSession: payload.agent === "claude-code" ? payload.bareSession : undefined,
       });
-      appendOptimisticTask(queryClient, project.id, selectedWorktreeId, optimisticTask, activeRuntimeScopeId);
+      appendOptimisticTask(queryClient, project.id, sessionWorktreeId, optimisticTask, activeRuntimeScopeId);
       if (opts?.initialInput) {
         // TerminalPane consumes this once, at the first spawn, as the PTY's
         // initialInput — the main process writes it after the agent TUI is ready.
@@ -1583,7 +1597,7 @@ function ProjectPage() {
       if (opts?.model) {
         setPendingSessionModel(optimisticTask.id, opts.model);
       }
-      terminals.toggle(terminalProject, optimisticTask, { awaitCreate: !isLocal });
+      terminals.toggle(sessionProject, optimisticTask, { awaitCreate: !isLocal });
       // Clone/new-session focus: put the caret in the just-added grid cell so the
       // user can type immediately. focusGridSession retries until the pane mounts
       // (and re-asserts across the awaitingCreate→persisted rebuild), so calling
@@ -1598,25 +1612,26 @@ function ProjectPage() {
             id: clientTaskId,
             title: TITLE_WAITING,
             agent: payload.agent,
+            action: opts?.action,
             branch: payload.branch,
             claudeSessionId,
             claudeBareSession: payload.agent === "claude-code" ? payload.bareSession : undefined,
             claudeSkipPermissions: agentSupportsSkipPermissions(payload.agent)
               ? payload.skipPermissions
               : undefined,
-            worktreeId: selectedWorktreeId,
+            worktreeId: sessionWorktreeId,
             scopeId: activeRuntimeScopeId,
           });
           replaceOptimisticTask(
             queryClient,
             project.id,
-            selectedWorktreeId,
+            sessionWorktreeId,
             optimisticTask.id,
             created.task,
             activeRuntimeScopeId,
           );
           if (clientTaskId && created.task.id === clientTaskId) {
-            terminals.openSession(terminalProject, created.task);
+            terminals.openSession(sessionProject, created.task);
           } else {
             const pendingModel = peekPendingSessionModel(optimisticTask.id);
             if (pendingModel) {
@@ -1627,7 +1642,7 @@ function ProjectPage() {
           }
           void Promise.all([invalidateProject(), invalidateTasks(), invalidateProjects()]);
           replenishSessionWarmSlot({
-            project: terminalProject,
+            project: sessionProject,
             payload: defaultSessionPayload(project),
           });
           if (payload.agent === "codex" && !hasSeenCodexHooksNotice()) {
@@ -1640,7 +1655,7 @@ function ProjectPage() {
           removeOptimisticTask(
             queryClient,
             project.id,
-            selectedWorktreeId,
+            sessionWorktreeId,
             optimisticTask.id,
             activeRuntimeScopeId,
           );
@@ -1648,9 +1663,11 @@ function ProjectPage() {
           toast.error(e instanceof Error ? e.message : "Could not create session");
         }
       })();
+      return true;
     },
     [
       project,
+      scopedProject,
       terminalProject,
       selectedWorktreeId,
       activeRuntimeScopeId,
@@ -1663,6 +1680,99 @@ function ProjectPage() {
       showAgentUpdateRequired,
     ]
   );
+
+  const actionLaunchProjectRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!project || !defaultWarmPayload || actionLaunchProjectRef.current === project.id) return;
+    const intent = consumeActionLaunchIntent(project.id);
+    if (!intent) return;
+    actionLaunchProjectRef.current = project.id;
+
+    const selectedAvailability = availabilityFor(cliAvailability, intent.agent);
+    if (selectedAvailability.status === "outdated") {
+      showAgentUpdateRequired(intent.agent, selectedAvailability);
+      return;
+    }
+    if (selectedAvailability.status === "missing") {
+      setShowNewAgent(true);
+      return;
+    }
+
+    void (async () => {
+      const toastId = mcToastLoading(
+        intent.worktree ? "Preparing action worktree…" : "Starting action…",
+      );
+      try {
+        let target = { worktreeId: null as string | null, path: project.path };
+        let worktreeBranch: string | null = null;
+        if (intent.worktree) {
+          const worktreeInput = intent.preferredWorktreeName
+            ? { name: intent.preferredWorktreeName }
+            : intent.worktreeFreeText
+              ? {
+                  freeText: intent.worktreeFreeText,
+                  prefix: intent.worktreePrefix,
+                  agent: intent.agent,
+                }
+              : undefined;
+          const result = await api.createWorktree(project.id, worktreeInput);
+          queryClient.setQueryData<WorktreeInfo[]>(queryKeys.worktrees(project.id), (current) => {
+            const withoutDuplicate = (current ?? []).filter(
+              (worktree) => worktree.id !== result.worktree.id,
+            );
+            return [...withoutDuplicate, result.worktree];
+          });
+          selectWorktree(result.worktree.id);
+          target = { worktreeId: result.worktree.id, path: result.worktree.path };
+          worktreeBranch = result.worktree.branch;
+          if (result.setupCommand) {
+            await createTerminal({
+              project: {
+                ...project,
+                path: result.worktree.path,
+                activeWorktreeId: result.worktree.id,
+                activeRuntimeScopeId,
+              },
+              name: `Setup: ${result.worktree.name}`,
+              startCommand: result.setupCommand,
+            });
+          }
+          await invalidateWorktrees();
+        } else {
+          selectWorktree(MAIN_WORKTREE_ID);
+        }
+
+        const prompt = renderActionLaunchPrompt(intent, worktreeBranch);
+
+        const started = await createSession(
+          { ...defaultWarmPayload, agent: intent.agent, branch: intent.branch },
+          {
+            initialInput: prompt,
+            submitInitialInput: true,
+            focusOnCreate: true,
+            action: intent.actionName,
+            target,
+          },
+        );
+        toast.dismiss(toastId);
+        if (started) toast.success(`Started ${intent.actionName}`);
+      } catch (error) {
+        toast.dismiss(toastId);
+        toast.error(error instanceof Error ? error.message : "Could not start action");
+      }
+    })();
+  }, [
+    activeRuntimeScopeId,
+    cliAvailability,
+    createSession,
+    createTerminal,
+    defaultWarmPayload,
+    invalidateWorktrees,
+    project,
+    queryClient,
+    selectWorktree,
+    showAgentUpdateRequired,
+  ]);
 
   // The session a fresh one should anchor on: the grid cell the user is looking
   // at, falling back to the scope's active session. Clone and "new session" both
