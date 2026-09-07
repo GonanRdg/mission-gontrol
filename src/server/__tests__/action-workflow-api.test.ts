@@ -117,4 +117,46 @@ description: Test workflow.
 
     expect(response?.status).toBe(400);
   });
+
+  it("persists form choices without accepting source values", async () => {
+    const preferences = {
+      repository: projectPath,
+      agent: "codex",
+      branch: "feat/actions",
+      options: { review: true },
+      sourceTypes: ["text"],
+    };
+    const update = await handleApiRequest(
+      authed("/api/skills/actions/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          actionName: "phase-four-api-action",
+          preferences,
+        }),
+      }),
+    );
+    expect(update?.status).toBe(200);
+
+    const read = await handleApiRequest(
+      authed(
+        `/api/skills/actions/preferences?projectId=${encodeURIComponent(projectId)}&actionName=phase-four-api-action`,
+      ),
+    );
+    await expect(read?.json()).resolves.toEqual({ preferences });
+
+    const rejected = await handleApiRequest(
+      authed("/api/skills/actions/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          actionName: "phase-four-api-action",
+          preferences: { ...preferences, sourceValues: ["MC-123"] },
+        }),
+      }),
+    );
+    expect(rejected?.status).toBe(400);
+  });
 });

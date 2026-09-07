@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Btn } from "~/components/ui/Btn";
 import { CardFrame } from "~/components/ui/CardFrame";
 import { Icon } from "~/components/ui/Icon";
@@ -11,11 +12,15 @@ import { ProjectPicker } from "~/components/views/ProjectPicker";
 import {
   buildActionTemplateContext,
   createActionFormState,
+  getActionFormPreferences,
   getActionFieldInitialValue,
   validateActionForm,
   type ActionFormProject,
   type ActionFormState,
 } from "~/lib/action-form";
+import { api } from "~/lib/api";
+import { mcToastResultCard } from "~/lib/mc-toast";
+import { useActionFormPreferencesAutosave } from "~/lib/use-action-form-preferences-autosave";
 import {
   adaptActionPromptForAgent,
   type ActionLaunchIntent,
@@ -25,8 +30,9 @@ import { resolveActionWorktreeSuggestion } from "~/lib/action-worktree-name";
 import { accentCssVars } from "~/lib/accent-colors";
 import { AGENT_REGISTRY, UI_AGENTS } from "~/shared/agents";
 import { useGitBranches } from "~/queries/git";
-import { useProjects } from "~/queries";
+import { queryKeys, useActionFormPreferences, useProjects } from "~/queries";
 import type { TaskAgent } from "~/shared/domain";
+import type { ActionFormPreferences } from "~/shared/action-form-preferences";
 import type { ProjectWithCounts } from "~/shared/projects";
 import type {
   ActionListItem,
@@ -355,7 +361,9 @@ function ActionEditor({
   workflows,
   project,
   projects,
+  preferences,
   onStart,
+  onPreferencesChange,
   onInstallWorkflow,
 }: {
   action: SkillAction;
@@ -363,7 +371,9 @@ function ActionEditor({
   workflows: Record<TaskAgent, ActionWorkflowAvailability>;
   project: ProjectWithCounts;
   projects: ProjectWithCounts[];
+  preferences: ActionFormPreferences | null;
   onStart: (request: ActionStartRequest) => void | Promise<void>;
+  onPreferencesChange: (preferences: ActionFormPreferences) => Promise<void>;
   onInstallWorkflow: (actionName: string, agent: TaskAgent) => Promise<void>;
 }) {
   const formProject: ActionFormProject = {
@@ -372,9 +382,17 @@ function ActionEditor({
     path: project.path,
     branch: project.branch,
   };
-  const [state, setState] = useState<ActionFormState>(() =>
-    createActionFormState(action, formProject),
-  );
+  const [state, setState] = useState<ActionFormState>(() => {
+    const repositoryAvailable =
+      !preferences?.repository ||
+      preferences.repository === project.path ||
+      projects.some((candidate) => candidate.path === preferences.repository);
+    return createActionFormState(
+      action,
+      formProject,
+      repositoryAvailable ? preferences : { ...preferences!, repository: null },
+    );
+  });
   const sourceKey = useRef(state.sources.length);
   const issueSummaryRef = useRef<HTMLDivElement>(null);
   const [issues, setIssues] = useState<string[]>([]);
@@ -420,6 +438,11 @@ function ActionEditor({
       };
     }
   }, [action.prompt, action.skill, promptContext, state.agent]);
+  const preferenceSnapshot = useMemo(
+    () => getActionFormPreferences(action, state),
+    [action, state],
+  );
+  useActionFormPreferencesAutosave(preferenceSnapshot, onPreferencesChange);
   useEffect(() => {
     if (issues.length > 0) issueSummaryRef.current?.focus();
   }, [issues]);
@@ -851,9 +874,43 @@ export function ActionsView({
   onStart: (request: ActionStartRequest) => void | Promise<void>;
   onInstallWorkflow: (actionName: string, agent: TaskAgent) => Promise<void>;
 }) {
+  const queryClient = useQueryClient();
   const [selectedName, setSelectedName] = useState(actions[0]?.name ?? "");
-  const { data: allProjects } = useProjects();
+  const projectsQuery = useProjects();
+  const allProjects = projectsQuery.data;
   const selected = actions.find((action) => action.name === selectedName) ?? actions[0] ?? null;
+  const preferenceActionName = selected?.ok ? selected.name : "";
+  const preferencesQuery = useActionFormPreferences(project.id, preferenceActionName);
+  const savedRepository = preferencesQuery.data?.repository;
+  const waitingForSavedRepository =
+    !!savedRepository &&
+    savedRepository !== project.path &&
+    !allProjects?.some((candidate) => candidate.path === savedRepository) &&
+    projectsQuery.isFetching;
+
+  const savePreferences = async (preferences: ActionFormPreferences): Promise<void> => {
+    try {
+      const { preferences: saved } = await api.updateActionFormPreferences({
+        projectId: project.id,
+        actionName: preferenceActionName,
+        preferences,
+      });
+      queryClient.setQueryData(
+        queryKeys.actionFormPreferences(project.id, preferenceActionName),
+        saved,
+      );
+    } catch (error) {
+      mcToastResultCard(
+        {
+          tone: "error",
+          title: "Could not save action choices",
+          detail: error instanceof Error ? error.message : "Unknown error",
+        },
+        { id: "action-form-preferences-save-error" },
+      );
+      throw error;
+    }
+  };
 
   return (
     <div className="dot-grid-bg" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -882,7 +939,11 @@ export function ActionsView({
           </nav>
 
           <main className="mc-actions-form-pane">
-            {selected?.ok ? (
+            {selected?.ok && (preferencesQuery.isPending || waitingForSavedRepository) ? (
+              <div style={{ padding: 8, color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 12 }}>
+                Loading saved choices…
+              </div>
+            ) : selected?.ok ? (
               <div style={selected.action.accent ? accentCssVars(selected.action.accent) : undefined}>
                 <ActionEditor
                   key={`${project.id}:${selected.name}`}
@@ -891,7 +952,9 @@ export function ActionsView({
                   workflows={selected.workflows}
                   project={project}
                   projects={allProjects ?? [project]}
+                  preferences={preferencesQuery.data ?? null}
                   onStart={onStart}
+                  onPreferencesChange={savePreferences}
                   onInstallWorkflow={onInstallWorkflow}
                 />
               </div>
