@@ -1,5 +1,6 @@
 import type { Group, Project, Task, UserTerminal } from "~/db/schema";
 import type { TaskAgent, TaskStatus } from "~/shared/domain";
+import type { ActiveSessions } from "~/shared/active-sessions";
 import type { ProjectPathStatus, ProjectWithCounts } from "~/shared/projects";
 import { DEV_SERVER_ORIGIN } from "~/shared/dev-server";
 import type {
@@ -622,6 +623,7 @@ export const api = {
     req<{ tasks: Task[] }>(
       `/api/projects/${projectId}/tasks${scopedWorktreeQuery(worktreeId, scopeId)}`,
     ),
+  listActiveSessions: () => req<ActiveSessions>("/api/tasks/active"),
   getTask: (id: string) => req<{ task: Task }>(`/api/tasks/${id}`),
   getTaskQuestion: (id: string) =>
     req<{ question: PendingQuestion | null }>(`/api/tasks/${id}/question`),

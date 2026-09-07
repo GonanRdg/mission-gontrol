@@ -1255,6 +1255,11 @@ body[data-suspend-app-drag] .mc-topbar {
   outline-offset: 2px;
 }
 
+.mc-session-switcher-row:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 82%, white);
+  outline-offset: 1px;
+}
+
 .mc-actions-form-pane {
   min-width: 0;
   padding: clamp(18px, 3vw, 32px);

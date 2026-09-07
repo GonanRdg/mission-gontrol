@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "~/db/client";
-import { tasks } from "~/db/schema";
+import { projects, tasks } from "~/db/schema";
 import type { Task } from "~/db/schema";
+import type { ActiveSessionSummary } from "~/shared/active-sessions";
 import { LOCAL_SCOPE_ID, normalizeScopeId } from "~/shared/sandbox";
 
 export function findAllTasks(): Task[] {
@@ -26,6 +27,49 @@ export function findActiveLocalTasks(): Task[] {
         inArray(tasks.status, ["running", "needs-input"]),
       ),
     )
+    .all();
+}
+
+const sessionSummaryColumns = {
+  taskId: tasks.id,
+  projectId: tasks.projectId,
+  projectName: projects.name,
+  worktreeId: tasks.worktreeId,
+  scopeId: tasks.scopeId,
+  title: tasks.title,
+  icon: tasks.icon,
+  action: tasks.action,
+  agent: tasks.agent,
+  status: tasks.status,
+  updatedAt: tasks.updatedAt,
+};
+
+export function findLiveSessionSummaries(): ActiveSessionSummary[] {
+  return getDb()
+    .select(sessionSummaryColumns)
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .where(
+      and(
+        eq(tasks.archived, false),
+        inArray(tasks.status, ["needs-input", "running", "interrupted"]),
+      ),
+    )
+    .orderBy(
+      asc(sql<number>`CASE WHEN ${tasks.status} = 'needs-input' THEN 0 ELSE 1 END`),
+      desc(tasks.updatedAt),
+    )
+    .all();
+}
+
+export function findRecentlyFinishedSessionSummaries(limit = 10): ActiveSessionSummary[] {
+  return getDb()
+    .select(sessionSummaryColumns)
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .where(and(eq(tasks.archived, false), eq(tasks.status, "finished")))
+    .orderBy(desc(tasks.updatedAt))
+    .limit(limit)
     .all();
 }
 
