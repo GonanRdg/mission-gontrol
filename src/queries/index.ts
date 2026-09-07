@@ -16,6 +16,8 @@ export const queryKeys = {
   projects: ["projects"] as const,
   project: (id: string) => ["projects", id] as const,
   actions: (projectId: string) => ["projects", projectId, "actions"] as const,
+  actionFormPreferences: (projectId: string, actionName: string) =>
+    ["projects", projectId, "actions", actionName, "preferences"] as const,
   activeSessions: ["tasks", "active"] as const,
   sandboxes: ["sandboxes"] as const,
   groups: ["groups"] as const,
@@ -77,6 +79,14 @@ export const actionsQueryOptions = (projectId: string) =>
   queryOptions({
     queryKey: queryKeys.actions(projectId),
     queryFn: async () => (await api.listActions(projectId)).actions,
+  });
+
+export const actionFormPreferencesQueryOptions = (projectId: string, actionName: string) =>
+  queryOptions({
+    queryKey: queryKeys.actionFormPreferences(projectId, actionName),
+    queryFn: async () =>
+      (await api.getActionFormPreferences(projectId, actionName)).preferences,
+    enabled: actionName.length > 0,
   });
 
 export const activeSessionsQueryOptions = () =>
@@ -341,6 +351,8 @@ export const useScopedProjects = () => {
 };
 export const useProject = (id: string) => useQuery(projectQueryOptions(id));
 export const useActions = (projectId: string) => useQuery(actionsQueryOptions(projectId));
+export const useActionFormPreferences = (projectId: string, actionName: string) =>
+  useQuery(actionFormPreferencesQueryOptions(projectId, actionName));
 export const useActiveSessions = () => useQuery(activeSessionsQueryOptions());
 export const useGroups = () => useQuery(groupsQueryOptions());
 export const useTasks = (projectId: string, worktreeId?: string | null, scopeId?: string | null) =>

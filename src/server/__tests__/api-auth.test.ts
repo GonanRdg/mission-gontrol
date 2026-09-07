@@ -66,6 +66,8 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; pathname: string }> = [
   { method: "DELETE", pathname: "/api/groups/g1" },
   // Tasks
   { method: "GET", pathname: "/api/tasks/active" },
+  { method: "GET", pathname: "/api/skills/actions/preferences" },
+  { method: "PUT", pathname: "/api/skills/actions/preferences" },
   { method: "GET", pathname: "/api/tasks/t1" },
   { method: "PATCH", pathname: "/api/tasks/t1" },
   { method: "DELETE", pathname: "/api/tasks/t1" },

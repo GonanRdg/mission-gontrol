@@ -47,6 +47,7 @@ import type {
 import type { ThemeStyle } from "~/shared/theme-style";
 import type { SurfaceTint } from "~/shared/surface-tint";
 import type { ActionListItem, ActionWorkflowAvailability } from "~/shared/skill-actions";
+import type { ActionFormPreferences } from "~/shared/action-form-preferences";
 import type {
   MarkdownRefineRequest,
   MarkdownRefineResponse,
@@ -396,6 +397,19 @@ export const api = {
   }) =>
     req<{ availability: ActionWorkflowAvailability }>("/api/skills/actions/install", {
       method: "POST",
+      body: JSON.stringify(input),
+    }),
+  getActionFormPreferences: (projectId: string, actionName: string) =>
+    req<{ preferences: ActionFormPreferences | null }>(
+      `/api/skills/actions/preferences?projectId=${encodeURIComponent(projectId)}&actionName=${encodeURIComponent(actionName)}`,
+    ),
+  updateActionFormPreferences: (input: {
+    projectId: string;
+    actionName: string;
+    preferences: ActionFormPreferences;
+  }) =>
+    req<{ preferences: ActionFormPreferences }>("/api/skills/actions/preferences", {
+      method: "PUT",
       body: JSON.stringify(input),
     }),
   getProject: (id: string) => req<{ project: ProjectWithCounts }>(`/api/projects/${id}`),

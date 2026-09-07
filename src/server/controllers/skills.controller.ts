@@ -12,10 +12,15 @@ import {
   installActionWorkflow,
   readActionWorkflowAvailabilities,
 } from "../services/install-action-workflow";
+import {
+  readActionFormPreferences,
+  writeActionFormPreferences,
+} from "../services/action-form-preferences";
 import { getProject } from "../services/projects";
 import { handleDomainError, json, jsonError, notFound, parseJsonBody } from "./_helpers";
 import { HTTP_BAD_REQUEST } from "~/shared/http-status";
 import { TASK_AGENTS } from "~/shared/domain";
+import { actionFormPreferencesSchema } from "~/shared/action-form-preferences";
 
 const harnessSelectionBody = z
   .object({
@@ -41,6 +46,23 @@ const actionWorkflowInstallBody = z.object({
   actionName: z.string().min(1).max(64),
   agent: z.enum(TASK_AGENTS),
 });
+
+const actionPreferenceKey = z.object({
+  projectId: z.string().min(1),
+  actionName: z.string().min(1).max(64),
+});
+
+const actionPreferenceBody = actionPreferenceKey
+  .extend({ preferences: actionFormPreferencesSchema })
+  .strict();
+
+function actionExists(projectId: string, actionName: string): boolean {
+  const project = getProject(projectId);
+  if (!project) return false;
+  return discoverActions({ projectPath: project.path }).some(
+    (candidate) => candidate.ok && candidate.name === actionName,
+  );
+}
 
 /**
  * Actions visible from a project. Without `projectId` the project tier is
@@ -93,6 +115,33 @@ export async function installAction(request: Request): Promise<Response> {
     if (mapped) return mapped;
     return jsonError(HTTP_BAD_REQUEST, e instanceof Error ? e.message : "Install failed");
   }
+}
+
+export function readActionPreferences(url: URL): Response {
+  const parsed = actionPreferenceKey.safeParse({
+    projectId: url.searchParams.get("projectId")?.trim() ?? "",
+    actionName: url.searchParams.get("actionName")?.trim() ?? "",
+  });
+  if (!parsed.success) return jsonError(HTTP_BAD_REQUEST, "projectId and actionName are required");
+  if (!getProject(parsed.data.projectId)) return notFound("project not found");
+  if (!actionExists(parsed.data.projectId, parsed.data.actionName)) return notFound("action not found");
+  return json({
+    preferences: readActionFormPreferences(parsed.data.projectId, parsed.data.actionName),
+  });
+}
+
+export async function updateActionPreferences(request: Request): Promise<Response> {
+  const parsed = await parseJsonBody(request, actionPreferenceBody);
+  if (!parsed.ok) return parsed.response;
+  if (!getProject(parsed.data.projectId)) return notFound("project not found");
+  if (!actionExists(parsed.data.projectId, parsed.data.actionName)) return notFound("action not found");
+  return json({
+    preferences: writeActionFormPreferences(
+      parsed.data.projectId,
+      parsed.data.actionName,
+      parsed.data.preferences,
+    ),
+  });
 }
 
 export function diagramInstalled(url: URL): Response {

@@ -3,6 +3,7 @@ import type { SkillAction } from "~/shared/skill-actions";
 import {
   buildActionTemplateContext,
   createActionFormState,
+  getActionFormPreferences,
   validateActionForm,
 } from "../action-form";
 
@@ -102,6 +103,47 @@ describe("action form state", () => {
     expect(createActionFormState(selectAction, project)).toMatchObject({
       sources: [{ sourceId: "kind", value: "bug" }],
       inputs: { priority: "normal" },
+    });
+  });
+
+  it("restores persisted choices while leaving source values empty", () => {
+    const state = createActionFormState(action, project, {
+      repository: "/src/other",
+      agent: "codex",
+      branch: "feat/remembered",
+      options: { plan: false, removed: true },
+      sourceTypes: ["text", "removed", "jira"],
+    });
+
+    expect(state).toMatchObject({
+      agent: "codex",
+      inputs: {
+        repo: "/src/other",
+        branch: "feat/remembered",
+      },
+      options: { plan: false },
+      sources: [
+        { sourceId: "text", value: "" },
+        { sourceId: "jira", value: "" },
+      ],
+    });
+  });
+
+  it("captures only reusable choices, never source values", () => {
+    const state = createActionFormState(action, project);
+    state.sources = [
+      { key: "1", sourceId: "jira", value: "MC-123" },
+      { key: "2", sourceId: "text", value: "private run context" },
+    ];
+    state.inputs.branch = "feat/next";
+    state.options.plan = false;
+
+    expect(getActionFormPreferences(action, state)).toEqual({
+      repository: "/src/mission-control",
+      agent: "codex",
+      branch: "feat/next",
+      options: { plan: false },
+      sourceTypes: ["jira", "text"],
     });
   });
 
