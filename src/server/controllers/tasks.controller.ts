@@ -7,6 +7,7 @@ import {
   getTask,
   listTasksForProject,
   listTasksForProjectWorktree,
+  listActiveSessions,
   restoreTask,
   sweepOrphanedActiveTasks,
   updateStatus,
@@ -77,6 +78,10 @@ export async function listForProject(rawProjectId: string, request: Request): Pr
   } catch (e) {
     return rethrowUnlessDomain(e);
   }
+}
+
+export function listActive(): Response {
+  return json(listActiveSessions());
 }
 
 export async function create(rawProjectId: string, request: Request): Promise<Response> {

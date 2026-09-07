@@ -46,6 +46,7 @@ import { GroupsDialogProvider } from "~/lib/groups-dialog-store";
 import { ACTIVE_GROUP_ALL, ACTIVE_GROUP_UNGROUPED, useActiveGroup } from "~/lib/active-group";
 import { GroupSwitcher } from "~/components/views/GroupSwitcher";
 import { PromptSearchProvider } from "~/lib/prompt-search-store";
+import { SessionSwitcherProvider } from "~/lib/session-switcher-store";
 import { ScratchPadProvider } from "~/lib/scratch-pad-store";
 import { HeaderToolsCluster } from "~/components/views/HeaderToolsCluster";
 import { projectIdFromPath } from "~/lib/project-id-from-path";
@@ -97,6 +98,7 @@ import {
 import { UsagePanel } from "~/components/views/UsagePanel";
 import { VoiceController } from "~/components/views/VoiceController";
 import { SessionNotificationsButton } from "~/components/views/SessionNotificationsButton";
+import { SessionSwitcherButton } from "~/components/views/SessionSwitcherButton";
 import { Toaster } from "sonner";
 import { MC_TOAST_CLASS_NAMES, MC_TOAST_CLOSE_ICON } from "~/lib/mc-toast";
 import { useSessionFinishNotifications } from "~/lib/use-session-finish-notifications";
@@ -259,35 +261,37 @@ function RootComponent() {
             <UserTerminalProvider>
               <AddProjectProvider>
                 <GroupsDialogProvider>
-                <PromptSearchProvider>
-                <ScratchPadProvider>
-                  <HeaderActionsProvider>
-                    <DiagramDialogHost>
-                      {/*
-                       * The entire app shell reads client-only state — react-query
-                       * data seeded synchronously from localStorage (installShellQueryCache)
-                       * plus direct localStorage reads (theme, minimal mode).
-                       * The server has none of that, so server HTML and the first
-                       * client render disagree → hydration mismatch on every data-driven
-                       * node (ProjectPicker, …). ClientOnly renders the
-                       * fallback on the server AND the first client render so they match,
-                       * then mounts the real shell after hydration. Past this boundary
-                       * there's no SSR markup to match, so children are free to show
-                       * skeletons/loading states however they like. `fallback` is the
-                       * slot for an app-wide skeleton if we want one later.
-                       */}
-                      <ClientOnly fallback={null}>
-                        <Shell />
-                        {/* Sibling of Shell so the pet controller mounts once
-                         * and survives Shell's focus-mode early return. */}
-                        <Suspense fallback={null}>
-                          <PetHost />
-                        </Suspense>
-                      </ClientOnly>
-                    </DiagramDialogHost>
-                  </HeaderActionsProvider>
-                </ScratchPadProvider>
-                </PromptSearchProvider>
+                  <PromptSearchProvider>
+                    <SessionSwitcherProvider>
+                      <ScratchPadProvider>
+                        <HeaderActionsProvider>
+                          <DiagramDialogHost>
+                            {/*
+                             * The entire app shell reads client-only state — react-query
+                             * data seeded synchronously from localStorage (installShellQueryCache)
+                             * plus direct localStorage reads (theme, minimal mode).
+                             * The server has none of that, so server HTML and the first
+                             * client render disagree → hydration mismatch on every data-driven
+                             * node (ProjectPicker, …). ClientOnly renders the
+                             * fallback on the server AND the first client render so they match,
+                             * then mounts the real shell after hydration. Past this boundary
+                             * there's no SSR markup to match, so children are free to show
+                             * skeletons/loading states however they like. `fallback` is the
+                             * slot for an app-wide skeleton if we want one later.
+                             */}
+                            <ClientOnly fallback={null}>
+                              <Shell />
+                              {/* Sibling of Shell so the pet controller mounts once
+                               * and survives Shell's focus-mode early return. */}
+                              <Suspense fallback={null}>
+                                <PetHost />
+                              </Suspense>
+                            </ClientOnly>
+                          </DiagramDialogHost>
+                        </HeaderActionsProvider>
+                      </ScratchPadProvider>
+                    </SessionSwitcherProvider>
+                  </PromptSearchProvider>
                 </GroupsDialogProvider>
               </AddProjectProvider>
             </UserTerminalProvider>
@@ -945,6 +949,7 @@ function Shell() {
           right={
             <>
               <ProviderUsageIndicator />
+              <SessionSwitcherButton />
               {/* Scratch pads / prompt search / voice collapse behind "…" so
                * the rail stays at status + settings; grid view moved into the
                * project header beside the session controls it acts on. */}

@@ -16,6 +16,7 @@ export const queryKeys = {
   projects: ["projects"] as const,
   project: (id: string) => ["projects", id] as const,
   actions: (projectId: string) => ["projects", projectId, "actions"] as const,
+  activeSessions: ["tasks", "active"] as const,
   sandboxes: ["sandboxes"] as const,
   groups: ["groups"] as const,
   tasks: (projectId: string, worktreeId?: string | null, scopeId?: string | null) =>
@@ -76,6 +77,12 @@ export const actionsQueryOptions = (projectId: string) =>
   queryOptions({
     queryKey: queryKeys.actions(projectId),
     queryFn: async () => (await api.listActions(projectId)).actions,
+  });
+
+export const activeSessionsQueryOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.activeSessions,
+    queryFn: () => api.listActiveSessions(),
   });
 
 // Full sandbox state for the header scope dropdown: the sandboxes, whether the
@@ -334,6 +341,7 @@ export const useScopedProjects = () => {
 };
 export const useProject = (id: string) => useQuery(projectQueryOptions(id));
 export const useActions = (projectId: string) => useQuery(actionsQueryOptions(projectId));
+export const useActiveSessions = () => useQuery(activeSessionsQueryOptions());
 export const useGroups = () => useQuery(groupsQueryOptions());
 export const useTasks = (projectId: string, worktreeId?: string | null, scopeId?: string | null) =>
   useQuery(tasksQueryOptions(projectId, worktreeId, scopeId));
