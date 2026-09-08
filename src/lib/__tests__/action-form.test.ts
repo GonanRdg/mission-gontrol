@@ -45,7 +45,7 @@ describe("action form state", () => {
     ]);
     expect(state.inputs).toEqual({
       repo: "/src/mission-control",
-      branch: "main",
+      branch: "",
       confirm: false,
     });
     expect(state.options).toEqual({ plan: true });

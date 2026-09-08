@@ -13,7 +13,7 @@ mc-action:
     - { id: jira, label: Jira ticket, widget: text, icon: file-text, placeholder: "ABC-123 or browse URL", token: jira-key }
     - { id: slack, label: Slack thread, widget: url, icon: message-square, placeholder: "https://...slack.com/archives/..." }
     - { id: datadog, label: Datadog link, widget: url, icon: activity, placeholder: "https://app.datadoghq.com/..." }
-    - { id: text, label: Report or notes, widget: textarea, icon: search }
+    - { id: text, label: Notes, widget: textarea, icon: search }
   sourcesMin: 1
   inputs:
     - { id: repo, label: Repository, widget: project, required: true }
