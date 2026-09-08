@@ -19,7 +19,6 @@ import {
   type ActionFormState,
 } from "~/lib/action-form";
 import { api } from "~/lib/api";
-import { addQuickContext } from "~/lib/action-context-intake";
 import { mcToastResultCard } from "~/lib/mc-toast";
 import { useActionFormPreferencesAutosave } from "~/lib/use-action-form-preferences-autosave";
 import {
@@ -402,7 +401,6 @@ function ActionEditor({
   const [issues, setIssues] = useState<string[]>([]);
   const [launching, setLaunching] = useState(false);
   const [installingWorkflow, setInstallingWorkflow] = useState(false);
-  const [quickContext, setQuickContext] = useState("");
   const [workflowSkill, setWorkflowSkill] = useState(preferences?.workflowSkill ?? action.skill);
   const [fileTarget, setFileTarget] = useState<
     { kind: "source"; key: string } | { kind: "input"; id: string } | null
@@ -432,10 +430,7 @@ function ActionEditor({
         branch: selectedProject.branch,
       }
     : formProject;
-  const effectiveState = useMemo(
-    () => addQuickContext(action, state, quickContext),
-    [action, quickContext, state],
-  );
+  const effectiveState = state;
   const promptContext = useMemo(
     () => buildActionTemplateContext(action, effectiveState, activeFormProject),
     [action, activeFormProject.branch, activeFormProject.id, activeFormProject.name, activeFormProject.path, effectiveState],
@@ -546,13 +541,6 @@ function ActionEditor({
     }
   };
 
-  const organizeQuickContext = () => {
-    if (!quickContext.trim()) return;
-    setState((current) => addQuickContext(action, current, quickContext));
-    setQuickContext("");
-    setIssues([]);
-  };
-
   return (
     <form
       onSubmit={(event) => {
@@ -576,25 +564,6 @@ function ActionEditor({
 
       {action.sources.length > 0 && (
         <FormSection title="What should the agent know?">
-          <Textarea
-            label="Paste context"
-            hint="Ticket text, links, logs, paths, or notes. Recognizable references are included as structured context; the complete paste is preserved."
-            value={quickContext}
-            onChange={(value) => {
-              setIssues([]);
-              setQuickContext(value);
-            }}
-            placeholder="Paste everything needed to start this work…"
-            rows={7}
-          />
-          {quickContext.trim() && (
-            <Btn type="button" variant="ghost" icon="sparkles" onClick={organizeQuickContext} style={{ justifySelf: "start" }}>
-              Organize into context
-            </Btn>
-          )}
-          <div className="mc-actions-context-divider">
-            <span>Or add specific context</span>
-          </div>
           <div style={{ display: "grid", gap: 12 }}>
             {state.sources.map((row, index) => {
               const source = action.sources.find((candidate) => candidate.id === row.sourceId)!;
@@ -666,11 +635,11 @@ function ActionEditor({
                   }));
                 }}
               >
-                Add context
+                Add another context
               </Btn>
               {action.sourcesMin > 0 && (
                 <span style={{ color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 10.5 }}>
-                  Add at least {action.sourcesMin === 1 ? "one source" : `${action.sourcesMin} sources`}
+                  Paste everything into one row, or separate sources when useful.
                 </span>
               )}
             </div>

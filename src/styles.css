@@ -1661,23 +1661,6 @@ body[data-suspend-app-drag] .mc-topbar {
   min-height: 44px;
 }
 
-.mc-actions-context-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 4px;
-  color: var(--text-faint);
-  font-family: var(--mono);
-  font-size: 10.5px;
-}
-
-.mc-actions-context-divider::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  background: var(--border);
-}
-
 .mc-actions-execution {
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
