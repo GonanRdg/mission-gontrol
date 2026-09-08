@@ -451,6 +451,7 @@ async function dispatch(
   if (pathname === "/api/skills/actions/preferences") {
     if (method === "GET") return skillsController.readActionPreferences(url);
     if (method === "PUT") return skillsController.updateActionPreferences(request);
+    if (method === "DELETE") return skillsController.resetActionPreferences(url);
   }
 
   // Diagram skill (local bundled install)

@@ -396,6 +396,7 @@ export const api = {
     projectId: string;
     actionName: string;
     agent: TaskAgent;
+    workflowSkill?: string;
   }) =>
     req<{ availability: ActionWorkflowAvailability }>("/api/skills/actions/install", {
       method: "POST",
@@ -414,6 +415,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(input),
     }),
+  resetActionFormPreferences: (projectId: string, actionName: string) =>
+    req<{ preferences: null }>(
+      `/api/skills/actions/preferences?projectId=${encodeURIComponent(projectId)}&actionName=${encodeURIComponent(actionName)}`,
+      { method: "DELETE" },
+    ),
   getProject: (id: string) => req<{ project: ProjectWithCounts }>(`/api/projects/${id}`),
   getProjectPathStatus: (id: string, worktreeId?: string | null) =>
     req<{ status: ProjectPathStatus }>(

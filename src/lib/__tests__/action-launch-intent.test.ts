@@ -9,6 +9,7 @@ import {
 const intent: ActionLaunchIntent = {
   actionName: "implement-feature",
   workflowSkill: "implement-ticket",
+  defaultWorkflowSkill: "implement-ticket",
   agent: "codex",
   branch: "main",
   promptTemplate: "Implement {{worktree.branch}} for {{project.name}}.",
@@ -50,6 +51,15 @@ describe("action launch intent", () => {
         "implement-mc-123",
       ),
     ).toBe("  $implement-ticket\nTicket: MC-123");
+  });
+
+  it("replaces the bundled invocation when another workflow is selected", () => {
+    expect(
+      renderActionLaunchPrompt(
+        { ...intent, workflowSkill: "implement", promptTemplate: "/implement-ticket\nTicket: MC-123" },
+        null,
+      ),
+    ).toBe("$implement\nTicket: MC-123");
   });
 
   it("keeps slash invocation syntax for Claude Code", () => {

@@ -7,7 +7,7 @@ import {
   installShipSkills,
   readShipSkillInstallStatus,
 } from "../services/install-ship-skills";
-import { discoverActions } from "../services/skill-discovery";
+import { discoverActions, discoverWorkflowSkillNames } from "../services/skill-discovery";
 import {
   installActionWorkflow,
   readActionWorkflowAvailabilities,
@@ -15,6 +15,7 @@ import {
 import {
   readActionFormPreferences,
   writeActionFormPreferences,
+  deleteActionFormPreferences,
 } from "../services/action-form-preferences";
 import { getProject } from "../services/projects";
 import { handleDomainError, json, jsonError, notFound, parseJsonBody } from "./_helpers";
@@ -45,6 +46,7 @@ const actionWorkflowInstallBody = z.object({
   projectId: z.string().min(1),
   actionName: z.string().min(1).max(64),
   agent: z.enum(TASK_AGENTS),
+  workflowSkill: z.string().min(1).max(64).optional(),
 });
 
 const actionPreferenceKey = z.object({
@@ -76,6 +78,12 @@ export function listActions(url: URL): Response {
     if (!project) return notFound("project not found");
     projectPath = project.path;
   }
+  const skills = discoverWorkflowSkillNames({ projectPath }).map((name) => ({
+    name,
+    workflows: readActionWorkflowAvailabilities(name, {
+      projectPath: projectPath ?? process.cwd(),
+    }),
+  }));
   return json({
     actions: discoverActions({ projectPath }).map((entry) =>
       entry.ok
@@ -84,6 +92,7 @@ export function listActions(url: URL): Response {
             workflows: readActionWorkflowAvailabilities(entry.action.skill, {
               projectPath: projectPath ?? process.cwd(),
             }),
+            skills,
           }
         : entry,
     ),
@@ -105,7 +114,7 @@ export async function installAction(request: Request): Promise<Response> {
   }
   try {
     const availability = await installActionWorkflow(
-      entry.action.skill,
+    parsed.data.workflowSkill ?? entry.action.skill,
       parsed.data.agent,
       { projectPath: project.path },
     );
@@ -142,6 +151,17 @@ export async function updateActionPreferences(request: Request): Promise<Respons
       parsed.data.preferences,
     ),
   });
+}
+
+export function resetActionPreferences(url: URL): Response {
+  const parsed = actionPreferenceKey.safeParse({
+    projectId: url.searchParams.get("projectId")?.trim() ?? "",
+    actionName: url.searchParams.get("actionName")?.trim() ?? "",
+  });
+  if (!parsed.success) return jsonError(HTTP_BAD_REQUEST, "projectId and actionName are required");
+  if (!getProject(parsed.data.projectId)) return notFound("project not found");
+  deleteActionFormPreferences(parsed.data.projectId, parsed.data.actionName);
+  return json({ preferences: null });
 }
 
 export function diagramInstalled(url: URL): Response {

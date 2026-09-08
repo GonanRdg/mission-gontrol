@@ -23,6 +23,7 @@ import { mcToastResultCard } from "~/lib/mc-toast";
 import { useActionFormPreferencesAutosave } from "~/lib/use-action-form-preferences-autosave";
 import {
   adaptActionPromptForAgent,
+  selectActionWorkflow,
   type ActionLaunchIntent,
 } from "~/lib/action-launch-intent";
 import { renderActionPrompt } from "~/lib/action-template";
@@ -36,6 +37,7 @@ import type { ActionFormPreferences } from "~/shared/action-form-preferences";
 import type { ProjectWithCounts } from "~/shared/projects";
 import type {
   ActionListItem,
+  ActionWorkflowChoice,
   ActionWorkflowAvailability,
   SkillAction,
 } from "~/shared/skill-actions";
@@ -359,22 +361,26 @@ function ActionEditor({
   action,
   actionName,
   workflows,
+  skills,
   project,
   projects,
   preferences,
   onStart,
   onPreferencesChange,
   onInstallWorkflow,
+  onResetPreferences,
 }: {
   action: SkillAction;
   actionName: string;
   workflows: Record<TaskAgent, ActionWorkflowAvailability>;
+  skills: ActionWorkflowChoice[];
   project: ProjectWithCounts;
   projects: ProjectWithCounts[];
   preferences: ActionFormPreferences | null;
   onStart: (request: ActionStartRequest) => void | Promise<void>;
   onPreferencesChange: (preferences: ActionFormPreferences) => Promise<void>;
-  onInstallWorkflow: (actionName: string, agent: TaskAgent) => Promise<void>;
+  onInstallWorkflow: (actionName: string, workflowSkill: string, agent: TaskAgent) => Promise<void>;
+  onResetPreferences: () => Promise<void>;
 }) {
   const formProject: ActionFormProject = {
     id: project.id,
@@ -398,13 +404,21 @@ function ActionEditor({
   const [issues, setIssues] = useState<string[]>([]);
   const [launching, setLaunching] = useState(false);
   const [installingWorkflow, setInstallingWorkflow] = useState(false);
+  const [workflowSkill, setWorkflowSkill] = useState(preferences?.workflowSkill ?? action.skill);
   const [fileTarget, setFileTarget] = useState<
     { kind: "source"; key: string } | { kind: "input"; id: string } | null
   >(null);
   const availableAgents = (action.agents ?? UI_AGENTS).filter(
     (agent) => AGENT_REGISTRY[agent].uiVisible,
   );
-  const workflow = workflows[state.agent];
+  const selectedSkill = skills.find((candidate) => candidate.name === workflowSkill);
+  const workflow = selectedSkill?.workflows[state.agent] ?? {
+    agent: state.agent,
+    status: "unavailable" as const,
+    sourcePath: null,
+    targetPath: "",
+    installMethod: null,
+  };
   const projectInput = action.inputs.find((input) => input.widget === "project");
   const selectedProject = projectInput
     ? projects.find((candidate) => candidate.path === state.inputs[projectInput.id]) ?? null
@@ -426,8 +440,12 @@ function ActionEditor({
       return {
         ok: true as const,
         value: adaptActionPromptForAgent(
-          renderActionPrompt(action.prompt, promptContext),
-          action.skill,
+          selectActionWorkflow(
+            renderActionPrompt(action.prompt, promptContext),
+            action.skill,
+            workflowSkill,
+          ),
+          workflowSkill,
           state.agent,
         ),
       };
@@ -437,9 +455,9 @@ function ActionEditor({
         error: error instanceof Error ? error.message : "Could not render prompt",
       };
     }
-  }, [action.prompt, action.skill, promptContext, state.agent]);
+  }, [action.prompt, action.skill, promptContext, state.agent, workflowSkill]);
   const preferenceSnapshot = useMemo(
-    () => getActionFormPreferences(action, state),
+    () => getActionFormPreferences(action, state, preferences?.workflowSkill ?? null),
     [action, state],
   );
   useActionFormPreferencesAutosave(preferenceSnapshot, onPreferencesChange);
@@ -471,8 +489,9 @@ function ActionEditor({
 
   const start = async () => {
     const nextIssues = validateActionForm(action, state);
+    if (!selectedSkill) nextIssues.push("Choose a discovered workflow skill.");
     if (workflow.status !== "available") {
-      nextIssues.push(`Install the ${action.skill} workflow skill for ${AGENT_REGISTRY[state.agent].label} first.`);
+      nextIssues.push(`Install the ${workflowSkill} workflow skill for ${AGENT_REGISTRY[state.agent].label} first.`);
     }
     if (!selectedProject) nextIssues.push("Choose a project that is still available.");
     if (!preview.ok) nextIssues.push(preview.error);
@@ -490,7 +509,8 @@ function ActionEditor({
         project: selectedProject,
         intent: {
           actionName,
-          workflowSkill: action.skill,
+          workflowSkill,
+          defaultWorkflowSkill: action.skill,
           agent: state.agent,
           branch,
           promptTemplate: action.prompt,
@@ -513,7 +533,7 @@ function ActionEditor({
     setIssues([]);
     setInstallingWorkflow(true);
     try {
-      await onInstallWorkflow(actionName, state.agent);
+      await onInstallWorkflow(actionName, workflowSkill, state.agent);
     } catch (error) {
       setIssues([error instanceof Error ? error.message : "Could not install workflow skill."]);
     } finally {
@@ -555,6 +575,37 @@ function ActionEditor({
             setState((current) => ({ ...current, agent: agent as TaskAgent }));
           }}
         />
+      </FormSection>
+
+      <FormSection title="Workflow skill">
+        <TextField
+          label="Skill"
+          value={workflowSkill}
+          onChange={(value) => {
+            setIssues([]);
+            setWorkflowSkill(value);
+          }}
+          list={`${actionName}-workflow-skills`}
+          autoComplete="off"
+          mono
+        />
+        <datalist id={`${actionName}-workflow-skills`}>
+          {skills.map((skill) => <option key={skill.name} value={skill.name} />)}
+        </datalist>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Btn
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!selectedSkill || preferences?.workflowSkill === workflowSkill}
+            onClick={() => void onPreferencesChange(getActionFormPreferences(action, state, workflowSkill))}
+          >
+            Save skill as default
+          </Btn>
+          <Btn type="button" variant="ghost" size="sm" onClick={() => void onResetPreferences()}>
+            Reset to action defaults
+          </Btn>
+        </div>
       </FormSection>
 
       {action.sources.length > 0 && (
@@ -720,7 +771,7 @@ function ActionEditor({
           }}
         >
           <div style={{ color: "var(--text)", fontSize: 13, fontWeight: 600 }}>
-            {action.skill} is not available to {AGENT_REGISTRY[state.agent].label}
+            {workflowSkill} is not available to {AGENT_REGISTRY[state.agent].label}
           </div>
           {workflow.status === "installable" && workflow.sourcePath ? (
             <>
@@ -872,7 +923,7 @@ export function ActionsView({
   actions: ActionListItem[];
   onBack: () => void;
   onStart: (request: ActionStartRequest) => void | Promise<void>;
-  onInstallWorkflow: (actionName: string, agent: TaskAgent) => Promise<void>;
+  onInstallWorkflow: (actionName: string, workflowSkill: string, agent: TaskAgent) => Promise<void>;
 }) {
   const queryClient = useQueryClient();
   const [selectedName, setSelectedName] = useState(actions[0]?.name ?? "");
@@ -912,6 +963,11 @@ export function ActionsView({
     }
   };
 
+  const resetPreferences = async (): Promise<void> => {
+    await api.resetActionFormPreferences(project.id, preferenceActionName);
+    queryClient.setQueryData(queryKeys.actionFormPreferences(project.id, preferenceActionName), null);
+  };
+
   return (
     <div className="dot-grid-bg" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
       <CardFrame className="mc-actions-frame" style={{ width: "100%", minHeight: "100%", padding: 8 }}>
@@ -946,16 +1002,18 @@ export function ActionsView({
             ) : selected?.ok ? (
               <div style={selected.action.accent ? accentCssVars(selected.action.accent) : undefined}>
                 <ActionEditor
-                  key={`${project.id}:${selected.name}`}
+                  key={`${project.id}:${selected.name}:${preferencesQuery.data?.workflowSkill ?? "default"}`}
                   actionName={selected.name}
                   action={selected.action}
                   workflows={selected.workflows}
+                  skills={selected.skills}
                   project={project}
                   projects={allProjects ?? [project]}
                   preferences={preferencesQuery.data ?? null}
                   onStart={onStart}
                   onPreferencesChange={savePreferences}
                   onInstallWorkflow={onInstallWorkflow}
+                  onResetPreferences={resetPreferences}
                 />
               </div>
             ) : selected ? (

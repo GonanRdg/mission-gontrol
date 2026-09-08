@@ -144,6 +144,7 @@ describe("action form state", () => {
       branch: "feat/next",
       options: { plan: false },
       sourceTypes: ["jira", "text"],
+      workflowSkill: null,
     });
   });
 
