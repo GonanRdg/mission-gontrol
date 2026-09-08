@@ -592,83 +592,9 @@ function ActionEditor({
               Organize into context
             </Btn>
           )}
-        </FormSection>
-      )}
-
-      <details className="mc-actions-execution">
-        <summary>
-          <span>Execution settings</span>
-          <span>{AGENT_REGISTRY[state.agent].label} · {workflowSkill} · {action.worktree ? "isolated worktree" : "current checkout"}</span>
-        </summary>
-        <div className="mc-actions-execution-body">
-      <FormSection title="Agent">
-        <SelectField
-          label="Run with"
-          value={state.agent}
-          choices={availableAgents.map((agent) => ({
-            value: agent,
-            label: AGENT_REGISTRY[agent].label,
-          }))}
-          onChange={(agent) => {
-            setIssues([]);
-            setState((current) => ({ ...current, agent: agent as TaskAgent }));
-          }}
-        />
-      </FormSection>
-
-      <FormSection title="Workflow skill">
-        <TextField
-          label="Skill"
-          value={workflowSkill}
-          onChange={(value) => {
-            setIssues([]);
-            setWorkflowSkill(value);
-          }}
-          list={`${actionName}-workflow-skills`}
-          autoComplete="off"
-          mono
-        />
-        <datalist id={`${actionName}-workflow-skills`}>
-          {skills.map((skill) => <option key={skill.name} value={skill.name} />)}
-        </datalist>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Btn
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={!selectedSkill || preferences?.workflowSkill === workflowSkill}
-            onClick={() => void onPreferencesChange(getActionFormPreferences(action, state, workflowSkill))}
-          >
-            Save skill as default
-          </Btn>
-          <Btn type="button" variant="ghost" size="sm" onClick={() => void onResetPreferences()}>
-            Reset to action defaults
-          </Btn>
-        </div>
-      </FormSection>
-
-      {executionInputs.length > 0 && (
-        <FormSection title="Repository and branch">
-          <div className="mc-actions-input-grid">
-            {executionInputs.map((input) => (
-              <ActionFieldControl
-                key={input.id}
-                field={input}
-                value={state.inputs[input.id] ?? ""}
-                project={activeFormProject}
-                projects={projects}
-                onChange={(value) => setInput(input.id, value)}
-                onBrowse={() => setFileTarget({ kind: "input", id: input.id })}
-              />
-            ))}
+          <div className="mc-actions-context-divider">
+            <span>Or add specific context</span>
           </div>
-        </FormSection>
-      )}
-        </div>
-      </details>
-
-      {action.sources.length > 0 && (
-        <FormSection title="Context">
           <div style={{ display: "grid", gap: 12 }}>
             {state.sources.map((row, index) => {
               const source = action.sources.find((candidate) => candidate.id === row.sourceId)!;
@@ -805,6 +731,78 @@ function ActionEditor({
           </div>
         </FormSection>
       )}
+
+      <details className="mc-actions-execution">
+        <summary>
+          <span>Execution settings</span>
+          <span>{AGENT_REGISTRY[state.agent].label} · {workflowSkill} · {action.worktree ? "isolated worktree" : "current checkout"}</span>
+        </summary>
+        <div className="mc-actions-execution-body">
+          <FormSection title="Agent">
+            <SelectField
+              label="Run with"
+              value={state.agent}
+              choices={availableAgents.map((agent) => ({
+                value: agent,
+                label: AGENT_REGISTRY[agent].label,
+              }))}
+              onChange={(agent) => {
+                setIssues([]);
+                setState((current) => ({ ...current, agent: agent as TaskAgent }));
+              }}
+            />
+          </FormSection>
+
+          <FormSection title="Workflow skill">
+            <TextField
+              label="Skill"
+              value={workflowSkill}
+              onChange={(value) => {
+                setIssues([]);
+                setWorkflowSkill(value);
+              }}
+              list={`${actionName}-workflow-skills`}
+              autoComplete="off"
+              mono
+            />
+            <datalist id={`${actionName}-workflow-skills`}>
+              {skills.map((skill) => <option key={skill.name} value={skill.name} />)}
+            </datalist>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Btn
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!selectedSkill || preferences?.workflowSkill === workflowSkill}
+                onClick={() => void onPreferencesChange(getActionFormPreferences(action, state, workflowSkill))}
+              >
+                Save skill as default
+              </Btn>
+              <Btn type="button" variant="ghost" size="sm" onClick={() => void onResetPreferences()}>
+                Reset to action defaults
+              </Btn>
+            </div>
+          </FormSection>
+
+          {executionInputs.length > 0 && (
+            <FormSection title="Repository and branch">
+              <div className="mc-actions-input-grid">
+                {executionInputs.map((input) => (
+                  <ActionFieldControl
+                    key={input.id}
+                    field={input}
+                    value={state.inputs[input.id] ?? ""}
+                    project={activeFormProject}
+                    projects={projects}
+                    onChange={(value) => setInput(input.id, value)}
+                    onBrowse={() => setFileTarget({ kind: "input", id: input.id })}
+                  />
+                ))}
+              </div>
+            </FormSection>
+          )}
+        </div>
+      </details>
 
       <details className="mc-actions-preview">
         <summary>Prompt ready · {effectiveState.sources.filter((row) => row.value.trim()).length} context items</summary>
