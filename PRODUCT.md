@@ -1,37 +1,44 @@
 # Product
 
-## Register
+<!-- impeccable:product-schema 1 -->
 
-product
+## Platform
+
+web
 
 ## Users
 
-Solo developers and small teams running multiple AI coding agents (Claude Code, Codex, Cursor CLI) across 5+ git repos a day. They live in the app for hours: dense terminal grids, quick context switches, keyboard-first. Ambient light varies but sessions are long — dark mode is the primary surface.
+Solo developers and technical power users running multiple coding agents across many repositories.
+They work in long, keyboard-first sessions with frequent context switches.
 
 ## Product Purpose
 
-Mission Control is an Electron desktop control surface for agentic coding work. It shows at a glance which projects/sessions need attention and lets the user pop into a project to drive its agents — a grid of live terminal sessions instead of a cluttered sidebar. Success = the tool disappears into the task; status is legible at a glance; nothing steals attention from the terminals.
+Mission Control is a local-first Electron desktop control surface for running and monitoring parallel
+coding agents. It makes attention visible across projects and sessions while keeping terminals and
+active work primary.
+
+## Positioning
+
+An operator cockpit for parallel coding agents, not another IDE. It coordinates installed agent CLIs,
+repositories, worktrees, Git actions, and persistent terminals in one local desktop app.
 
 ## Brand Personality
 
-Calm, precise, operator-grade. A cockpit, not a dashboard-as-marketing. Confidence through restraint: the terminals are the content, chrome is quiet.
-
-## Anti-references
-
-- Cursor/Codex collapsible-tree sidebar clutter.
-- SaaS-dashboard gloss: gradient heroes, glassmorphism, decorative motion.
-- Over-bordered "wireframe" look where every panel is outlined and chrome competes with terminal content.
+Calm, precise, operator-grade. A cockpit, not dashboard marketing. Confidence through restraint:
+terminals are the content and chrome stays quiet.
 
 ## Design Principles
 
-1. **Terminals are the content** — chrome recedes; hierarchy comes from surface tone and spacing before borders.
-2. **State is always legible** — running / needs-input / done must read at a glance; accent color is reserved for state and selection.
-3. **Feedback on every interaction** — everything clickable acknowledges hover and press within ~150ms; motion conveys state, never decorates.
-4. **Density with rhythm** — the app is dense by design; use spacing and tonal steps, not extra boxes, to organize it.
-5. **Consistent vocabulary** — same button/pane/control grammar across painted and flat themes, dark and light.
+1. **Terminals are the content** — chrome recedes around active work.
+2. **State is always legible** — running, needs-input, done, and error states never rely on color alone.
+3. **Feedback on every interaction** — actions acknowledge input and expose failure clearly.
+4. **Density with rhythm** — use spacing and tonal steps before extra boxes.
+5. **Consistent vocabulary** — controls behave consistently across themes and workflows.
 
 ## Accessibility & Inclusion
 
-- Body/label text ≥ 4.5:1 against its surface; state pills ≥ 3:1.
-- Full `prefers-reduced-motion` support — all micro-interactions degrade to instant or crossfade.
-- Keyboard focus visible on every interactive element (focus ring distinct from hover).
+- Body and label text must meet WCAG AA contrast; state indicators and large text must meet 3:1.
+- Every interactive control needs a visible focus state and full keyboard operation.
+- Respect `prefers-reduced-motion`.
+- Do not encode status through color alone.
+- Avoid layout-dependent punctuation in default shortcuts so Spanish keyboards remain usable.

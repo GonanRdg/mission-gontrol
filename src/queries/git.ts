@@ -34,6 +34,42 @@ export const gitKeys = {
     ["projects", projectId, "worktrees", worktreeId || MAIN_WORKTREE_ID, "git", "status"] as const,
   branches: (projectId: string, worktreeId?: string | null) =>
     ["projects", projectId, "worktrees", worktreeId || MAIN_WORKTREE_ID, "git", "branches"] as const,
+  history: (projectId: string, worktreeId?: string | null, branch?: string | null) =>
+    [
+      "projects",
+      projectId,
+      "worktrees",
+      worktreeId || MAIN_WORKTREE_ID,
+      "git",
+      "history",
+      branch || "__all__",
+    ] as const,
+  commitFiles: (projectId: string, worktreeId: string | null | undefined, sha: string) =>
+    [
+      "projects",
+      projectId,
+      "worktrees",
+      worktreeId || MAIN_WORKTREE_ID,
+      "git",
+      "commit-files",
+      sha,
+    ] as const,
+  commitDiff: (
+    projectId: string,
+    worktreeId: string | null | undefined,
+    sha: string,
+    file: string,
+  ) =>
+    [
+      "projects",
+      projectId,
+      "worktrees",
+      worktreeId || MAIN_WORKTREE_ID,
+      "git",
+      "commit-diff",
+      sha,
+      file,
+    ] as const,
   diff: (projectId: string, worktreeId: string | null | undefined, file: string, staged: boolean) =>
     ["projects", projectId, "worktrees", worktreeId || MAIN_WORKTREE_ID, "git", "diff", file, staged ? "staged" : "unstaged"] as const,
   // Sibling of `git` (NOT nested under it) so the mutation invalidations that
@@ -81,6 +117,67 @@ export const gitBranchesQueryOptions = (
     retry: 1,
   });
 
+export const gitHistoryQueryOptions = (
+  projectId: string,
+  worktreeId?: string | null,
+  branch?: string | null,
+  opts: { enabled?: boolean } = {},
+) =>
+  queryOptions({
+    queryKey: gitKeys.history(projectId, worktreeId, branch),
+    queryFn: () => api.getGitHistory(projectId, worktreeId, branch),
+    enabled: !!projectId && (opts.enabled ?? true),
+    staleTime: 5_000,
+  });
+
+export const gitCommitFilesQueryOptions = (
+  projectId: string,
+  worktreeId: string | null | undefined,
+  sha: string | null,
+  opts: { enabled?: boolean } = {},
+) =>
+  queryOptions({
+    queryKey: sha
+      ? gitKeys.commitFiles(projectId, worktreeId, sha)
+      : ([
+          "projects",
+          projectId,
+          "worktrees",
+          worktreeId || MAIN_WORKTREE_ID,
+          "git",
+          "commit-files",
+          "__none__",
+        ] as const),
+    queryFn: () => api.getGitCommitFiles(projectId, sha!, worktreeId),
+    enabled: !!projectId && !!sha && (opts.enabled ?? true),
+    staleTime: Infinity,
+  });
+
+export const gitCommitDiffQueryOptions = (
+  projectId: string,
+  worktreeId: string | null | undefined,
+  sha: string | null,
+  file: string | null,
+  opts: { enabled?: boolean } = {},
+) =>
+  queryOptions({
+    queryKey:
+      sha && file
+        ? gitKeys.commitDiff(projectId, worktreeId, sha, file)
+        : ([
+            "projects",
+            projectId,
+            "worktrees",
+            worktreeId || MAIN_WORKTREE_ID,
+            "git",
+            "commit-diff",
+            "__none__",
+          ] as const),
+    queryFn: () => api.getGitCommitDiff(projectId, sha!, file!, worktreeId),
+    enabled: !!projectId && !!sha && !!file && (opts.enabled ?? true),
+    staleTime: Infinity,
+  });
+
 export const gitDiffQueryOptions = (
   projectId: string,
   worktreeId: string | null | undefined,
@@ -107,6 +204,28 @@ export const useGitBranches = (
   worktreeId?: string | null,
   opts: { enabled?: boolean } = {},
 ) => useQuery(gitBranchesQueryOptions(projectId, worktreeId, opts));
+
+export const useGitHistory = (
+  projectId: string,
+  worktreeId?: string | null,
+  branch?: string | null,
+  opts: { enabled?: boolean } = {},
+) => useQuery(gitHistoryQueryOptions(projectId, worktreeId, branch, opts));
+
+export const useGitCommitFiles = (
+  projectId: string,
+  worktreeId: string | null | undefined,
+  sha: string | null,
+  opts: { enabled?: boolean } = {},
+) => useQuery(gitCommitFilesQueryOptions(projectId, worktreeId, sha, opts));
+
+export const useGitCommitDiff = (
+  projectId: string,
+  worktreeId: string | null | undefined,
+  sha: string | null,
+  file: string | null,
+  opts: { enabled?: boolean } = {},
+) => useQuery(gitCommitDiffQueryOptions(projectId, worktreeId, sha, file, opts));
 
 // Background `git fetch` loop that keeps remote-tracking refs current so
 // GitStatus.behindCount reflects reality. Modeled as a side-effecting query
