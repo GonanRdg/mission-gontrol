@@ -1655,6 +1655,69 @@ body[data-suspend-app-drag] .mc-topbar {
   background: color-mix(in srgb, var(--surface-0) 74%, transparent);
 }
 
+.mc-actions-form-pane input,
+.mc-actions-form-pane textarea,
+.mc-actions-form-pane .mc-btn {
+  min-height: 44px;
+}
+
+.mc-actions-execution {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.mc-actions-execution > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 2px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mc-actions-execution > summary span:last-child {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+}
+
+.mc-actions-execution-body {
+  display: grid;
+  gap: 22px;
+  padding: 10px 0 18px;
+}
+
+.mc-actions-queue-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-0) 94%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.mc-actions-queue-bar > span {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.mc-actions-queue-bar small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
 .mc-actions-source-row {
   display: grid;
   grid-template-columns: minmax(130px, 0.55fr) minmax(220px, 1.45fr) 38px;
@@ -1727,6 +1790,34 @@ body[data-suspend-app-drag] .mc-topbar {
 
   .mc-actions-source-row .mc-btn {
     justify-self: end;
+  }
+
+  .mc-actions-form-pane {
+    padding: 16px 12px 24px;
+  }
+
+  .mc-actions-list {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .mc-actions-choice {
+    min-width: 170px;
+  }
+
+  .mc-actions-execution > summary,
+  .mc-actions-queue-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mc-actions-execution > summary span:last-child {
+    text-align: left;
+  }
+
+  .mc-actions-queue-bar .mc-btn {
+    width: 100%;
   }
 }
 
