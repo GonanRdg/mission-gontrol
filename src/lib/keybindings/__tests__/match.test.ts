@@ -29,6 +29,20 @@ describe("matchBinding", () => {
     }
   });
 
+  it("keeps default bindings unique", () => {
+    const combos = HOTKEY_ACTIONS.map((action) => bindingComboKey(DEFAULT_BINDINGS[action]));
+    expect(new Set(combos).size).toBe(combos.length);
+  });
+
+  it("uses layout-independent keys for git actions", () => {
+    const gitActions = HOTKEY_ACTIONS.filter(
+      (action) => action.startsWith("git.") || action === "project.ship",
+    );
+    for (const action of gitActions) {
+      expect(DEFAULT_BINDINGS[action].key).toMatch(/^[a-z]$|^Enter$/);
+    }
+  });
+
   it("rejects when modifiers differ", () => {
     const b = DEFAULT_BINDINGS["agent.new"];
     expect(matchBinding(ev({ key: b.key }), b)).toBe(false);

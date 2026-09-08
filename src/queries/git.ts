@@ -54,6 +54,22 @@ export const gitKeys = {
       "commit-files",
       sha,
     ] as const,
+  commitDiff: (
+    projectId: string,
+    worktreeId: string | null | undefined,
+    sha: string,
+    file: string,
+  ) =>
+    [
+      "projects",
+      projectId,
+      "worktrees",
+      worktreeId || MAIN_WORKTREE_ID,
+      "git",
+      "commit-diff",
+      sha,
+      file,
+    ] as const,
   diff: (projectId: string, worktreeId: string | null | undefined, file: string, staged: boolean) =>
     ["projects", projectId, "worktrees", worktreeId || MAIN_WORKTREE_ID, "git", "diff", file, staged ? "staged" : "unstaged"] as const,
   // Sibling of `git` (NOT nested under it) so the mutation invalidations that
@@ -137,6 +153,31 @@ export const gitCommitFilesQueryOptions = (
     staleTime: Infinity,
   });
 
+export const gitCommitDiffQueryOptions = (
+  projectId: string,
+  worktreeId: string | null | undefined,
+  sha: string | null,
+  file: string | null,
+  opts: { enabled?: boolean } = {},
+) =>
+  queryOptions({
+    queryKey:
+      sha && file
+        ? gitKeys.commitDiff(projectId, worktreeId, sha, file)
+        : ([
+            "projects",
+            projectId,
+            "worktrees",
+            worktreeId || MAIN_WORKTREE_ID,
+            "git",
+            "commit-diff",
+            "__none__",
+          ] as const),
+    queryFn: () => api.getGitCommitDiff(projectId, sha!, file!, worktreeId),
+    enabled: !!projectId && !!sha && !!file && (opts.enabled ?? true),
+    staleTime: Infinity,
+  });
+
 export const gitDiffQueryOptions = (
   projectId: string,
   worktreeId: string | null | undefined,
@@ -177,6 +218,14 @@ export const useGitCommitFiles = (
   sha: string | null,
   opts: { enabled?: boolean } = {},
 ) => useQuery(gitCommitFilesQueryOptions(projectId, worktreeId, sha, opts));
+
+export const useGitCommitDiff = (
+  projectId: string,
+  worktreeId: string | null | undefined,
+  sha: string | null,
+  file: string | null,
+  opts: { enabled?: boolean } = {},
+) => useQuery(gitCommitDiffQueryOptions(projectId, worktreeId, sha, file, opts));
 
 // Background `git fetch` loop that keeps remote-tracking refs current so
 // GitStatus.behindCount reflects reality. Modeled as a side-effecting query

@@ -4,6 +4,7 @@ import {
   commit as gitCommit,
   createPullRequest as gitCreatePullRequest,
   fetchRemote as gitFetch,
+  getGitCommitDiff,
   getGitCommitFiles,
   getGitDiff,
   getGitStatus,
@@ -111,10 +112,15 @@ export async function diff(rawId: string, url: URL): Promise<Response> {
   if (!idParsed.success) return notFound();
   const file = url.searchParams.get("file");
   if (!file) return jsonError(HTTP_BAD_REQUEST, "file is required");
+  const sha = url.searchParams.get("sha");
   const stagedParam = url.searchParams.get("staged");
   const staged = stagedParam === "1" || stagedParam === "true";
   try {
-    return json(await getGitDiff(idParsed.data, file, staged, queryWorktreeId(url)));
+    return json(
+      sha
+        ? await getGitCommitDiff(idParsed.data, sha, file, queryWorktreeId(url))
+        : await getGitDiff(idParsed.data, file, staged, queryWorktreeId(url)),
+    );
   } catch (e) {
     return handleDomainError(e) ?? asGitErrorResponse(e);
   }

@@ -3,7 +3,13 @@ import { Btn } from "~/components/ui/Btn";
 import { Icon } from "~/components/ui/Icon";
 import { Modal } from "~/components/ui/Modal";
 import { Spinner } from "~/components/ui/Spinner";
-import { useGitBranches, useGitCommitFiles, useGitHistory } from "~/queries/git";
+import { DiffPane } from "~/components/views/GitDiffView/DiffPane";
+import {
+  useGitBranches,
+  useGitCommitDiff,
+  useGitCommitFiles,
+  useGitHistory,
+} from "~/queries/git";
 import type { GitCommitSummary } from "~/server/services/git";
 
 const commitDate = new Intl.DateTimeFormat(undefined, {
@@ -82,6 +88,7 @@ export function GitHistoryModal({
 }) {
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [selectedSha, setSelectedSha] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const branches = useGitBranches(projectId, worktreeId, { enabled: open });
   const history = useGitHistory(projectId, worktreeId, selectedBranch, { enabled: open });
   const commits = useMemo(() => history.data?.commits ?? [], [history.data?.commits]);
@@ -89,11 +96,19 @@ export function GitHistoryModal({
   const files = useGitCommitFiles(projectId, worktreeId, selectedCommit?.sha ?? null, {
     enabled: open,
   });
+  const commitDiff = useGitCommitDiff(
+    projectId,
+    worktreeId,
+    selectedCommit?.sha ?? null,
+    selectedFile,
+    { enabled: open },
+  );
 
   useEffect(() => {
     if (!open) return;
     setSelectedBranch(null);
     setSelectedSha(null);
+    setSelectedFile(null);
   }, [open, projectId, worktreeId]);
 
   useEffect(() => {
@@ -104,6 +119,16 @@ export function GitHistoryModal({
         : (commits[0]?.sha ?? null),
     );
   }, [commits, history.isPending, open]);
+
+  useEffect(() => {
+    if (!open || files.isPending) return;
+    const nextFiles = files.data?.files ?? [];
+    setSelectedFile((current) =>
+      current && nextFiles.some((file) => file.path === current)
+        ? current
+        : (nextFiles[0]?.path ?? null),
+    );
+  }, [files.data, files.isPending, open]);
 
   return (
     <Modal
@@ -214,39 +239,63 @@ export function GitHistoryModal({
             </div>
           ) : (
             <div className="mc-git-history-file-content">
-              <div className="mc-git-history-selected-commit">
-                <code>{selectedCommit.shortSha}</code>
-                <strong>{selectedCommit.subject}</strong>
+              <div className="mc-git-history-file-browser">
+                <div className="mc-git-history-selected-commit">
+                  <code>{selectedCommit.shortSha}</code>
+                  <strong>{selectedCommit.subject}</strong>
+                </div>
+                {files.data?.files.length ? (
+                  <ul className="mc-git-history-file-list">
+                    {files.data.files.map((file) => {
+                      const status = FILE_STATUS[file.status[0] ?? ""] ?? {
+                        label: file.status,
+                        tone: "modified",
+                      };
+                      return (
+                        <li key={`${file.status}:${file.previousPath ?? ""}:${file.path}`}>
+                          <button
+                            type="button"
+                            className="mc-git-history-file"
+                            data-selected={file.path === selectedFile || undefined}
+                            aria-pressed={file.path === selectedFile}
+                            onClick={() => setSelectedFile(file.path)}
+                          >
+                            <span
+                              className={`mc-git-history-file-status mc-git-history-file-status-${status.tone}`}
+                              aria-label={status.label}
+                              title={status.label}
+                            >
+                              {file.status[0]}
+                            </span>
+                            <span className="mc-git-history-file-path" title={file.path}>
+                              {file.previousPath && (
+                                <span className="mc-git-history-old-path">{file.previousPath} → </span>
+                              )}
+                              {file.path}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="mc-git-history-empty">No changed files recorded.</div>
+                )}
               </div>
-              {files.data?.files.length ? (
-                <ul className="mc-git-history-file-list">
-                  {files.data.files.map((file) => {
-                    const status = FILE_STATUS[file.status[0] ?? ""] ?? {
-                      label: file.status,
-                      tone: "modified",
-                    };
-                    return (
-                      <li key={`${file.status}:${file.previousPath ?? ""}:${file.path}`}>
-                        <span
-                          className={`mc-git-history-file-status mc-git-history-file-status-${status.tone}`}
-                          aria-label={status.label}
-                          title={status.label}
-                        >
-                          {file.status[0]}
-                        </span>
-                        <span className="mc-git-history-file-path" title={file.path}>
-                          {file.previousPath && (
-                            <span className="mc-git-history-old-path">{file.previousPath} → </span>
-                          )}
-                          {file.path}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div className="mc-git-history-empty">No changed files recorded.</div>
-              )}
+              <div className="mc-git-history-diff">
+                <div className="mc-git-history-diff-title">
+                  <span>Diff</span>
+                  {selectedFile && <code title={selectedFile}>{selectedFile}</code>}
+                </div>
+                <div className="mc-git-history-diff-content">
+                  <DiffPane
+                    diff={commitDiff.data}
+                    loading={commitDiff.isPending}
+                    error={commitDiff.isError ? errorMessage(commitDiff.error) : null}
+                    filePath={selectedFile}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </section>

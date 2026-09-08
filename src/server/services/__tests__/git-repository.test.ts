@@ -10,6 +10,7 @@ process.env.MC_USER_DATA_DIR = tmpRoot;
 const { createProject } = await import("../projects");
 const {
   fetchRemote,
+  getGitCommitDiff,
   getGitCommitFiles,
   getGitStatus,
   listGitBranches,
@@ -117,6 +118,11 @@ describe("git repository guard", () => {
         { status: "M", path: "README.md" },
         { status: "A", path: "feature.txt" },
       ],
+    });
+
+    await expect(getGitCommitDiff(project.id, sha, "feature.txt")).resolves.toMatchObject({
+      kind: "text",
+      patch: expect.stringContaining("+new"),
     });
   });
 });

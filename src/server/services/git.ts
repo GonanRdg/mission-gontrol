@@ -997,6 +997,31 @@ export async function getGitCommitFiles(
   return { sha: commitSha, files };
 }
 
+export async function getGitCommitDiff(
+  projectId: string,
+  sha: string,
+  file: string,
+  worktreeId?: string | null,
+): Promise<GitDiff> {
+  const cwd = projectCwd(projectId, worktreeId);
+  await assertGitRepository(cwd);
+  const commitSha = sha.trim();
+  if (!/^[0-9a-f]{7,40}$/i.test(commitSha)) throw new GitError("Invalid commit SHA");
+  await gitOk(cwd, ["rev-parse", "--verify", `${commitSha}^{commit}`]);
+  const result = await runGit(cwd, [
+    "show",
+    "--format=",
+    "--find-renames",
+    commitSha,
+    "--",
+    file,
+  ]);
+  if (result.code !== 0) {
+    throw new GitError("git show failed", result.stderr.trim() || `exit ${result.code}`);
+  }
+  return classifyDiffPatch(result.stdout);
+}
+
 export async function listGitBranches(
   projectId: string,
   worktreeId?: string | null,

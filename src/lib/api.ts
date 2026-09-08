@@ -835,6 +835,15 @@ export const api = {
     req<GitCommitFilesResult>(
       `/api/projects/${projectId}/git/commit-files${gitReadQuery(worktreeId, { sha })}`,
     ),
+  getGitCommitDiff: (
+    projectId: string,
+    sha: string,
+    file: string,
+    worktreeId?: string | null,
+  ) =>
+    req<GitDiff>(
+      `/api/projects/${projectId}/git/diff${gitReadQuery(worktreeId, { sha, file })}`,
+    ),
   gitCheckout: (
     projectId: string,
     branch: string,

@@ -1022,7 +1022,60 @@ body[data-suspend-app-drag] .mc-topbar {
   flex-shrink: 0;
 }
 .mc-git-history-file-content {
+  min-width: 0;
   flex: 1;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  overflow: hidden;
+}
+.mc-git-history-file-browser,
+.mc-git-history-diff {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+.mc-git-history-diff {
+  border-top: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--card) 92%, black);
+}
+.mc-git-history-diff-title {
+  display: flex;
+  min-height: 34px;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mc-git-history-diff-title code {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--foreground-secondary);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+.mc-git-history-diff-content {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.mc-git-history-diff-content > pre {
+  min-width: 0;
+  max-width: 100%;
 }
 .mc-git-history-selected-commit {
   display: flex;
@@ -1039,24 +1092,42 @@ body[data-suspend-app-drag] .mc-topbar {
   line-height: 1.4;
 }
 .mc-git-history-file-list {
+  min-height: 0;
+  flex: 1;
   margin: 0;
   padding: 6px 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
   list-style: none;
 }
-.mc-git-history-file-list li {
+.mc-git-history-file {
   display: flex;
+  width: 100%;
   min-height: 34px;
   align-items: center;
   gap: 10px;
   padding: 6px 16px;
+  border: 0;
   box-sizing: border-box;
+  background: transparent;
   color: var(--foreground-secondary);
   font-family: var(--mono);
   font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
 }
-.mc-git-history-file-list li:hover {
+.mc-git-history-file:hover {
   background: var(--card-raised);
   color: var(--foreground);
+}
+.mc-git-history-file[data-selected] {
+  background: color-mix(in srgb, var(--primary) 12%, var(--card-raised));
+  color: var(--foreground);
+}
+.mc-git-history-file:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
 }
 .mc-git-history-file-status {
   display: inline-flex;
@@ -1132,7 +1203,8 @@ body[data-suspend-app-drag] .mc-topbar {
 @media (prefers-reduced-motion: reduce) {
   .mc-topbar-home,
   .mc-git-history-branch,
-  .mc-git-history-commit {
+  .mc-git-history-commit,
+  .mc-git-history-file {
     transition: none;
   }
 }

@@ -21,6 +21,7 @@ import { mcToastResultCard } from "~/lib/mc-toast";
 import { openExternal } from "~/lib/open-external";
 import { recordGitRemoteActionNotification } from "~/lib/session-notification-store";
 import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
+import { useHotkey } from "~/lib/use-hotkey";
 import { VOICE_SHIP_EVENT } from "~/lib/voice-events";
 import { Z_INDEX } from "~/lib/z-index";
 import {
@@ -254,6 +255,36 @@ export function GitRemoteActions({
       );
     }
   }, [busyAction, onHandOffToAgent, prM]);
+
+  const remoteHotkeysEnabled = enabled && !historyOpen && manualCommitReason === null;
+  useHotkey("git.history", () => setHistoryOpen((value) => !value), {
+    capture: true,
+    enabled: enabled && manualCommitReason === null,
+  });
+  useHotkey("git.fetch", () => void runFetch(), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.pull", () => void runPull("ff-only"), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.pullRebase", () => void runPull("rebase"), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.pullMerge", () => void runPull("merge"), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.push", () => void runPush(), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.createPullRequest", () => void runCreatePullRequest(), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
 
   // "Ship it" — from voice control or the project.ship hotkey — means Commit &
   // Push now that no agent session is involved.
