@@ -19,6 +19,7 @@ import {
   type ActionFormState,
 } from "~/lib/action-form";
 import { api } from "~/lib/api";
+import { addQuickContext } from "~/lib/action-context-intake";
 import { mcToastResultCard } from "~/lib/mc-toast";
 import { useActionFormPreferencesAutosave } from "~/lib/use-action-form-preferences-autosave";
 import {
@@ -38,13 +39,12 @@ import type { ProjectWithCounts } from "~/shared/projects";
 import type {
   ActionListItem,
   ActionWorkflowChoice,
-  ActionWorkflowAvailability,
   SkillAction,
 } from "~/shared/skill-actions";
 
 const selectStyle: CSSProperties = {
   width: "100%",
-  height: 38,
+  height: 44,
   padding: "0 10px",
   borderRadius: 7,
   border: "1px solid var(--border)",
@@ -360,7 +360,6 @@ export type ActionStartRequest = {
 function ActionEditor({
   action,
   actionName,
-  workflows,
   skills,
   project,
   projects,
@@ -372,7 +371,6 @@ function ActionEditor({
 }: {
   action: SkillAction;
   actionName: string;
-  workflows: Record<TaskAgent, ActionWorkflowAvailability>;
   skills: ActionWorkflowChoice[];
   project: ProjectWithCounts;
   projects: ProjectWithCounts[];
@@ -404,6 +402,7 @@ function ActionEditor({
   const [issues, setIssues] = useState<string[]>([]);
   const [launching, setLaunching] = useState(false);
   const [installingWorkflow, setInstallingWorkflow] = useState(false);
+  const [quickContext, setQuickContext] = useState("");
   const [workflowSkill, setWorkflowSkill] = useState(preferences?.workflowSkill ?? action.skill);
   const [fileTarget, setFileTarget] = useState<
     { kind: "source"; key: string } | { kind: "input"; id: string } | null
@@ -420,6 +419,8 @@ function ActionEditor({
     installMethod: null,
   };
   const projectInput = action.inputs.find((input) => input.widget === "project");
+  const executionInputs = action.inputs.filter((input) => input.widget === "project" || input.widget === "branch");
+  const actionInputs = action.inputs.filter((input) => input.widget !== "project" && input.widget !== "branch");
   const selectedProject = projectInput
     ? projects.find((candidate) => candidate.path === state.inputs[projectInput.id]) ?? null
     : project;
@@ -431,9 +432,13 @@ function ActionEditor({
         branch: selectedProject.branch,
       }
     : formProject;
+  const effectiveState = useMemo(
+    () => addQuickContext(action, state, quickContext),
+    [action, quickContext, state],
+  );
   const promptContext = useMemo(
-    () => buildActionTemplateContext(action, state, activeFormProject),
-    [action, activeFormProject.branch, activeFormProject.id, activeFormProject.name, activeFormProject.path, state],
+    () => buildActionTemplateContext(action, effectiveState, activeFormProject),
+    [action, activeFormProject.branch, activeFormProject.id, activeFormProject.name, activeFormProject.path, effectiveState],
   );
   const preview = useMemo(() => {
     try {
@@ -488,7 +493,7 @@ function ActionEditor({
   };
 
   const start = async () => {
-    const nextIssues = validateActionForm(action, state);
+    const nextIssues = validateActionForm(action, effectiveState);
     if (!selectedSkill) nextIssues.push("Choose a discovered workflow skill.");
     if (workflow.status !== "available") {
       nextIssues.push(`Install the ${workflowSkill} workflow skill for ${AGENT_REGISTRY[state.agent].label} first.`);
@@ -502,7 +507,7 @@ function ActionEditor({
     const branch = branchInput
       ? String(state.inputs[branchInput.id] ?? "").trim() || selectedProject.branch
       : selectedProject.branch;
-    const suggestion = resolveActionWorktreeSuggestion(action, state);
+    const suggestion = resolveActionWorktreeSuggestion(action, effectiveState);
     setLaunching(true);
     try {
       await onStart({
@@ -541,6 +546,13 @@ function ActionEditor({
     }
   };
 
+  const organizeQuickContext = () => {
+    if (!quickContext.trim()) return;
+    setState((current) => addQuickContext(action, current, quickContext));
+    setQuickContext("");
+    setIssues([]);
+  };
+
   return (
     <form
       onSubmit={(event) => {
@@ -556,12 +568,39 @@ function ActionEditor({
           <h2 style={{ margin: 0, color: "var(--text)", fontSize: 20, fontWeight: 600 }}>
             {action.title}
           </h2>
-          <div style={{ marginTop: 4, color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 11 }}>
-            Drives {action.skill}
+          <div style={{ marginTop: 4, color: "var(--text-dim)", fontSize: 13 }}>
+            Paste the work, check the details, then queue it.
           </div>
         </div>
       </div>
 
+      {action.sources.length > 0 && (
+        <FormSection title="What should the agent know?">
+          <Textarea
+            label="Paste context"
+            hint="Ticket text, links, logs, paths, or notes. Recognizable references are included as structured context; the complete paste is preserved."
+            value={quickContext}
+            onChange={(value) => {
+              setIssues([]);
+              setQuickContext(value);
+            }}
+            placeholder="Paste everything needed to start this work…"
+            rows={7}
+          />
+          {quickContext.trim() && (
+            <Btn type="button" variant="ghost" icon="sparkles" onClick={organizeQuickContext} style={{ justifySelf: "start" }}>
+              Organize into context
+            </Btn>
+          )}
+        </FormSection>
+      )}
+
+      <details className="mc-actions-execution">
+        <summary>
+          <span>Execution settings</span>
+          <span>{AGENT_REGISTRY[state.agent].label} · {workflowSkill} · {action.worktree ? "isolated worktree" : "current checkout"}</span>
+        </summary>
+        <div className="mc-actions-execution-body">
       <FormSection title="Agent">
         <SelectField
           label="Run with"
@@ -608,6 +647,26 @@ function ActionEditor({
         </div>
       </FormSection>
 
+      {executionInputs.length > 0 && (
+        <FormSection title="Repository and branch">
+          <div className="mc-actions-input-grid">
+            {executionInputs.map((input) => (
+              <ActionFieldControl
+                key={input.id}
+                field={input}
+                value={state.inputs[input.id] ?? ""}
+                project={activeFormProject}
+                projects={projects}
+                onChange={(value) => setInput(input.id, value)}
+                onBrowse={() => setFileTarget({ kind: "input", id: input.id })}
+              />
+            ))}
+          </div>
+        </FormSection>
+      )}
+        </div>
+      </details>
+
       {action.sources.length > 0 && (
         <FormSection title="Context">
           <div style={{ display: "grid", gap: 12 }}>
@@ -616,7 +675,7 @@ function ActionEditor({
               return (
                 <div className="mc-actions-source-row" key={row.key}>
                   <SelectField
-                    label={`Source ${index + 1}`}
+                    label="Context type"
                     value={row.sourceId}
                     choices={action.sources.map((candidate) => ({
                       value: candidate.id,
@@ -653,7 +712,7 @@ function ActionEditor({
                         sources: current.sources.filter((candidate) => candidate.key !== row.key),
                       }));
                     }}
-                    style={{ width: 38, minWidth: 38, height: 38, padding: 0, alignSelf: "end" }}
+                    style={{ width: 44, minWidth: 44, height: 44, padding: 0, alignSelf: "end" }}
                   />
                 </div>
               );
@@ -685,7 +744,7 @@ function ActionEditor({
               </Btn>
               {action.sourcesMin > 0 && (
                 <span style={{ color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 10.5 }}>
-                  {action.sourcesMin} filled {action.sourcesMin === 1 ? "row" : "rows"} required
+                  Add at least {action.sourcesMin === 1 ? "one source" : `${action.sourcesMin} sources`}
                 </span>
               )}
             </div>
@@ -693,10 +752,10 @@ function ActionEditor({
         </FormSection>
       )}
 
-      {action.inputs.length > 0 && (
+      {actionInputs.length > 0 && (
         <FormSection title="Inputs">
           <div className="mc-actions-input-grid">
-            {action.inputs.map((input) => (
+            {actionInputs.map((input) => (
               <ActionFieldControl
                 key={input.id}
                 field={input}
@@ -747,10 +806,10 @@ function ActionEditor({
         </FormSection>
       )}
 
-      <details open className="mc-actions-preview">
-        <summary>Prompt preview</summary>
+      <details className="mc-actions-preview">
+        <summary>Prompt ready · {effectiveState.sources.filter((row) => row.value.trim()).length} context items</summary>
         {preview.ok ? (
-          <pre aria-live="polite" aria-atomic="true">{preview.value || "Prompt is empty."}</pre>
+          <pre>{preview.value || "Prompt is empty."}</pre>
         ) : (
           <div role="alert" style={{ padding: 14, color: "var(--status-failed)", fontFamily: "var(--mono)", fontSize: 12 }}>
             {preview.error}
@@ -822,12 +881,10 @@ function ActionEditor({
             {issues.map((issue) => <div key={issue}>{issue}</div>)}
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 10.5 }}>
-            {action.worktree ? "Creates an isolated worktree." : "Runs in the current project checkout."}
-            {action.inputs.some((input) => input.widget === "branch")
-              ? " Branch is prompt context; it is not checked out."
-              : ""}
+        <div className="mc-actions-queue-bar">
+          <span>
+            {selectedProject?.name ?? project.name} · {AGENT_REGISTRY[state.agent].label} · {action.worktree ? "isolated worktree" : "current checkout"}
+            <small>You can leave after queueing. Mission Control will surface attention requests.</small>
           </span>
           <Btn
             type="submit"
@@ -835,7 +892,7 @@ function ActionEditor({
             icon="play"
             disabled={launching || installingWorkflow || !preview.ok || workflow.status !== "available"}
           >
-            {launching ? "Starting…" : "Start action"}
+            {launching ? "Queueing…" : `Queue ${action.title.toLowerCase()}`}
           </Btn>
         </div>
       </div>
@@ -1005,7 +1062,6 @@ export function ActionsView({
                   key={`${project.id}:${selected.name}:${preferencesQuery.data?.workflowSkill ?? "default"}`}
                   actionName={selected.name}
                   action={selected.action}
-                  workflows={selected.workflows}
                   skills={selected.skills}
                   project={project}
                   projects={allProjects ?? [project]}

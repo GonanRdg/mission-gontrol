@@ -982,7 +982,7 @@ function Shell() {
           }}
         >
           <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-            <ProjectBar disabled={activeResuming} />
+            {!actionsActive && <ProjectBar disabled={activeResuming} />}
             <div
               style={{
                 position: "relative",
