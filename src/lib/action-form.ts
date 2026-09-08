@@ -30,7 +30,7 @@ export function getActionFieldInitialValue(
   project: ActionFormProject,
 ): string | boolean {
   if (field.widget === "project") return project.path;
-  if (field.widget === "branch") return project.branch;
+  if (field.widget === "branch") return "";
   if (field.widget === "checkbox") return false;
   if (field.widget === "select") return field.choices?.[0]?.value ?? "";
   return "";
