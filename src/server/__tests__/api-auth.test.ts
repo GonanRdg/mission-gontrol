@@ -49,6 +49,8 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; pathname: string }> = [
   // Git
   { method: "GET", pathname: "/api/projects/abc/git/status" },
   { method: "GET", pathname: "/api/projects/abc/git/branches" },
+  { method: "GET", pathname: "/api/projects/abc/git/history" },
+  { method: "GET", pathname: "/api/projects/abc/git/commit-files?sha=abc1234" },
   { method: "POST", pathname: "/api/projects/abc/git/stage" },
   { method: "POST", pathname: "/api/projects/abc/git/commit" },
   { method: "POST", pathname: "/api/projects/abc/git/push" },

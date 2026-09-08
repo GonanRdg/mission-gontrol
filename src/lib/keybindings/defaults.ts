@@ -33,6 +33,15 @@ export const DEFAULT_BINDINGS: BindingMap = {
   "file.finder": makeBinding({ mod: true, key: "p" }),
   "file.save": makeBinding({ mod: true, key: "s" }),
   "git.diff": makeBinding({ mod: true, key: "g" }),
+  // Letter-only git chords stay reachable on keyboard layouts where brackets
+  // require AltGr. Less frequent remote mutations use the third modifier tier.
+  "git.history": makeBinding({ mod: true, shift: true, key: "h" }),
+  "git.fetch": makeBinding({ mod: true, shift: true, alt: true, key: "f" }),
+  "git.pull": makeBinding({ mod: true, shift: true, alt: true, key: "l" }),
+  "git.pullRebase": makeBinding({ mod: true, shift: true, alt: true, key: "r" }),
+  "git.pullMerge": makeBinding({ mod: true, shift: true, alt: true, key: "m" }),
+  "git.push": makeBinding({ mod: true, shift: true, alt: true, key: "p" }),
+  "git.createPullRequest": makeBinding({ mod: true, shift: true, alt: true, key: "o" }),
   // Ship reads as the "big commit & submit": mod+Shift+Enter escalates
   // dialog.submit's mod+Enter. mod+S (the natural mnemonic) is file.save and
   // mod+Shift+S is screenshot.capture, so Enter keeps it collision-free.
@@ -49,4 +58,3 @@ export const DEFAULT_BINDINGS: BindingMap = {
   "group.next": makeBinding({ mod: true, alt: true, key: "]" }),
   "group.prev": makeBinding({ mod: true, alt: true, key: "[" }),
 };
-

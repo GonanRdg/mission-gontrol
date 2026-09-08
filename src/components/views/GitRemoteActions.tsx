@@ -21,6 +21,7 @@ import { mcToastResultCard } from "~/lib/mc-toast";
 import { openExternal } from "~/lib/open-external";
 import { recordGitRemoteActionNotification } from "~/lib/session-notification-store";
 import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
+import { useHotkey } from "~/lib/use-hotkey";
 import { VOICE_SHIP_EVENT } from "~/lib/voice-events";
 import { Z_INDEX } from "~/lib/z-index";
 import {
@@ -32,6 +33,7 @@ import {
 } from "~/queries/git";
 import type { CommitResult, PullMode } from "~/server/services/git";
 import { CommitMessageDialog } from "~/components/views/CommitMessageDialog";
+import { GitHistoryModal } from "~/components/views/GitHistoryModal";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
 
 export type GitHandoffFailure = NonNullable<GitHandoffContext["failure"]>;
@@ -83,6 +85,7 @@ export function GitRemoteActions({
   const prM = useGitCreatePullRequest(projectId, worktreeId);
 
   const [manualCommitReason, setManualCommitReason] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   useSuspendAppDragRegion(menuOpen);
   const [menuRect, setMenuRect] = useState<{ top: number; right: number } | null>(null);
@@ -252,6 +255,36 @@ export function GitRemoteActions({
       );
     }
   }, [busyAction, onHandOffToAgent, prM]);
+
+  const remoteHotkeysEnabled = enabled && !historyOpen && manualCommitReason === null;
+  useHotkey("git.history", () => setHistoryOpen((value) => !value), {
+    capture: true,
+    enabled: enabled && manualCommitReason === null,
+  });
+  useHotkey("git.fetch", () => void runFetch(), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.pull", () => void runPull("ff-only"), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.pullRebase", () => void runPull("rebase"), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.pullMerge", () => void runPull("merge"), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.push", () => void runPush(), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
+  useHotkey("git.createPullRequest", () => void runCreatePullRequest(), {
+    capture: true,
+    enabled: remoteHotkeysEnabled,
+  });
 
   // "Ship it" — from voice control or the project.ship hotkey — means Commit &
   // Push now that no agent session is involved.
@@ -428,6 +461,14 @@ export function GitRemoteActions({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
+              icon="list"
+              disabled={!enabled}
+              onClick={runFromMenu(() => setHistoryOpen(true))}
+              title="Browse commits across local and fetched remote branches"
+            >
+              Commit history
+            </DropdownMenuItem>
+            <DropdownMenuItem
               icon="github"
               disabled={!enabled || prM.isPending}
               onClick={runFromMenu(() => void runCreatePullRequest())}
@@ -457,6 +498,13 @@ export function GitRemoteActions({
         busy={busyAction === "commit"}
         onClose={() => setManualCommitReason(null)}
         onCommit={(message) => void runCommitAndPush(message)}
+      />
+      <GitHistoryModal
+        open={historyOpen}
+        projectId={projectId}
+        worktreeId={worktreeId}
+        projectName={projectName}
+        onClose={() => setHistoryOpen(false)}
       />
     </div>
   );
