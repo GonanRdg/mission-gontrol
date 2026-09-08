@@ -90,6 +90,7 @@ export function createActionFormState(
 export function getActionFormPreferences(
   action: SkillAction,
   state: ActionFormState,
+  workflowSkill: string | null = null,
 ): ActionFormPreferences {
   const projectInput = action.inputs.find((input) => input.widget === "project");
   const branchInput = action.inputs.find((input) => input.widget === "branch");
@@ -101,6 +102,7 @@ export function getActionFormPreferences(
       action.options.map((option) => [option.id, state.options[option.id] ?? option.default]),
     ),
     sourceTypes: state.sources.map((row) => row.sourceId),
+    workflowSkill,
   };
 }
 

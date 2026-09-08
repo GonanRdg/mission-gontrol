@@ -4,6 +4,7 @@ import { renderActionPrompt, type ActionTemplateContext } from "~/lib/action-tem
 export type ActionLaunchIntent = {
   actionName: string;
   workflowSkill: string;
+  defaultWorkflowSkill: string;
   agent: TaskAgent;
   branch: string;
   promptTemplate: string;
@@ -31,6 +32,21 @@ export function adaptActionPromptForAgent(
   return `${prompt.slice(0, firstContent)}$${workflowSkill}${prompt.slice(firstContent + invocation.length)}`;
 }
 
+export function selectActionWorkflow(
+  prompt: string,
+  defaultWorkflowSkill: string,
+  workflowSkill: string,
+): string {
+  if (defaultWorkflowSkill === workflowSkill) return prompt;
+  const firstContent = prompt.search(/\S/);
+  if (firstContent < 0) return prompt;
+  const invocation = `/${defaultWorkflowSkill}`;
+  if (!prompt.startsWith(invocation, firstContent)) return prompt;
+  const boundary = prompt[firstContent + invocation.length];
+  if (boundary && !/\s/.test(boundary)) return prompt;
+  return `${prompt.slice(0, firstContent)}/${workflowSkill}${prompt.slice(firstContent + invocation.length)}`;
+}
+
 export function renderActionLaunchPrompt(
   intent: ActionLaunchIntent,
   worktreeBranch: string | null,
@@ -39,7 +55,11 @@ export function renderActionLaunchPrompt(
     ...intent.promptContext,
     worktree: intent.worktree && worktreeBranch ? { branch: worktreeBranch } : null,
   });
-  return adaptActionPromptForAgent(prompt, intent.workflowSkill, intent.agent);
+  return adaptActionPromptForAgent(
+    selectActionWorkflow(prompt, intent.defaultWorkflowSkill, intent.workflowSkill),
+    intent.workflowSkill,
+    intent.agent,
+  );
 }
 
 const pending = new Map<string, ActionLaunchIntent>();

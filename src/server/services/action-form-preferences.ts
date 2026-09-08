@@ -56,3 +56,10 @@ export function writeActionFormPreferences(
   );
   return preferences;
 }
+
+export function deleteActionFormPreferences(projectId: string, actionName: string): void {
+  const entries = readStore().entries.filter(
+    (entry) => entry.projectId !== projectId || entry.actionName !== actionName,
+  );
+  setSetting(ACTION_FORM_PREFERENCES_KEY, JSON.stringify({ version: 1, entries } satisfies PreferenceStore));
+}

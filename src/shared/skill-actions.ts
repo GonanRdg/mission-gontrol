@@ -178,9 +178,15 @@ export type ActionWorkflowAvailability = {
   installMethod: "symlink" | "copy" | null;
 };
 
+export type ActionWorkflowChoice = {
+  name: string;
+  workflows: Record<TaskAgent, ActionWorkflowAvailability>;
+};
+
 export type ActionListItem =
   | ({ ok: true; name: string; action: SkillAction } & {
       workflows: Record<TaskAgent, ActionWorkflowAvailability>;
+      skills: ActionWorkflowChoice[];
     })
   | { ok: false; name: string; error: string };
 

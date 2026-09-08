@@ -32,8 +32,8 @@ function ProjectActionsPage() {
     }
     await launch(request);
   };
-  const installWorkflow = async (actionName: string, agent: ActionStartRequest["intent"]["agent"]) => {
-    await api.installActionWorkflow({ projectId: id, actionName, agent });
+  const installWorkflow = async (actionName: string, workflowSkill: string, agent: ActionStartRequest["intent"]["agent"]) => {
+    await api.installActionWorkflow({ projectId: id, actionName, workflowSkill, agent });
     await queryClient.invalidateQueries({ queryKey: queryKeys.actions(id) });
   };
 
