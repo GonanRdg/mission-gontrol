@@ -1674,7 +1674,7 @@ export function TerminalPane({
               showTitle={tinyHeader}
               showSandboxBadge={isSandboxTerminal}
               expanded={expanded}
-              onToggleExpanded={tinyHeader ? onToggleExpanded : undefined}
+              onToggleExpanded={tinyHeader && !fullscreen ? onToggleExpanded : undefined}
               fullscreen={fullscreen}
               onToggleFullscreen={onToggleFullscreen}
               onHide={microHeader ? onHide : undefined}
@@ -1770,7 +1770,7 @@ export function TerminalPane({
               />
             </Tooltip>
           )}
-          {sessionButtons.expand && onToggleExpanded && !tinyHeader && (
+          {sessionButtons.expand && onToggleExpanded && !tinyHeader && !fullscreen && (
             <HotkeyTooltip
               action="terminal.expandToggle"
               label={expanded ? "Shrink session panel" : "Expand session panel"}
