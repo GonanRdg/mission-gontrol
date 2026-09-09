@@ -205,6 +205,8 @@ function HeaderMoreMenu({
   showSandboxBadge,
   expanded,
   onToggleExpanded,
+  fullscreen,
+  onToggleFullscreen,
   onHide,
   onTogglePin,
   pinned,
@@ -227,6 +229,8 @@ function HeaderMoreMenu({
   expanded: boolean;
   /** Present only when the expand control was also collapsed into the menu. */
   onToggleExpanded?: () => void;
+  fullscreen: boolean;
+  onToggleFullscreen?: () => void;
   /** Present only when the close control was also collapsed into the menu. */
   onHide?: () => void;
   /** Present only when the pin control was collapsed into the menu (micro). */
@@ -397,10 +401,18 @@ function HeaderMoreMenu({
             )}
             {onToggleExpanded && (
               <DropdownMenuItem
-                icon={expanded ? "x" : "maximize"}
+                icon={expanded ? "minimize" : "maximize"}
                 onClick={() => pick(onToggleExpanded)}
               >
-                {expanded ? "Exit full screen" : "Full screen"}
+                {expanded ? "Shrink panel" : "Expand panel"}
+              </DropdownMenuItem>
+            )}
+            {onToggleFullscreen && (
+              <DropdownMenuItem
+                icon={fullscreen ? "x" : "fullscreen"}
+                onClick={() => pick(onToggleFullscreen)}
+              >
+                {fullscreen ? "Exit full screen" : "Full screen"}
               </DropdownMenuItem>
             )}
             {onHide && (
@@ -424,6 +436,8 @@ export function TerminalPane({
   onHide,
   expanded = false,
   onToggleExpanded,
+  fullscreen = false,
+  onToggleFullscreen,
   isLast,
   descriptor,
   onPtyReady,
@@ -438,6 +452,8 @@ export function TerminalPane({
   onHide?: () => void;
   expanded?: boolean;
   onToggleExpanded?: () => void;
+  fullscreen?: boolean;
+  onToggleFullscreen?: () => void;
   isLast: boolean;
   descriptor: TerminalDescriptor;
   onPtyReady: (ptyId: string | null) => void;
@@ -1659,6 +1675,8 @@ export function TerminalPane({
               showSandboxBadge={isSandboxTerminal}
               expanded={expanded}
               onToggleExpanded={tinyHeader ? onToggleExpanded : undefined}
+              fullscreen={fullscreen}
+              onToggleFullscreen={onToggleFullscreen}
               onHide={microHeader ? onHide : undefined}
               onTogglePin={microHeader ? onTogglePin : undefined}
               pinned={liveTask.pinned}
@@ -1752,24 +1770,37 @@ export function TerminalPane({
               />
             </Tooltip>
           )}
-          {onToggleExpanded && (expanded || !tinyHeader) && (
+          {sessionButtons.expand && onToggleExpanded && !tinyHeader && (
             <HotkeyTooltip
               action="terminal.expandToggle"
-              label={expanded ? "Exit full screen" : "Full screen"}
+              label={expanded ? "Shrink session panel" : "Expand session panel"}
             >
               <Btn
                 variant="ghost"
                 size="sm"
-                icon={expanded ? "x" : "maximize"}
+                icon={expanded ? "minimize" : "maximize"}
                 onClick={onToggleExpanded}
                 onContextMenu={hideElementContextMenu("session-button:expand")}
-                aria-label={expanded ? "Exit full screen" : "Full screen"}
+                aria-label={expanded ? "Shrink session panel" : "Expand session panel"}
                 aria-pressed={expanded}
                 style={{ width: 34, padding: 0 }}
               />
             </HotkeyTooltip>
           )}
-          {onHide && !microHeader && !expanded && (
+          {onToggleFullscreen && (!tinyHeader || fullscreen) && (
+            <Tooltip content={fullscreen ? "Exit full screen" : "Full screen"}>
+              <Btn
+                variant="ghost"
+                size="sm"
+                icon={fullscreen ? "x" : "fullscreen"}
+                onClick={onToggleFullscreen}
+                aria-label={fullscreen ? "Exit full screen" : "Full screen"}
+                aria-pressed={fullscreen}
+                style={{ width: 34, padding: 0 }}
+              />
+            </Tooltip>
+          )}
+          {onHide && !microHeader && !fullscreen && (
             <HotkeyTooltip action="terminal.close" label="Hide session panel">
               <Btn
                 variant="ghost"
