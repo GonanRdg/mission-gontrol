@@ -549,6 +549,10 @@ function Shell() {
   }, [expandedKey]);
   const sessionExpanded =
     !!projectId && !actionsActive && terminalExpanded && hasActiveSession;
+  useEffect(() => {
+    document.body.toggleAttribute("data-session-fullscreen", sessionExpanded);
+    return () => document.body.removeAttribute("data-session-fullscreen");
+  }, [sessionExpanded]);
   // Grid view takes over the whole workspace: the Outlet (which renders the
   // grid below the project header) spans full width and the single right-hand
   // terminal panel is hidden.
@@ -909,8 +913,8 @@ function Shell() {
 
   return (
     <>
-      {screenshotsSupported && <ScreenshotThumbnail projectId={projectId} />}
-      <div id="root">
+      {screenshotsSupported && !sessionExpanded && <ScreenshotThumbnail projectId={projectId} />}
+      <div id="root" data-session-fullscreen={sessionExpanded || undefined}>
         <div
           aria-hidden
           style={{
@@ -924,7 +928,7 @@ function Shell() {
           }}
         />
         {/* Banner hidden for now — toggle also removed from Settings. */}
-        <TopBar
+        {!sessionExpanded && <TopBar
           crumbs={crumbs}
           onHome={goHome}
           centerActions={
@@ -970,7 +974,7 @@ function Shell() {
               />
             </>
           }
-        />
+        />}
         <div
           ref={workspaceRef}
           style={{
@@ -982,7 +986,7 @@ function Shell() {
           }}
         >
           <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-            {!actionsActive && <ProjectBar disabled={activeResuming} />}
+            {!actionsActive && !sessionExpanded && <ProjectBar disabled={activeResuming} />}
             <div
               style={{
                 position: "relative",
@@ -1015,10 +1019,10 @@ function Shell() {
               />
             )}
           </div>
-          <UserTerminalPanel />
+          {!sessionExpanded && <UserTerminalPanel />}
         </div>
-        {activePanel === "usage" && <UsagePanel onBack={closePanel} />}
-        {settingsOpen && (
+        {!sessionExpanded && activePanel === "usage" && <UsagePanel onBack={closePanel} />}
+        {!sessionExpanded && settingsOpen && (
           <Suspense fallback={null}>
             <SettingsPanel
               initialPanel={settingsRequest?.panel ?? null}
