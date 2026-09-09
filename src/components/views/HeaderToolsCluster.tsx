@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Btn } from "~/components/ui/Btn";
 import { PromptSearchButton } from "~/components/views/PromptSearchButton";
 import { ScratchPadButton } from "~/components/views/ScratchPadButton";
 import { VoicePushToTalkButton } from "~/components/views/VoicePushToTalkButton";
 import { useHideableMenu } from "~/lib/hideable-elements";
+import { useDismissableMenu } from "~/lib/use-dismissable-menu";
 import { useSettings } from "~/queries";
 import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
 
@@ -25,6 +26,7 @@ export function HeaderToolsCluster() {
   const { data: settings } = useSettings();
   const visibility = settings?.headerButtons ?? DEFAULT_HEADER_BUTTON_VISIBILITY;
   const { hideElementContextMenu, hideableMenu } = useHideableMenu();
+  const clusterRef = useRef<HTMLSpanElement>(null);
   const [expanded, setExpanded] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -33,6 +35,8 @@ export function HeaderToolsCluster() {
       return false;
     }
   });
+  const close = useCallback(() => setExpanded(false), []);
+  useDismissableMenu(expanded, close, clusterRef);
 
   const toggle = () =>
     setExpanded((current) => {
@@ -49,7 +53,7 @@ export function HeaderToolsCluster() {
   if (!anyVisible) return null;
 
   return (
-    <span className="mc-header-tools-cluster">
+    <span ref={clusterRef} className="mc-header-tools-cluster">
       {expanded && (
         <span className="mc-header-tools-extra">
           {visibility.scratchPad && (
