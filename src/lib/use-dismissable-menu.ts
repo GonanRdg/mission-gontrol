@@ -37,15 +37,14 @@ export function useDismissableMenu(
   open: boolean,
   close: () => void,
   insideRef?: RefObject<HTMLElement | null>,
-  additionalInsideRef?: RefObject<HTMLElement | null>,
 ) {
   useSuspendAppDragRegion(open);
   useEffect(() => {
     if (!open) return;
-    const isInside = (target: EventTarget | null) => {
-      if (!(target instanceof Node)) return false;
-      return !!insideRef?.current?.contains(target) || !!additionalInsideRef?.current?.contains(target);
-    };
+    const isInside = (target: EventTarget | null) =>
+      insideRef?.current != null &&
+      target instanceof Node &&
+      insideRef.current.contains(target);
     const onPointerDown = (e: PointerEvent) => {
       if (!isInside(e.target)) close();
     };
@@ -63,5 +62,5 @@ export function useDismissableMenu(
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, close, insideRef, additionalInsideRef]);
+  }, [open, close, insideRef]);
 }

@@ -205,8 +205,6 @@ function HeaderMoreMenu({
   showSandboxBadge,
   expanded,
   onToggleExpanded,
-  fullscreen,
-  onToggleFullscreen,
   onHide,
   onTogglePin,
   pinned,
@@ -229,8 +227,6 @@ function HeaderMoreMenu({
   expanded: boolean;
   /** Present only when the expand control was also collapsed into the menu. */
   onToggleExpanded?: () => void;
-  fullscreen: boolean;
-  onToggleFullscreen?: () => void;
   /** Present only when the close control was also collapsed into the menu. */
   onHide?: () => void;
   /** Present only when the pin control was collapsed into the menu (micro). */
@@ -399,20 +395,12 @@ function HeaderMoreMenu({
                 {pinned ? "Unpin session" : "Pin session"}
               </DropdownMenuItem>
             )}
-            {onToggleExpanded && (
+            {buttons.expand && onToggleExpanded && (
               <DropdownMenuItem
                 icon={expanded ? "minimize" : "maximize"}
                 onClick={() => pick(onToggleExpanded)}
               >
                 {expanded ? "Shrink panel" : "Expand panel"}
-              </DropdownMenuItem>
-            )}
-            {onToggleFullscreen && (
-              <DropdownMenuItem
-                icon={fullscreen ? "x" : "fullscreen"}
-                onClick={() => pick(onToggleFullscreen)}
-              >
-                {fullscreen ? "Exit full screen" : "Full screen"}
               </DropdownMenuItem>
             )}
             {onHide && (
@@ -436,8 +424,6 @@ export function TerminalPane({
   onHide,
   expanded = false,
   onToggleExpanded,
-  fullscreen = false,
-  onToggleFullscreen,
   isLast,
   descriptor,
   onPtyReady,
@@ -452,8 +438,6 @@ export function TerminalPane({
   onHide?: () => void;
   expanded?: boolean;
   onToggleExpanded?: () => void;
-  fullscreen?: boolean;
-  onToggleFullscreen?: () => void;
   isLast: boolean;
   descriptor: TerminalDescriptor;
   onPtyReady: (ptyId: string | null) => void;
@@ -1674,9 +1658,7 @@ export function TerminalPane({
               showTitle={tinyHeader}
               showSandboxBadge={isSandboxTerminal}
               expanded={expanded}
-              onToggleExpanded={tinyHeader && !fullscreen ? onToggleExpanded : undefined}
-              fullscreen={fullscreen}
-              onToggleFullscreen={onToggleFullscreen}
+              onToggleExpanded={tinyHeader ? onToggleExpanded : undefined}
               onHide={microHeader ? onHide : undefined}
               onTogglePin={microHeader ? onTogglePin : undefined}
               pinned={liveTask.pinned}
@@ -1770,7 +1752,7 @@ export function TerminalPane({
               />
             </Tooltip>
           )}
-          {sessionButtons.expand && onToggleExpanded && !tinyHeader && !fullscreen && (
+          {sessionButtons.expand && onToggleExpanded && !tinyHeader && (
             <HotkeyTooltip
               action="terminal.expandToggle"
               label={expanded ? "Shrink session panel" : "Expand session panel"}
@@ -1787,20 +1769,7 @@ export function TerminalPane({
               />
             </HotkeyTooltip>
           )}
-          {onToggleFullscreen && (!tinyHeader || fullscreen) && (
-            <Tooltip content={fullscreen ? "Exit full screen" : "Full screen"}>
-              <Btn
-                variant="ghost"
-                size="sm"
-                icon={fullscreen ? "x" : "fullscreen"}
-                onClick={onToggleFullscreen}
-                aria-label={fullscreen ? "Exit full screen" : "Full screen"}
-                aria-pressed={fullscreen}
-                style={{ width: 34, padding: 0 }}
-              />
-            </Tooltip>
-          )}
-          {onHide && !microHeader && !fullscreen && (
+          {onHide && !microHeader && (
             <HotkeyTooltip action="terminal.close" label="Hide session panel">
               <Btn
                 variant="ghost"
@@ -1891,3 +1860,4 @@ export function TerminalPane({
     </>
   );
 }
+
