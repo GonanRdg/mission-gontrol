@@ -1007,7 +1007,7 @@ function Shell() {
                 // Grid view lives inside the Outlet, so the expanded-terminal
                 // flag must never hide it — both can be true at once (the
                 // expand flag persists per project, the grid flag globally).
-                display: sessionExpanded && !gridActive ? "none" : "flex",
+                display: (sessionExpanded || sessionFullscreen) && !gridActive ? "none" : "flex",
                 flexDirection: "column",
                 overflow: "hidden",
                 // On the project detail view the terminal panel sits to the
@@ -1027,7 +1027,7 @@ function Shell() {
                 onClose={close}
                 onHide={deselect}
                 onPtyReady={setPtyId}
-                expanded={sessionExpanded}
+                expanded={sessionExpanded || sessionFullscreen}
                 onToggleExpanded={toggleTerminalExpanded}
                 fullscreen={sessionFullscreen}
                 onToggleFullscreen={toggleTerminalFullscreen}
