@@ -1692,6 +1692,30 @@ body[data-suspend-app-drag] .mc-topbar {
   padding: 10px 0 18px;
 }
 
+.mc-actions-skill-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.mc-actions-skill-status > span {
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.mc-actions-skill-status[data-status="available"] > span:first-child {
+  color: var(--status-done);
+}
+
+.mc-actions-skill-status[data-status="installable"] > span:first-child,
+.mc-actions-skill-status[data-status="unavailable"] > span:first-child {
+  color: var(--status-needs);
+}
+
 .mc-actions-queue-bar {
   position: sticky;
   bottom: 0;

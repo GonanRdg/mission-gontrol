@@ -75,6 +75,11 @@ function unique(paths: string[]): string[] {
   return [...new Set(paths.map((candidate) => path.resolve(candidate)))];
 }
 
+function isWithin(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate);
+  return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
 function assertSkillName(skillName: string): void {
   if (!SKILL_NAME_RE.test(skillName) || skillName.length > 64) {
     throw new Error("invalid workflow skill name");
@@ -100,6 +105,7 @@ export function readActionWorkflowAvailability(
     return {
       agent,
       status: "available",
+      origin: isWithin(project, installed) ? "project" : "global",
       sourcePath: installed,
       targetPath,
       installMethod: null,
@@ -113,6 +119,7 @@ export function readActionWorkflowAvailability(
   return {
     agent,
     status: source ? "installable" : "unavailable",
+    origin: source ? (fromBundle ? "bundled" : isWithin(project, source) ? "project" : "global") : null,
     sourcePath: source,
     targetPath,
     installMethod: source ? (fromBundle ? "copy" : "symlink") : null,

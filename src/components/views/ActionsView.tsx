@@ -7,6 +7,7 @@ import { ProjectIcon } from "~/components/ui/ProjectIcon";
 import { SessionIcon } from "~/components/ui/SessionIcon";
 import { Textarea } from "~/components/ui/Textarea";
 import { TextField } from "~/components/ui/TextField";
+import { HotkeyTooltip } from "~/components/ui/Tooltip";
 import { FileFinderDialog } from "~/components/views/FileFinderDialog";
 import { ProjectPicker } from "~/components/views/ProjectPicker";
 import {
@@ -23,9 +24,11 @@ import { mcToastResultCard } from "~/lib/mc-toast";
 import { useActionFormPreferencesAutosave } from "~/lib/use-action-form-preferences-autosave";
 import {
   adaptActionPromptForAgent,
+  readRecentActionLaunches,
   selectActionWorkflow,
   type ActionLaunchIntent,
 } from "~/lib/action-launch-intent";
+import { useHotkey } from "~/lib/use-hotkey";
 import { renderActionPrompt } from "~/lib/action-template";
 import { resolveActionWorktreeSuggestion } from "~/lib/action-worktree-name";
 import { accentCssVars } from "~/lib/accent-colors";
@@ -213,6 +216,7 @@ function ActionFieldControl({
   projects,
   onChange,
   onBrowse,
+  requiredOverride,
 }: {
   field: RenderableField;
   value: string | boolean;
@@ -220,8 +224,9 @@ function ActionFieldControl({
   projects: ProjectWithCounts[];
   onChange: (value: string | boolean) => void;
   onBrowse: () => void;
+  requiredOverride?: boolean;
 }) {
-  const required = "required" in field && field.required;
+  const required = requiredOverride || ("required" in field && field.required);
   if (field.widget === "checkbox") {
     return (
       <label
@@ -265,6 +270,7 @@ function ActionFieldControl({
         onChange={onChange}
         placeholder={field.placeholder}
         rows={4}
+        required={required}
       />
     );
   }
@@ -401,6 +407,7 @@ function ActionEditor({
   const [issues, setIssues] = useState<string[]>([]);
   const [launching, setLaunching] = useState(false);
   const [installingWorkflow, setInstallingWorkflow] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
   const [workflowSkill, setWorkflowSkill] = useState(preferences?.workflowSkill ?? action.skill);
   const [fileTarget, setFileTarget] = useState<
     { kind: "source"; key: string } | { kind: "input"; id: string } | null
@@ -412,10 +419,15 @@ function ActionEditor({
   const workflow = selectedSkill?.workflows[state.agent] ?? {
     agent: state.agent,
     status: "unavailable" as const,
+    origin: null,
     sourcePath: null,
     targetPath: "",
     installMethod: null,
   };
+  const recentLaunch = useMemo(
+    () => readRecentActionLaunches(project.id).find((entry) => entry.intent.actionName === actionName) ?? null,
+    [actionName, project.id],
+  );
   const projectInput = action.inputs.find((input) => input.widget === "project");
   const executionInputs = action.inputs.filter((input) => input.widget === "project" || input.widget === "branch");
   const actionInputs = action.inputs.filter((input) => input.widget !== "project" && input.widget !== "branch");
@@ -528,17 +540,46 @@ function ActionEditor({
     }
   };
 
+  useHotkey("dialog.submit", () => void start(), {
+    enabled: !launching && !installingWorkflow,
+    ignoreEditable: false,
+  });
+
   const installWorkflow = async () => {
     if (workflow.status !== "installable" || installingWorkflow) return;
     setIssues([]);
     setInstallingWorkflow(true);
     try {
       await onInstallWorkflow(actionName, workflowSkill, state.agent);
+      setAnnouncement(`${workflowSkill} installed for ${AGENT_REGISTRY[state.agent].label}.`);
     } catch (error) {
       setIssues([error instanceof Error ? error.message : "Could not install workflow skill."]);
     } finally {
       setInstallingWorkflow(false);
     }
+  };
+
+  const restoreRecentLaunch = () => {
+    if (!recentLaunch) return;
+    const intent = recentLaunch.intent;
+    const recentSources = (intent.promptContext.sources ?? {}) as Record<string, unknown>;
+    const recentInputs = (intent.promptContext.inputs ?? {}) as Record<string, string | boolean>;
+    const recentOptions = (intent.promptContext.options ?? {}) as Record<string, boolean>;
+    const sources = action.sources.flatMap((source) => {
+      const values = recentSources[source.id];
+      return Array.isArray(values)
+        ? values.map((value, index) => ({ key: `recent-${source.id}-${index}`, sourceId: source.id, value: String(value) }))
+        : [];
+    });
+    setState({
+      sources: sources.length > 0 ? sources : state.sources,
+      inputs: { ...state.inputs, ...recentInputs },
+      options: { ...state.options, ...recentOptions },
+      agent: intent.agent,
+    });
+    setWorkflowSkill(intent.workflowSkill);
+    setIssues([]);
+    setAnnouncement(`Restored the last ${action.title.toLowerCase()} run for review.`);
   };
 
   return (
@@ -560,7 +601,14 @@ function ActionEditor({
             Paste the work, check the details, then queue it.
           </div>
         </div>
+        {recentLaunch && (
+          <Btn type="button" variant="ghost" size="sm" icon="refresh" onClick={restoreRecentLaunch} style={{ marginLeft: "auto" }}>
+            Use last run
+          </Btn>
+        )}
       </div>
+
+      <span className="sr-only" role="status" aria-live="polite">{announcement}</span>
 
       {action.sources.length > 0 && (
         <FormSection title="What should the agent know?">
@@ -593,19 +641,22 @@ function ActionEditor({
                     projects={projects}
                     onChange={(value) => setSource(row.key, { value: String(value) })}
                     onBrowse={() => setFileTarget({ kind: "source", key: row.key })}
+                    requiredOverride={index < action.sourcesMin}
                   />
                   <Btn
                     type="button"
                     variant="ghost"
                     icon="trash"
                     aria-label={`Remove source ${index + 1}`}
-                    title="Remove source"
+                    title={state.sources.length <= action.sourcesMin ? "This context is required" : "Remove source"}
+                    disabled={state.sources.length <= action.sourcesMin}
                     onClick={() => {
                       setIssues([]);
                       setState((current) => ({
                         ...current,
                         sources: current.sources.filter((candidate) => candidate.key !== row.key),
                       }));
+                      setAnnouncement(`Removed context ${index + 1}.`);
                     }}
                     style={{ width: 44, minWidth: 44, height: 44, padding: 0, alignSelf: "end" }}
                   />
@@ -633,6 +684,7 @@ function ActionEditor({
                       },
                     ],
                   }));
+                  setAnnouncement("Added another context row.");
                 }}
               >
                 Add another context
@@ -737,17 +789,23 @@ function ActionEditor({
             <datalist id={`${actionName}-workflow-skills`}>
               {skills.map((skill) => <option key={skill.name} value={skill.name} />)}
             </datalist>
+            <div className="mc-actions-skill-status" data-status={workflow.status}>
+              <span>{workflow.status === "available" ? "Available" : workflow.status === "installable" ? "Install required" : "Not found"}</span>
+              <span>{workflow.origin === "project" ? "Project" : workflow.origin === "bundled" ? "Bundled" : workflow.origin === "global" ? "Global" : "No source"}</span>
+              {workflowSkill === action.skill && <span>Action default</span>}
+              {preferences?.workflowSkill === workflowSkill && <span>Saved default</span>}
+            </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <Btn
                 type="button"
                 variant="ghost"
                 size="sm"
                 disabled={!selectedSkill || preferences?.workflowSkill === workflowSkill}
-                onClick={() => void onPreferencesChange(getActionFormPreferences(action, state, workflowSkill))}
+                onClick={() => void onPreferencesChange(getActionFormPreferences(action, state, workflowSkill)).then(() => setAnnouncement(`${workflowSkill} saved as the default workflow.`))}
               >
                 Save skill as default
               </Btn>
-              <Btn type="button" variant="ghost" size="sm" onClick={() => void onResetPreferences()}>
+              <Btn type="button" variant="ghost" size="sm" onClick={() => void onResetPreferences().then(() => setAnnouncement("Action settings reset to defaults."))}>
                 Reset to action defaults
               </Btn>
             </div>
@@ -853,14 +911,17 @@ function ActionEditor({
             {selectedProject?.name ?? project.name} · {AGENT_REGISTRY[state.agent].label} · {action.worktree ? "isolated worktree" : "current checkout"}
             <small>You can leave after queueing. Mission Control will surface attention requests.</small>
           </span>
-          <Btn
-            type="submit"
-            variant="primary"
-            icon="play"
-            disabled={launching || installingWorkflow || !preview.ok || workflow.status !== "available"}
-          >
-            {launching ? "Queueing…" : `Queue ${action.title.toLowerCase()}`}
-          </Btn>
+          <HotkeyTooltip action="dialog.submit" label={`Queue ${action.title.toLowerCase()}`}>
+            <Btn
+              type="submit"
+              variant="primary"
+              icon="play"
+              aria-keyshortcuts="Meta+Enter Control+Enter"
+              disabled={launching || installingWorkflow || !preview.ok || workflow.status !== "available"}
+            >
+              {launching ? "Queueing…" : `Queue ${action.title.toLowerCase()}`}
+            </Btn>
+          </HotkeyTooltip>
         </div>
       </div>
 

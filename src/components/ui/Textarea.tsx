@@ -11,6 +11,7 @@ export function Textarea({
   autoFocus,
   textareaRef,
   disabled,
+  required,
 }: {
   label?: string;
   hint?: string;
@@ -22,6 +23,7 @@ export function Textarea({
   autoFocus?: boolean;
   textareaRef?: Ref<HTMLTextAreaElement>;
   disabled?: boolean;
+  required?: boolean;
 }) {
   const generatedId = useId();
   const inputId = `mc-textarea-${generatedId}`;
@@ -61,6 +63,7 @@ export function Textarea({
           autoFocus={autoFocus}
           ref={textareaRef}
           disabled={disabled}
+          required={required}
           aria-describedby={hintId}
           style={{
             flex: 1,

@@ -173,6 +173,7 @@ export type SkillActionParse =
 export type ActionWorkflowAvailability = {
   agent: TaskAgent;
   status: "available" | "installable" | "unavailable";
+  origin: "project" | "global" | "bundled" | null;
   sourcePath: string | null;
   targetPath: string;
   installMethod: "symlink" | "copy" | null;
