@@ -21,6 +21,7 @@ export type IconName =
   | "chevron-left"
   | "maximize"
   | "minimize"
+  | "fullscreen"
   | "x"
   | "more"
   | "check"
@@ -171,6 +172,12 @@ export function Icon({ name, size = 14, style }: { name: IconName; size?: number
         <svg {...common}>
           <path d="M2 6h4V2M14 6h-4V2M10 14v-4h4M6 14v-4H2" />
           <path d="M6 2L2 6M10 2l4 4M14 10l-4 4M2 10l4 4" />
+        </svg>
+      );
+    case "fullscreen":
+      return (
+        <svg {...common}>
+          <path d="M6 2H2v4M10 2h4v4M14 10v4h-4M2 10v4h4" />
         </svg>
       );
     case "x":

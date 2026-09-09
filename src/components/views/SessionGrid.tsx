@@ -502,6 +502,7 @@ type GridCellProps = {
    *  the cell renders as an empty frame holding its grid slot. */
   mounted: boolean;
   expanded: boolean;
+  fullscreen: boolean;
   /** True when another cell is expanded and this one is overlaid/hidden. */
   hidden: boolean;
   isDragging: boolean;
@@ -513,6 +514,7 @@ type GridCellProps = {
    *  insets by this to cover the grid content box exactly. */
   gridPadding: number;
   onToggleExpanded: (taskId: string) => void;
+  onToggleFullscreen: (taskId: string) => void;
   onRequestClose: (session: OpenTerminal) => void;
   onPtyReady: (taskId: string, ptyId: string | null, scopeKey: string) => void;
   onHeaderPointerDown: (taskId: string, event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -540,6 +542,7 @@ const GridCell = memo(function GridCell({
   scopeKey,
   mounted,
   expanded,
+  fullscreen,
   hidden,
   isDragging,
   isFocused,
@@ -548,6 +551,7 @@ const GridCell = memo(function GridCell({
   reorderEnabled,
   gridPadding,
   onToggleExpanded,
+  onToggleFullscreen,
   onRequestClose,
   onPtyReady,
   onHeaderPointerDown,
@@ -571,7 +575,7 @@ const GridCell = memo(function GridCell({
         // The expanded cell floats above its (hidden) row-mates and every other
         // row, covering the whole grid content box. Because the row containers
         // are non-positioned, `inset` resolves against the positioned grid.
-        ...(expanded ? { position: "absolute" as const, inset: gridPadding } : null),
+        ...(expanded || fullscreen ? { position: "absolute" as const, inset: gridPadding } : null),
         overflow: "hidden",
         // A cell hidden behind an expanded sibling keeps its grid slot (and pixel
         // size — so its terminal never refits), it's just not painted or hit.
@@ -588,7 +592,7 @@ const GridCell = memo(function GridCell({
         // sits above its dimmed neighbours so its ring/glow isn't clipped. A
         // focused cell lifts one step so its accent border + drop shadow read
         // over flush neighbours (the ember layout has no gap between cells).
-        zIndex: expanded ? 8 : isDragging ? 5 : isNavSelected ? 4 : isFocused ? 3 : undefined,
+        zIndex: expanded || fullscreen ? 8 : isDragging ? 5 : isNavSelected ? 4 : isFocused ? 3 : undefined,
         boxShadow: isDragging
           ? "0 16px 40px rgba(0, 0, 0, 0.5)"
           : isFocused || isNavSelected
@@ -614,6 +618,8 @@ const GridCell = memo(function GridCell({
             isLast
             expanded={expanded}
             onToggleExpanded={() => onToggleExpanded(session.taskId)}
+            fullscreen={fullscreen}
+            onToggleFullscreen={() => onToggleFullscreen(session.taskId)}
             onHide={() => onRequestClose(session)}
             onPtyReady={(ptyId) => onPtyReady(session.taskId, ptyId, scopeKey)}
             onHeaderPointerDown={
@@ -836,10 +842,11 @@ export function SessionGrid({
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(() =>
     loadExpandedTaskId(scopeKey),
   );
+  const [fullscreenTaskId, setFullscreenTaskId] = useState<string | null>(null);
   useEffect(() => {
-    document.body.toggleAttribute("data-grid-session-fullscreen", expandedTaskId !== null);
+    document.body.toggleAttribute("data-grid-session-fullscreen", fullscreenTaskId !== null);
     return () => document.body.removeAttribute("data-grid-session-fullscreen");
-  }, [expandedTaskId]);
+  }, [fullscreenTaskId]);
   // Task whose cell is momentarily spotlighted after a notification "Open".
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   // Cell pulsing the "image landed here" flash after a screenshot attach. The
@@ -1075,6 +1082,7 @@ export function SessionGrid({
     // grid with reorder/resize disabled while no cell is visibly expanded. (The
     // scope-swap above already cleared transient state on a project change.)
     setExpandedTaskId((prev) => (prev && !idSet.has(prev) ? null : prev));
+    setFullscreenTaskId((prev) => (prev && !idSet.has(prev) ? null : prev));
   }, [scopedSessions, scopeKey, columnLimit]);
 
   useEffect(() => () => cleanupDragRef.current?.(), []);
@@ -1961,6 +1969,14 @@ export function SessionGrid({
     [focusSessionTerminal],
   );
 
+  const toggleFullscreen = useCallback(
+    (taskId: string) => {
+      setFullscreenTaskId((current) => (current === taskId ? null : taskId));
+      focusSessionTerminal(taskId);
+    },
+    [focusSessionTerminal],
+  );
+
   // Cmd/Ctrl+K (terminal.expandToggle) while the grid owns the workspace:
   // TerminalPanel's single-session expand is unmounted, so __root dispatches to
   // the grid instead. Toggle the cell whose terminal owns focus, falling back to
@@ -2408,6 +2424,7 @@ export function SessionGrid({
             {row.cells.map(({ session }) => {
               const cellScopeKey = scopeKeyFor(session);
               const isExpandedCell = expandedTaskId === session.taskId;
+              const isFullscreenCell = fullscreenTaskId === session.taskId;
               const isDragging = draggingId === session.taskId;
               return (
                 <GridCell
@@ -2416,7 +2433,11 @@ export function SessionGrid({
                   scopeKey={cellScopeKey}
                   mounted={mountedByTask.get(session.taskId) ?? true}
                   expanded={isExpandedCell}
-                  hidden={expandedTaskId !== null && !isExpandedCell}
+                  fullscreen={isFullscreenCell}
+                  hidden={
+                    (expandedTaskId !== null && !isExpandedCell) ||
+                    (fullscreenTaskId !== null && !isFullscreenCell)
+                  }
                   isDragging={isDragging}
                   isFocused={!isDragging && focusedTaskId === session.taskId}
                   isNavSelected={navTaskId === session.taskId}
@@ -2424,6 +2445,7 @@ export function SessionGrid({
                   reorderEnabled={reorderEnabled}
                   gridPadding={gridPad}
                   onToggleExpanded={toggleExpanded}
+                  onToggleFullscreen={toggleFullscreen}
                   onRequestClose={requestClose}
                   onPtyReady={setPtyId}
                   onHeaderPointerDown={startPointerReorder}

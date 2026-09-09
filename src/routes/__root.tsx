@@ -340,6 +340,8 @@ const ProjectTerminalPanel = memo(function ProjectTerminalPanel({
   onPtyReady,
   expanded,
   onToggleExpanded,
+  fullscreen,
+  onToggleFullscreen,
 }: {
   projectId: string;
   onClose: (taskId: string, opts?: { activateTaskId?: string | null }) => Promise<void>;
@@ -347,6 +349,8 @@ const ProjectTerminalPanel = memo(function ProjectTerminalPanel({
   onPtyReady: (taskId: string, ptyId: string | null, scopeKey?: string) => void;
   expanded: boolean;
   onToggleExpanded: () => void;
+  fullscreen: boolean;
+  onToggleFullscreen: () => void;
 }) {
   const { activeFor } = useTerminals();
   return (
@@ -357,6 +361,8 @@ const ProjectTerminalPanel = memo(function ProjectTerminalPanel({
       onPtyReady={onPtyReady}
       expanded={expanded}
       onToggleExpanded={onToggleExpanded}
+      fullscreen={fullscreen}
+      onToggleFullscreen={onToggleFullscreen}
     />
   );
 });
@@ -524,6 +530,7 @@ function Shell() {
 
   const expandedKey = projectId ? `mc:terminalExpanded:${projectId}` : null;
   const [terminalExpanded, setTerminalExpanded] = useState<boolean>(false);
+  const [terminalFullscreen, setTerminalFullscreen] = useState(false);
   useEffect(() => {
     if (!expandedKey) {
       setTerminalExpanded(false);
@@ -549,10 +556,16 @@ function Shell() {
   }, [expandedKey]);
   const sessionExpanded =
     !!projectId && !actionsActive && terminalExpanded && hasActiveSession;
+  const sessionFullscreen =
+    !!projectId && !actionsActive && !gridView && terminalFullscreen && hasActiveSession;
+  const toggleTerminalFullscreen = useCallback(() => setTerminalFullscreen((current) => !current), []);
   useEffect(() => {
-    document.body.toggleAttribute("data-session-fullscreen", sessionExpanded);
+    if (!projectId || !hasActiveSession || gridView) setTerminalFullscreen(false);
+  }, [gridView, hasActiveSession, projectId]);
+  useEffect(() => {
+    document.body.toggleAttribute("data-session-fullscreen", sessionFullscreen);
     return () => document.body.removeAttribute("data-session-fullscreen");
-  }, [sessionExpanded]);
+  }, [sessionFullscreen]);
   // Grid view takes over the whole workspace: the Outlet (which renders the
   // grid below the project header) spans full width and the single right-hand
   // terminal panel is hidden.
@@ -913,8 +926,8 @@ function Shell() {
 
   return (
     <>
-      {screenshotsSupported && !sessionExpanded && <ScreenshotThumbnail projectId={projectId} />}
-      <div id="root" data-session-fullscreen={sessionExpanded || undefined}>
+      {screenshotsSupported && !sessionFullscreen && <ScreenshotThumbnail projectId={projectId} />}
+      <div id="root" data-session-fullscreen={sessionFullscreen || undefined}>
         <div
           aria-hidden
           style={{
@@ -928,7 +941,7 @@ function Shell() {
           }}
         />
         {/* Banner hidden for now — toggle also removed from Settings. */}
-        {!sessionExpanded && <TopBar
+        {!sessionFullscreen && <TopBar
           crumbs={crumbs}
           onHome={goHome}
           centerActions={
@@ -986,7 +999,7 @@ function Shell() {
           }}
         >
           <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-            {!actionsActive && !sessionExpanded && <ProjectBar disabled={activeResuming} />}
+            {!actionsActive && !sessionFullscreen && <ProjectBar disabled={activeResuming} />}
             <div
               style={{
                 position: "relative",
@@ -1016,13 +1029,15 @@ function Shell() {
                 onPtyReady={setPtyId}
                 expanded={sessionExpanded}
                 onToggleExpanded={toggleTerminalExpanded}
+                fullscreen={sessionFullscreen}
+                onToggleFullscreen={toggleTerminalFullscreen}
               />
             )}
           </div>
-          {!sessionExpanded && <UserTerminalPanel />}
+          {!sessionFullscreen && <UserTerminalPanel />}
         </div>
-        {!sessionExpanded && activePanel === "usage" && <UsagePanel onBack={closePanel} />}
-        {!sessionExpanded && settingsOpen && (
+        {!sessionFullscreen && activePanel === "usage" && <UsagePanel onBack={closePanel} />}
+        {!sessionFullscreen && settingsOpen && (
           <Suspense fallback={null}>
             <SettingsPanel
               initialPanel={settingsRequest?.panel ?? null}
