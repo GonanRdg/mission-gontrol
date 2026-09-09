@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { mcToastLoading } from "~/lib/mc-toast";
+import { mcToastLoading, mcToastResultCard } from "~/lib/mc-toast";
 import { Btn } from "~/components/ui/Btn";
 import { CardFrame } from "~/components/ui/CardFrame";
 import { DropdownMenuItem, DropdownMenuSeparator } from "~/components/ui/DropdownMenuItem";
@@ -40,7 +40,7 @@ import { SessionGrid } from "~/components/views/SessionGrid";
 import { archiveOpenSession, invalidateSessionQueries } from "~/lib/archive-session";
 import { enterFocusSession } from "~/lib/focus-session";
 import { consumeProjectOnboardIntent, type ProjectOnboardIntent } from "~/lib/project-onboard-intent";
-import { consumeActionLaunchIntent, renderActionLaunchPrompt } from "~/lib/action-launch-intent";
+import { consumeActionLaunchIntent, rememberActionLaunch, renderActionLaunchPrompt } from "~/lib/action-launch-intent";
 import { sandboxUsableForProject } from "~/lib/project-scoped-sandboxes";
 import { useHideableMenu } from "~/lib/hideable-elements";
 import { DEFAULT_HEADER_BUTTON_VISIBILITY } from "~/shared/header-buttons";
@@ -1755,7 +1755,14 @@ function ProjectPage() {
           },
         );
         toast.dismiss(toastId);
-        if (started) toast.success(`Started ${intent.actionName}`);
+        if (started) {
+          rememberActionLaunch(project.id, intent);
+          mcToastResultCard({
+            tone: "success",
+            title: `${intent.actionName} is running`,
+            detail: `${worktreeBranch ?? project.branch} · You can leave; Mission Control will surface attention requests.`,
+          });
+        }
       } catch (error) {
         toast.dismiss(toastId);
         toast.error(error instanceof Error ? error.message : "Could not start action");

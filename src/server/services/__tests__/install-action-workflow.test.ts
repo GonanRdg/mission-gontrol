@@ -43,7 +43,7 @@ describe("action workflow availability", () => {
         homeDir: home,
         bundledRoots: [bundled],
       }),
-    ).toMatchObject({ status: "available", sourcePath: source, installMethod: null });
+    ).toMatchObject({ status: "available", origin: "project", sourcePath: source, installMethod: null });
   });
 
   it("offers a symlink when another harness has the workflow", () => {
@@ -59,6 +59,7 @@ describe("action workflow availability", () => {
     ).toEqual({
       agent: "codex",
       status: "installable",
+      origin: "global",
       sourcePath: source,
       targetPath: target,
       installMethod: "symlink",
@@ -74,7 +75,7 @@ describe("action workflow availability", () => {
         homeDir: home,
         bundledRoots: [bundled],
       }),
-    ).toMatchObject({ status: "installable", sourcePath: source, installMethod: "copy" });
+    ).toMatchObject({ status: "installable", origin: "bundled", sourcePath: source, installMethod: "copy" });
   });
 
   it("marks missing unbundled workflows unavailable", () => {
@@ -86,6 +87,7 @@ describe("action workflow availability", () => {
       }),
     ).toMatchObject({
       status: "unavailable",
+      origin: null,
       sourcePath: null,
       targetPath: path.join(home, ".config", "opencode", "skills", "missing-skill"),
     });

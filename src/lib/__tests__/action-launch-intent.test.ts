@@ -1,10 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   consumeActionLaunchIntent,
   markActionLaunchIntent,
+  readRecentActionLaunches,
+  rememberActionLaunch,
   renderActionLaunchPrompt,
   type ActionLaunchIntent,
 } from "../action-launch-intent";
+
+afterEach(() => vi.unstubAllGlobals());
 
 const intent: ActionLaunchIntent = {
   actionName: "implement-feature",
@@ -36,6 +40,21 @@ describe("action launch intent", () => {
 
     expect(consumeActionLaunchIntent("project-2")).toBeNull();
     expect(consumeActionLaunchIntent("project-1")).toEqual(intent);
+  });
+
+  it("keeps the latest complete launch per project and action", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    });
+
+    rememberActionLaunch("project-1", intent);
+    rememberActionLaunch("project-1", { ...intent, branch: "release" });
+
+    expect(readRecentActionLaunches("project-1")).toMatchObject([
+      { projectId: "project-1", intent: { branch: "release" } },
+    ]);
   });
 
   it("renders the submitted prompt with the created worktree branch", () => {
