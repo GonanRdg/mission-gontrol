@@ -340,8 +340,6 @@ const ProjectTerminalPanel = memo(function ProjectTerminalPanel({
   onPtyReady,
   expanded,
   onToggleExpanded,
-  fullscreen,
-  onToggleFullscreen,
 }: {
   projectId: string;
   onClose: (taskId: string, opts?: { activateTaskId?: string | null }) => Promise<void>;
@@ -349,8 +347,6 @@ const ProjectTerminalPanel = memo(function ProjectTerminalPanel({
   onPtyReady: (taskId: string, ptyId: string | null, scopeKey?: string) => void;
   expanded: boolean;
   onToggleExpanded: () => void;
-  fullscreen: boolean;
-  onToggleFullscreen: () => void;
 }) {
   const { activeFor } = useTerminals();
   return (
@@ -361,8 +357,6 @@ const ProjectTerminalPanel = memo(function ProjectTerminalPanel({
       onPtyReady={onPtyReady}
       expanded={expanded}
       onToggleExpanded={onToggleExpanded}
-      fullscreen={fullscreen}
-      onToggleFullscreen={onToggleFullscreen}
     />
   );
 });
@@ -530,7 +524,6 @@ function Shell() {
 
   const expandedKey = projectId ? `mc:terminalExpanded:${projectId}` : null;
   const [terminalExpanded, setTerminalExpanded] = useState<boolean>(false);
-  const [terminalFullscreen, setTerminalFullscreen] = useState(false);
   useEffect(() => {
     if (!expandedKey) {
       setTerminalExpanded(false);
@@ -556,16 +549,6 @@ function Shell() {
   }, [expandedKey]);
   const sessionExpanded =
     !!projectId && !actionsActive && terminalExpanded && hasActiveSession;
-  const sessionFullscreen =
-    !!projectId && !actionsActive && !gridView && terminalFullscreen && hasActiveSession;
-  const toggleTerminalFullscreen = useCallback(() => setTerminalFullscreen((current) => !current), []);
-  useEffect(() => {
-    if (!projectId || !hasActiveSession || gridView) setTerminalFullscreen(false);
-  }, [gridView, hasActiveSession, projectId]);
-  useEffect(() => {
-    document.body.toggleAttribute("data-session-fullscreen", sessionFullscreen);
-    return () => document.body.removeAttribute("data-session-fullscreen");
-  }, [sessionFullscreen]);
   // Grid view takes over the whole workspace: the Outlet (which renders the
   // grid below the project header) spans full width and the single right-hand
   // terminal panel is hidden.
@@ -926,8 +909,8 @@ function Shell() {
 
   return (
     <>
-      {screenshotsSupported && !sessionFullscreen && <ScreenshotThumbnail projectId={projectId} />}
-      <div id="root" data-session-fullscreen={sessionFullscreen || undefined}>
+      {screenshotsSupported && <ScreenshotThumbnail projectId={projectId} />}
+      <div id="root">
         <div
           aria-hidden
           style={{
@@ -941,7 +924,7 @@ function Shell() {
           }}
         />
         {/* Banner hidden for now — toggle also removed from Settings. */}
-        {!sessionFullscreen && <TopBar
+        <TopBar
           crumbs={crumbs}
           onHome={goHome}
           centerActions={
@@ -987,7 +970,7 @@ function Shell() {
               />
             </>
           }
-        />}
+        />
         <div
           ref={workspaceRef}
           style={{
@@ -999,7 +982,7 @@ function Shell() {
           }}
         >
           <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-            {!actionsActive && !sessionFullscreen && <ProjectBar disabled={activeResuming} />}
+            {!actionsActive && <ProjectBar disabled={activeResuming} />}
             <div
               style={{
                 position: "relative",
@@ -1007,7 +990,7 @@ function Shell() {
                 // Grid view lives inside the Outlet, so the expanded-terminal
                 // flag must never hide it — both can be true at once (the
                 // expand flag persists per project, the grid flag globally).
-                display: (sessionExpanded || sessionFullscreen) && !gridActive ? "none" : "flex",
+                display: sessionExpanded && !gridActive ? "none" : "flex",
                 flexDirection: "column",
                 overflow: "hidden",
                 // On the project detail view the terminal panel sits to the
@@ -1027,17 +1010,15 @@ function Shell() {
                 onClose={close}
                 onHide={deselect}
                 onPtyReady={setPtyId}
-                expanded={sessionExpanded || sessionFullscreen}
+                expanded={sessionExpanded}
                 onToggleExpanded={toggleTerminalExpanded}
-                fullscreen={sessionFullscreen}
-                onToggleFullscreen={toggleTerminalFullscreen}
               />
             )}
           </div>
-          {!sessionFullscreen && <UserTerminalPanel />}
+          <UserTerminalPanel />
         </div>
-        {!sessionFullscreen && activePanel === "usage" && <UsagePanel onBack={closePanel} />}
-        {!sessionFullscreen && settingsOpen && (
+        {activePanel === "usage" && <UsagePanel onBack={closePanel} />}
+        {settingsOpen && (
           <Suspense fallback={null}>
             <SettingsPanel
               initialPanel={settingsRequest?.panel ?? null}

@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -20,7 +21,7 @@ import { useScratchPad } from "~/lib/scratch-pad-store";
 import { Z_INDEX } from "~/lib/z-index";
 import { queryKeys, useScratchPads } from "~/queries";
 import { scratchPadTitle, type ScratchPadView } from "~/shared/scratch-pads";
-import { useDismissableMenu } from "~/lib/use-dismissable-menu";
+import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 
 const MENU_WIDTH = 280;
 
@@ -66,14 +67,13 @@ export function ScratchPadButton({
   const { projectId, openLatest, openNew, openPad } = useScratchPad();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  useSuspendAppDragRegion(menuOpen);
   const [menuRect, setMenuRect] = useState<{ top: number; left: number } | null>(null);
   const [confirmPad, setConfirmPad] = useState<ScratchPadView | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLElement>(null);
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
-  useDismissableMenu(menuOpen, closeMenu, menuRef, anchorRef);
 
   // Only fetch while the menu is open — the button itself needs no data.
   const { data: pads } = useScratchPads(menuOpen ? projectId : null);
@@ -101,6 +101,25 @@ export function ScratchPadButton({
       window.removeEventListener("scroll", updateMenuRect, true);
     };
   }, [menuOpen, updateMenuRect]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (anchorRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   const pick = (padId: string) => {
     setMenuOpen(false);

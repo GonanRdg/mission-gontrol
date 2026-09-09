@@ -31,8 +31,6 @@ export function TerminalPanel({
   onPtyReady,
   expanded = false,
   onToggleExpanded,
-  fullscreen = false,
-  onToggleFullscreen,
 }: {
   active: OpenTerminal | null;
   onClose: (taskId: string) => Promise<void> | void;
@@ -40,8 +38,6 @@ export function TerminalPanel({
   onPtyReady: (taskId: string, ptyId: string | null, scopeKey?: string) => void;
   expanded?: boolean;
   onToggleExpanded?: () => void;
-  fullscreen?: boolean;
-  onToggleFullscreen?: () => void;
 }) {
   const queryClient = useQueryClient();
   const userTerminals = useUserTerminals();
@@ -205,7 +201,7 @@ export function TerminalPanel({
       data-session-terminal-panel
       data-task-id={active.taskId}
       style={{
-        width: expanded ? undefined : width,
+        width: expanded ? "100%" : width,
         flex: expanded ? 1 : undefined,
         minWidth: expanded ? 0 : MIN_WIDTH,
         // Hard cap relative to the actual flex-row width (not window.innerWidth)
@@ -243,8 +239,6 @@ export function TerminalPanel({
           onHide={onHide}
           expanded={expanded}
           onToggleExpanded={onToggleExpanded}
-          fullscreen={fullscreen}
-          onToggleFullscreen={onToggleFullscreen}
           onPtyReady={(ptyId) => onPtyReady(active.taskId, ptyId, activeScopeKey ?? undefined)}
         />
       </div>
