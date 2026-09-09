@@ -205,7 +205,7 @@ export function TerminalPanel({
       data-session-terminal-panel
       data-task-id={active.taskId}
       style={{
-        width: expanded ? "100%" : width,
+        width: expanded ? undefined : width,
         flex: expanded ? 1 : undefined,
         minWidth: expanded ? 0 : MIN_WIDTH,
         // Hard cap relative to the actual flex-row width (not window.innerWidth)
