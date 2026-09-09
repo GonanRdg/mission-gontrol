@@ -395,7 +395,7 @@ function HeaderMoreMenu({
                 {pinned ? "Unpin session" : "Pin session"}
               </DropdownMenuItem>
             )}
-            {buttons.expand && onToggleExpanded && (
+            {onToggleExpanded && (
               <DropdownMenuItem
                 icon={expanded ? "x" : "maximize"}
                 onClick={() => pick(onToggleExpanded)}
@@ -1752,7 +1752,7 @@ export function TerminalPane({
               />
             </Tooltip>
           )}
-          {onToggleExpanded && (expanded || (sessionButtons.expand && !tinyHeader)) && (
+          {onToggleExpanded && (expanded || !tinyHeader) && (
             <HotkeyTooltip
               action="terminal.expandToggle"
               label={expanded ? "Exit full screen" : "Full screen"}
