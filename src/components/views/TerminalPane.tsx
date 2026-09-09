@@ -397,10 +397,10 @@ function HeaderMoreMenu({
             )}
             {buttons.expand && onToggleExpanded && (
               <DropdownMenuItem
-                icon={expanded ? "minimize" : "maximize"}
+                icon={expanded ? "x" : "maximize"}
                 onClick={() => pick(onToggleExpanded)}
               >
-                {expanded ? "Shrink panel" : "Expand panel"}
+                {expanded ? "Exit full screen" : "Full screen"}
               </DropdownMenuItem>
             )}
             {onHide && (
@@ -1752,24 +1752,24 @@ export function TerminalPane({
               />
             </Tooltip>
           )}
-          {sessionButtons.expand && onToggleExpanded && !tinyHeader && (
+          {onToggleExpanded && (expanded || (sessionButtons.expand && !tinyHeader)) && (
             <HotkeyTooltip
               action="terminal.expandToggle"
-              label={expanded ? "Shrink session panel" : "Expand session panel"}
+              label={expanded ? "Exit full screen" : "Full screen"}
             >
               <Btn
                 variant="ghost"
                 size="sm"
-                icon={expanded ? "minimize" : "maximize"}
+                icon={expanded ? "x" : "maximize"}
                 onClick={onToggleExpanded}
                 onContextMenu={hideElementContextMenu("session-button:expand")}
-                aria-label={expanded ? "Shrink session panel" : "Expand session panel"}
+                aria-label={expanded ? "Exit full screen" : "Full screen"}
                 aria-pressed={expanded}
                 style={{ width: 34, padding: 0 }}
               />
             </HotkeyTooltip>
           )}
-          {onHide && !microHeader && (
+          {onHide && !microHeader && !expanded && (
             <HotkeyTooltip action="terminal.close" label="Hide session panel">
               <Btn
                 variant="ghost"
@@ -1860,4 +1860,3 @@ export function TerminalPane({
     </>
   );
 }
-
