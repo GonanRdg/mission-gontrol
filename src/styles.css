@@ -413,13 +413,20 @@ body {
   z-index: 1;
 }
 
-#root[data-session-fullscreen="true"] {
+#root[data-session-fullscreen="true"],
+body[data-grid-session-fullscreen] #root {
   --mc-shell-pad-top: 16px;
   padding: 16px;
 }
 
 body[data-session-fullscreen] .mc-pet-widget,
-body[data-session-fullscreen] .mc-remote-pets {
+body[data-session-fullscreen] .mc-remote-pets,
+body[data-grid-session-fullscreen] .mc-pet-widget,
+body[data-grid-session-fullscreen] .mc-remote-pets,
+body[data-grid-session-fullscreen] .mc-topbar,
+body[data-grid-session-fullscreen] .mc-project-rail,
+body[data-grid-session-fullscreen] .mc-project-header,
+body[data-grid-session-fullscreen] [data-user-terminal-panel] {
   display: none;
 }
 

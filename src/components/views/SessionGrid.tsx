@@ -836,6 +836,10 @@ export function SessionGrid({
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(() =>
     loadExpandedTaskId(scopeKey),
   );
+  useEffect(() => {
+    document.body.toggleAttribute("data-grid-session-fullscreen", expandedTaskId !== null);
+    return () => document.body.removeAttribute("data-grid-session-fullscreen");
+  }, [expandedTaskId]);
   // Task whose cell is momentarily spotlighted after a notification "Open".
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   // Cell pulsing the "image landed here" flash after a screenshot attach. The

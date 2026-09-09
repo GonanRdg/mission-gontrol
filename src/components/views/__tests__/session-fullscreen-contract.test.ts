@@ -1,0 +1,18 @@
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+describe("session full screen", () => {
+  it("promotes an expanded grid session to the immersive shell state", () => {
+    const grid = fs.readFileSync(
+      path.join(process.cwd(), "src/components/views/SessionGrid.tsx"),
+      "utf8",
+    );
+    const styles = fs.readFileSync(path.join(process.cwd(), "src/styles.css"), "utf8");
+
+    expect(grid).toContain('data-grid-session-fullscreen", expandedTaskId !== null');
+    expect(styles).toContain("body[data-grid-session-fullscreen] .mc-topbar");
+    expect(styles).toContain("body[data-grid-session-fullscreen] .mc-project-header");
+    expect(styles).toContain("body[data-grid-session-fullscreen] [data-user-terminal-panel]");
+  });
+});
