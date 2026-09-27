@@ -35,7 +35,7 @@ function describeError(error: unknown): { name: string; message: string; stack: 
 function buildErrorReport(error: unknown, componentStack: string | undefined): string {
   const { name, message, stack } = describeError(error);
   const lines = [
-    "Mission Control error report",
+    "Mission Gontrol error report",
     `Version: ${CURRENT_MC_VERSION}`,
   ];
   if (typeof window !== "undefined") lines.push(`URL: ${window.location.href}`);
@@ -107,7 +107,7 @@ function AppErrorFallback({ error, info, reset }: ErrorComponentProps) {
       >
         <h1 style={{ margin: "0 0 8px", fontSize: 18 }}>Something went wrong</h1>
         <p style={{ margin: "0 0 14px", color: "var(--text-dim, #a1a1aa)", lineHeight: 1.5 }}>
-          Mission Control hit a rendering issue. Reload the app and your projects and sessions should recover.
+          Mission Gontrol hit a rendering issue. Reload the app and your projects and sessions should recover.
         </p>
         <div
           style={{

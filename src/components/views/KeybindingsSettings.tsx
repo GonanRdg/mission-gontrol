@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Btn } from "~/components/ui/Btn";
+import { doubleShiftEnabled, doubleShiftPreference } from "~/lib/command-palette-preferences";
 import { KbdCombo } from "~/components/ui/Kbd";
 import { StaticHotkeyTooltip } from "~/components/ui/Tooltip";
 import { useKeybindings } from "~/lib/keybindings/store";
@@ -10,6 +11,7 @@ import { formatPinnedSlotBindingParts } from "~/lib/keybindings/format";
 import { ACTION_META, HOTKEY_ACTIONS, type Binding, type HotkeyAction } from "~/lib/keybindings/types";
 
 export function KeybindingsSettings() {
+  const [doubleShift, setDoubleShift] = useState(doubleShiftEnabled);
   const { bindings, setBinding, resetBinding, resetAll } = useKeybindings();
   const [recordingFor, setRecordingFor] = useState<HotkeyAction | null>(null);
   const [pendingBinding, setPendingBinding] = useState<Binding | null>(null);
@@ -80,6 +82,13 @@ export function KeybindingsSettings() {
 
   return (
     <div>
+      <label style={{ display: "flex", gap: 10, marginBottom: 20, alignItems: "center" }}>
+        <input type="checkbox" checked={doubleShift} onChange={(event) => {
+          setDoubleShift(event.target.checked);
+          doubleShiftPreference.write(event.target.checked);
+        }} />
+        Open command palette by pressing Shift twice
+      </label>
       {conflicts.size > 0 && (
         <ConflictBanner count={conflicts.size} />
       )}

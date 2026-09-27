@@ -13,7 +13,7 @@ import * as path from "node:path";
 // they are intentionally omitted here until a private channel is settled for
 // each (adding one is a single entry in AGENT_MEMORY_TARGETS).
 
-const MC_RECALL_START = "<!-- mc:recall:start (managed by Mission Control — do not edit inside these markers) -->";
+const MC_RECALL_START = "<!-- mc:recall:start (managed by Mission Gontrol — do not edit inside these markers) -->";
 const MC_RECALL_END = "<!-- mc:recall:end -->";
 const MC_RECALL_START_PREFIX = "<!-- mc:recall:start";
 
@@ -63,7 +63,7 @@ function ensureGitIgnored(cwd: string, relPath: string): void {
     const existing = new Set(content.split(/\r?\n/).map((l) => l.trim()));
     if (existing.has(relPath) || existing.has(`/${relPath}`)) return;
     const prefix = content && !content.endsWith("\n") ? "\n" : "";
-    const addition = `${prefix}\n# Mission Control Recall (project memory) — private, do not commit\n${relPath}\n`;
+    const addition = `${prefix}\n# Mission Gontrol Recall (project memory) — private, do not commit\n${relPath}\n`;
     fs.writeFileSync(gitignore, content + addition, "utf8");
   } catch {
     /* best-effort */

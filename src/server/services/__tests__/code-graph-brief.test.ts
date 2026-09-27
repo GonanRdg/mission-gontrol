@@ -1,4 +1,6 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("~/shared/product", () => ({ RECALL_AVAILABLE: true }));
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -69,7 +71,7 @@ describe("code graph → Session Brief", () => {
     createMemory({ projectId, type: "stack", title: "TypeScript + tree-sitter" });
     const { markdown } = assembleSessionBrief(projectId, LOCAL_SCOPE_ID);
     const archIdx = markdown.indexOf("Architecture at a glance");
-    const memIdx = markdown.indexOf("Project memory (Mission Control Recall)");
+    const memIdx = markdown.indexOf("Project memory (Mission Gontrol Recall)");
     expect(archIdx).toBeGreaterThanOrEqual(0);
     expect(memIdx).toBeGreaterThan(archIdx);
   });

@@ -1,6 +1,6 @@
 // App-wide voice control. Mounted once at the root. Hold the push-to-talk key
 // to record; on release the clip is transcribed locally (whisper) and routed
-// through a keyword heuristic to a Mission Control command — switch project, run
+// through a keyword heuristic to a Mission Gontrol command — switch project, run
 // the project, or start an agent on a spoken task. No LLM in the hot path.
 
 import { useEffect, useRef, useState } from "react";
@@ -35,7 +35,7 @@ import { RecordingIndicator, type VoiceStatus } from "./RecordingIndicator";
 import { VoiceDisambiguation } from "./VoiceDisambiguation";
 
 const WHISPER_UNAVAILABLE_MESSAGE =
-  "Voice control is missing its bundled Whisper resources. Reinstall or update Mission Control.";
+  "Voice control is missing its bundled Whisper resources. Reinstall or update Mission Gontrol.";
 
 function activeProjectId(pathname: string): string | null {
   return /^\/projects\/([^/]+)/.exec(pathname)?.[1] ?? null;

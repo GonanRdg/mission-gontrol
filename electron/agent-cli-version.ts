@@ -156,7 +156,7 @@ export function checkAgentCliVersion(
 // Node app; `--version` alone can take seconds). Opening many sessions at once
 // (the grid view) would serialize N probes and freeze the app. A passing probe
 // is cached for the app's lifetime; a failing one is retried after a short TTL
-// so an in-place CLI update is picked up without restarting Mission Control.
+// so an in-place CLI update is picked up without restarting Mission Gontrol.
 const versionCheckCache = new Map<string, { check: AgentVersionCheck; at: number }>();
 const VERSION_CHECK_FAILURE_TTL_MS = 30_000;
 
@@ -185,7 +185,7 @@ export function clearAgentCliVersionCache(): void {
 
 export function agentVersionErrorMessage(check: Exclude<AgentVersionCheck, { ok: true }>): string {
   if (check.reason === "outdated" && check.version) {
-    return `${check.label} ${check.version} is installed, but MissionControl requires ${check.label} ${check.requiredVersion} or newer.`;
+    return `${check.label} ${check.version} is installed, but Mission Gontrol requires ${check.label} ${check.requiredVersion} or newer.`;
   }
-  return `MissionControl could not verify the installed ${check.label} version. ${check.label} ${check.requiredVersion} or newer is required.`;
+  return `Mission Gontrol could not verify the installed ${check.label} version. ${check.label} ${check.requiredVersion} or newer is required.`;
 }

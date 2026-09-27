@@ -222,16 +222,17 @@ function appendBuffer(p: Pty, data: string): number {
 // A voice-seeded starting prompt is written to the agent's stdin like the user
 // typing. Drop C0/DEL control bytes so a mis-transcription can't drive TUI
 // keybindings; the submit CR is added separately by the caller.
-function sanitizeInitialInput(text: string | undefined): string | undefined {
+export function prepareInitialInput(text: string | undefined): string | undefined {
   if (!text) return undefined;
-  const clean = Array.from(text)
+  const clean = Array.from(text.replace(/\r\n?/g, "\n"))
     .filter((ch) => {
       const code = ch.charCodeAt(0);
-      return code >= 32 && code !== 127;
+      return ch === "\n" || (code >= 32 && code !== 127);
     })
     .join("")
     .trim();
-  return clean || undefined;
+  if (!clean) return undefined;
+  return clean.includes("\n") ? `\x1b[200~${clean}\x1b[201~` : clean;
 }
 
 function send(getWin: () => BrowserWindow | null, channel: string, payload: any) {
@@ -587,7 +588,7 @@ export function registerPtyHandlers(
         env.MC_API_TOKEN = mcEnv.token;
         env.MC_THEME = appTheme;
       }
-      // Mirror Mission Control's light/dark to the agent's own UI. COLORFGBG is
+      // Mirror Mission Gontrol's light/dark to the agent's own UI. COLORFGBG is
       // the terminal-background hint Claude Code (and other COLORFGBG-aware TUIs)
       // read to auto-pick a theme: the trailing number is the background color
       // index — 15 (white) reads as light, 0 (black) as dark. This only takes
@@ -672,7 +673,7 @@ export function registerPtyHandlers(
       // single submit CR is added separately below.
       const initialInput =
         plan.mode === "agent" && !opts.shell
-          ? sanitizeInitialInput(opts.initialInput)
+          ? prepareInitialInput(opts.initialInput)
           : undefined;
       // Opt-out of the submit CR: the prompt is typed into the agent's input box
       // and left there for the user to read and send (git handoff).
@@ -786,7 +787,7 @@ export function registerPtyHandlers(
                 port: target.port,
                 pids: [],
                 killed: [],
-                errors: ["skipped protected Mission Control runtime port"],
+                errors: ["skipped protected Mission Gontrol runtime port"],
               }
             : killPidsListeningOnPort(target.port)
         )

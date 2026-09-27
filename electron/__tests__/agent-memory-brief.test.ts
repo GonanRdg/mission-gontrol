@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../src/shared/product", () => ({ RECALL_AVAILABLE: true }));
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -14,7 +16,7 @@ function writeStaleBrief(cwd: string): string {
   const file = path.join(cwd, "CLAUDE.local.md");
   fs.writeFileSync(
     file,
-    "user notes\n\n<!-- mc:recall:start (managed by Mission Control — do not edit inside these markers) -->\nstale brief from a previous session\n<!-- mc:recall:end -->\n",
+    "user notes\n\n<!-- mc:recall:start (managed by Mission Gontrol — do not edit inside these markers) -->\nstale brief from a previous session\n<!-- mc:recall:end -->\n",
     "utf8",
   );
   return file;

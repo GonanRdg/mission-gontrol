@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("~/shared/product", () => ({ RECALL_AVAILABLE: true }));
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -689,7 +691,7 @@ describe("SessionStart brief fallback over the hook API", () => {
 
   it("injects the Session Brief when the spawn-time fetch never happened", async () => {
     const context = await sessionStartContext("startup");
-    expect(context).toContain("Project memory (Mission Control Recall)");
+    expect(context).toContain("Project memory (Mission Gontrol Recall)");
     expect(context).toContain("session grid for coding agents");
   });
 

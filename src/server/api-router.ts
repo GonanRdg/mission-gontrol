@@ -67,6 +67,7 @@ const SANDBOX_API_KEY_PATH = /^\/api\/sandboxes\/([^/]+)\/api-key$/;
 const GROUP_PATH = /^\/api\/groups\/([^/]+)$/;
 // Literal path — checked before TASK_PATH so the id patterns never see it.
 const TASK_SWEEP_DISCONNECTED_PATH = "/api/tasks/sweep-disconnected";
+const TASK_ACTIVE_PATH = "/api/tasks/active";
 const TASK_PATH = /^\/api\/tasks\/([^/]+)$/;
 const TASK_STATUS_PATH = /^\/api\/tasks\/([^/]+)\/status$/;
 const TASK_QUESTION_PATH = /^\/api\/tasks\/([^/]+)\/question$/;
@@ -387,6 +388,9 @@ async function dispatch(
   if (pathname === TASK_SWEEP_DISCONNECTED_PATH && method === "POST") {
     return tasksController.sweepDisconnected();
   }
+  if (pathname === TASK_ACTIVE_PATH && method === "GET") {
+    return tasksController.listActive();
+  }
   m = pathname.match(TASK_PATH);
   if (m) {
     const id = decode(m[1]);
@@ -440,6 +444,14 @@ async function dispatch(
   // Actions — skills carrying an `mc-action` block
   if (pathname === "/api/skills/actions" && method === "GET") {
     return skillsController.listActions(url);
+  }
+  if (pathname === "/api/skills/actions/install" && method === "POST") {
+    return skillsController.installAction(request);
+  }
+  if (pathname === "/api/skills/actions/preferences") {
+    if (method === "GET") return skillsController.readActionPreferences(url);
+    if (method === "PUT") return skillsController.updateActionPreferences(request);
+    if (method === "DELETE") return skillsController.resetActionPreferences(url);
   }
 
   // Diagram skill (local bundled install)

@@ -12,7 +12,7 @@
 //
 //   code has no resources but signature indicates they must be present
 //
-// which is the "MissionControl is damaged and can't be opened" dialog, and macOS
+// which is the "Mission Gontrol is damaged and can't be opened" dialog, and macOS
 // offers no override for it: Privacy & Security shows no "Open Anyway" button,
 // so the only way in is `xattr -dr com.apple.quarantine`.
 //
@@ -34,6 +34,13 @@ export default async function afterPack(context) {
   const appName = `${context.packager.appInfo.productFilename}.app`;
   const appPath = path.join(context.appOutDir, appName);
   const entitlements = path.join(context.packager.info.projectDir, "build", "entitlements.mac.plist");
+
+  const whisper = path.join(appPath, "Contents", "Resources", "whisper", "whisper-server");
+  const targetArch = context.arch === 1 ? "x86_64" : "arm64";
+  const architecture = spawnSync("lipo", [whisper, "-verify_arch", targetArch], { encoding: "utf8" });
+  if (architecture.status !== 0) {
+    throw new Error(`Bundled speech server does not support ${targetArch}: ${architecture.stderr}`);
+  }
 
   const sign = spawnSync(
     "codesign",

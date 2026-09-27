@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("~/shared/product", () => ({ RECALL_AVAILABLE: true }));
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -208,7 +210,7 @@ describe("project memory API", () => {
     const res = await handleApiRequest(authed(`/api/tasks/${task.id}/brief`));
     expect(res?.status).toBe(200);
     const { brief, memoryIds } = (await res?.json()) as { brief: string; memoryIds: string[] };
-    expect(brief).toContain("# Project memory (Mission Control Recall)");
+    expect(brief).toContain("# Project memory (Mission Gontrol Recall)");
     expect(brief).toContain("A CLI-agent mission control app");
     expect(brief).toContain("warm pool can miss the brief");
     expect(memoryIds).toHaveLength(2);

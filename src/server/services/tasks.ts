@@ -1,6 +1,11 @@
 import { DEFAULT_BRANCH, DEFAULT_TASK_STATUS, isTaskAgent, isTaskStatus } from "~/shared/domain";
 import type { TaskAgent, TaskStatus } from "~/shared/domain";
 import type { Task } from "~/db/schema";
+import type {
+  ActiveSessionGroup,
+  ActiveSessions,
+  ActiveSessionSummary,
+} from "~/shared/active-sessions";
 import { LOCAL_SCOPE_ID } from "~/shared/sandbox";
 import { events } from "../events";
 import { deleteDiagramsForTask } from "./diagram-store";
@@ -9,6 +14,8 @@ import { clearSubagentActivity } from "./subagent-activity";
 import {
   deleteTaskRow,
   findActiveLocalTasks,
+  findLiveSessionSummaries,
+  findRecentlyFinishedSessionSummaries,
   findTaskById,
   findTasksByProjectId,
   findTasksByProjectIdAndWorktreeId,
@@ -48,6 +55,26 @@ export function getTask(id: string): Task | null {
   return findTaskById(id);
 }
 
+function groupSessionSummaries(rows: ActiveSessionSummary[]): ActiveSessionGroup[] {
+  const groups = new Map<string, ActiveSessionGroup>();
+  for (const row of rows) {
+    let group = groups.get(row.projectId);
+    if (!group) {
+      group = { projectId: row.projectId, projectName: row.projectName, sessions: [] };
+      groups.set(row.projectId, group);
+    }
+    group.sessions.push(row);
+  }
+  return [...groups.values()];
+}
+
+export function listActiveSessions(): ActiveSessions {
+  return {
+    live: groupSessionSummaries(findLiveSessionSummaries()),
+    recentlyFinished: groupSessionSummaries(findRecentlyFinishedSessionSummaries()),
+  };
+}
+
 export function createTask(input: {
   id?: string;
   projectId: string;
@@ -55,6 +82,7 @@ export function createTask(input: {
   scopeId?: string | null;
   title: string;
   agent: TaskAgent;
+  action?: string | null;
   branch?: string;
   status?: TaskStatus;
   preview?: string;
@@ -79,6 +107,7 @@ export function createTask(input: {
     title: input.title.trim(),
     titleManuallySet: false,
     icon: null,
+    action: input.action?.trim() || null,
     agent: input.agent,
     status: input.status ?? DEFAULT_TASK_STATUS,
     branch: input.branch || DEFAULT_BRANCH,

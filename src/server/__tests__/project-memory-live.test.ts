@@ -4,7 +4,9 @@
 // main process makes at spawn, then the real managed-block writer against an
 // on-disk git repo. Proves the full server→socket→file pipeline the pty-manager
 // depends on, minus the Electron process boundary (which is just this fetch).
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("~/shared/product", () => ({ RECALL_AVAILABLE: true }));
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -153,7 +155,7 @@ describe("Recall live injection pipeline (real HTTP socket)", () => {
     console.log("\n================================================================\n");
 
     expect(onDisk).toContain("<!-- mc:recall:start");
-    expect(onDisk).toContain("# Project memory (Mission Control Recall)");
+    expect(onDisk).toContain("# Project memory (Mission Gontrol Recall)");
     expect(onDisk).toContain("A desktop app that orchestrates CLI coding agents");
     expect(onDisk).toContain("Warm-pool PTYs spawn before the project is known");
     expect(gitignore).toContain("CLAUDE.local.md");

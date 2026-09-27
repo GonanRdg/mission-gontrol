@@ -283,7 +283,7 @@ export function augmentProcessEnv(): void {
 }
 
 /**
- * Environment Claude Code stamps with its own session identity. Mission Control
+ * Environment Claude Code stamps with its own session identity. Mission Gontrol
  * inherits these when it is itself launched from inside a Claude session (a dev
  * run started from an agent terminal, for example), and passing them on to a
  * spawned agent makes that agent believe it is a subagent of the launcher:
@@ -291,8 +291,8 @@ export function augmentProcessEnv(): void {
  *    session never shows up for `claude --resume`.
  *  - MESSAGING_SOCKET / MESSAGING_TOKEN: credentials for the launching
  *    session's agent-messaging bus, which a spawned session must not hold.
- * Stripped so every session Mission Control spawns is top-level regardless of
- * how Mission Control was started.
+ * Stripped so every session Mission Gontrol spawns is top-level regardless of
+ * how Mission Gontrol was started.
  */
 export const PARENT_AGENT_SESSION_ENV_KEYS = [
   "CLAUDE_CODE_CHILD_SESSION",

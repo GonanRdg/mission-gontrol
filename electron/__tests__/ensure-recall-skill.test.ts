@@ -25,6 +25,14 @@ describe("ensureRecallSkillForAgent / removeRecallSkillForAgent", () => {
     expect(fs.existsSync(skillDir(cwd))).toBe(false);
   });
 
+  it("removes a Recall skill installed under the original product name", () => {
+    const cwd = tmpCwd();
+    fs.mkdirSync(skillDir(cwd), { recursive: true });
+    fs.writeFileSync(path.join(skillDir(cwd), "SKILL.md"), "Mission Control Recall");
+    removeRecallSkillForAgent(cwd, "claude-code");
+    expect(fs.existsSync(skillDir(cwd))).toBe(false);
+  });
+
   it("removal spares a user-authored skill at the same path", () => {
     const cwd = tmpCwd();
     fs.mkdirSync(skillDir(cwd), { recursive: true });

@@ -1,14 +1,14 @@
-# MissionControl
+# Mission Gontrol
 
 Desktop control surface for managing agentic coding work (Claude Code / Codex / Cursor CLI) across many projects. Built as an Electron app that wraps a TanStack Start server, with SQLite + Drizzle for local persistence and real PTYs (via `node-pty` + `xterm.js`) so you can run real interactive CLI agents inside the app.
 
 ## Why this exists
 
-Cursor and Codex bury your projects in a collapsable left rail. MissionControl flips it: every project gets a card on a single home view, with at-a-glance counts of how many agents are running, awaiting input, or done. Click into a project, see its tasks split by status, toggle three of them on at once and three real terminals split horizontally on the right. External CLI tools can POST status back to the app over a localhost API.
+Cursor and Codex bury your projects in a collapsable left rail. Mission Gontrol flips it: every project gets a card on a single home view, with at-a-glance counts of how many agents are running, awaiting input, or done. Click into a project, see its tasks split by status, toggle three of them on at once and three real terminals split horizontally on the right. External CLI tools can POST status back to the app over a localhost API.
 
 ## Features
 
-- Mission Control grid with pinned / grouped / ungrouped sections, density toggle, and search
+- Mission Gontrol grid with pinned / grouped / ungrouped sections, density toggle, and search
 - Project add/edit/remove (remove only unlinks — never touches files)
 - Project grouping with colored dots
 - Project detail view: tasks split into Needs-input / Running / Done columns
@@ -31,7 +31,7 @@ Cursor and Codex bury your projects in a collapsable left rail. MissionControl f
 ## Repo layout
 
 ```
-mission-control/
+mission-gontrol/
 ├── electron/               Electron main + preload + PTY manager
 │   ├── main.ts
 │   ├── preload.ts
@@ -43,7 +43,7 @@ mission-control/
 │   ├── styles.css          Design tokens + keyframes
 │   ├── routes/
 │   │   ├── __root.tsx
-│   │   ├── index.tsx       Mission Control
+│   │   ├── index.tsx       Mission Gontrol
 │   │   ├── projects.$id.tsx
 │   │   ├── archive.tsx
 │   │   ├── settings.tsx
@@ -75,10 +75,10 @@ This is a fork. Builds here are **unsigned and not notarized**, and **automatic 
 - **GitHub Releases:** [GonanRdg/mission-control/releases](https://github.com/GonanRdg/mission-control/releases) — unsigned macOS builds, installed manually
 - **Build it yourself:** `pnpm install:local` builds and swaps the app in place, signing on your own machine (no Gatekeeper prompt at all)
 
-After download on macOS: open the `.dmg` and drag the app to Applications. Because the build is unsigned, Gatekeeper will refuse it with *"MissionControl is damaged and can't be opened"* — clear the quarantine flag once:
+After download on macOS: open the `.dmg` and drag the app to Applications. Because the build is unsigned, Gatekeeper will refuse it with *"Mission Gontrol is damaged and can't be opened"* — clear the quarantine flag once:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/MissionControl.app
+xattr -dr com.apple.quarantine "/Applications/Mission Gontrol.app"
 ```
 
 Upstream's signed installers and in-app updates live at [AgentSystemLabs/mission-control](https://github.com/AgentSystemLabs/mission-control).
@@ -90,11 +90,11 @@ pnpm install            # installs deps; postinstall rebuilds Electron PTY bindi
 pnpm dev:electron       # runs Vite dev server + Electron
 ```
 
-The first run creates `~/Library/Application Support/MissionControl/missioncontrol.db` (macOS) or the equivalent on Linux/Windows.
+Projects and settings use `~/Library/Application Support/MissionControl/missioncontrol.db` (macOS) or the equivalent on Linux/Windows, preserving existing installations.
 
 ### Remote VM Sandboxes
 
-Mission Control can provision AWS EC2 instances with
+Mission Gontrol can provision AWS EC2 instances with
 `mission-control-agent` installed directly on the VM host. Create one from a
 project page (**Create sandbox**), or use the CLI:
 
@@ -119,7 +119,7 @@ pnpm package            # rebuilds native deps for Electron and produces dist/
 ### Install a local build over the installed app (macOS)
 
 ```bash
-pnpm install:local      # build, then swap /Applications/MissionControl.app
+pnpm install:local      # build, then swap "/Applications/Mission Gontrol.app"
 ```
 
 Builds an `.app` only (no DMG/ZIP), re-signs it so the Screen Recording grant
@@ -156,7 +156,7 @@ pnpm rebuild
 
 ## External API
 
-When MissionControl is running, it binds an HTTP server on `127.0.0.1:<port>`. The port is written to `$USER_DATA_DIR/.port` and shown in the Settings page along with the bearer token.
+When Mission Gontrol is running, it binds an HTTP server on `127.0.0.1:<port>`. The port is written to `$USER_DATA_DIR/.port` and shown in the Settings page along with the bearer token.
 
 ### Endpoints (writable — bearer token required)
 
@@ -180,7 +180,7 @@ The UI updates within ~1 second over its SSE connection.
 All `/api/*` routes require an `Authorization: Bearer <token>` header (token in
 Settings → API). The renderer attaches it automatically; external CLIs (Claude,
 Codex, Cursor) receive it via the `$MC_API_TOKEN` env var when launched from
-within Mission Control. `/api/events` (SSE) uses a short-lived ticket from
+within Mission Gontrol. `/api/events` (SSE) uses a short-lived ticket from
 `POST /api/events/ticket` because `EventSource` cannot send custom headers.
 
 
@@ -209,7 +209,7 @@ within Mission Control. `/api/events` (SSE) uses a short-lived ticket from
 
 Main-process logs are written via `electron-log`. In a packaged build they persist to:
 
-- **macOS:** `~/Library/Logs/MissionControl/main.log`
+- **macOS:** `~/Library/Logs/Mission Gontrol/main.log`
 - **Windows:** `%USERPROFILE%\AppData\Roaming\MissionControl\logs\main.log`
 - **Linux:** `~/.config/MissionControl/logs/main.log`
 
@@ -226,15 +226,15 @@ In dev (`pnpm dev`) the same lines are written to stdout/stderr.
 | `update.error.*` | Errors emitted by electron-updater itself | `electron/update-manager.ts:wireEvents` |
 | `update.load.*` | electron-updater module load failure | `electron/update-manager.ts:loadUpdater` |
 
-When investigating "the update never installed," start with `rg 'event: "update\.' ~/Library/Logs/MissionControl/main.log`. electron-updater's own internal log stream (URL resolution, signature verification, retries) is also routed into the same file.
+When investigating "the update never installed," start with `rg 'event: "update\.' ~/Library/Logs/Mission Gontrol/main.log`. electron-updater's own internal log stream (URL resolution, signature verification, retries) is also routed into the same file.
 
 ## Skill file for external CLIs
 
-A drop-in skill for Claude Code / Codex / Cursor CLI lives in `docs/skills/missioncontrol-notify.md`. Paste it into the CLI's instructions or memory so the agent knows to POST its lifecycle events back to MissionControl.
+A drop-in skill for Claude Code / Codex / Cursor CLI lives in `docs/skills/missioncontrol-notify.md`. Paste it into the CLI's instructions or memory so the agent knows to POST its lifecycle events back to Mission Gontrol.
 
 ## Credits
 
-Mission Control was created by **AgentSystem Labs**
+Mission Gontrol is an independent fork of Mission Control, created by **AgentSystem Labs**
 ([AgentSystemLabs/mission-control](https://github.com/AgentSystemLabs/mission-control)).
 
 This repository is an independent fork, evolved and maintained by
@@ -245,3 +245,9 @@ session, the Painted Light theme, local build tooling, and assorted fixes.
 
 [MIT](LICENSE) — copyright AgentSystem Labs, with fork modifications copyright
 GonanRdg. The original notice is preserved as the license requires.
+
+## Mission Gontrol releases
+
+Build macOS installers locally with `pnpm dist:mac:x64` and `pnpm dist:mac`. Publish the verified `MissionGontrol-<version>-<arch>.dmg` files to this repository after tagging the matching package version. There is no upstream release service or automatic update feed.
+
+Existing projects and settings retain the legacy `MissionControl` data directory and `missioncontrol.db` filename. Recall is disabled, including capture and agent integration; existing memory records are preserved.

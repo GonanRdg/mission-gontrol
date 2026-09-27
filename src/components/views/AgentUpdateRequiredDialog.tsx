@@ -64,7 +64,7 @@ export function AgentUpdateRequiredDialog({
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ fontSize: 13, lineHeight: 1.55, color: "var(--text)" }}>
-          MissionControl needs {label} {requiredVersion} or newer before it can start
+          Mission Gontrol needs {label} {requiredVersion} or newer before it can start
           this session.
         </div>
         <div
@@ -81,7 +81,7 @@ export function AgentUpdateRequiredDialog({
         >
           {installedVersion
             ? `Installed: ${installedVersion}. Required: ${requiredVersion}.`
-            : `MissionControl could not verify ${label} ${requiredVersion} or newer.`}
+            : `Mission Gontrol could not verify ${label} ${requiredVersion} or newer.`}
         </div>
         <div
           style={{

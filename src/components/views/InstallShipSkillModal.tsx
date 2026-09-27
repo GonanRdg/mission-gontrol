@@ -117,7 +117,7 @@ export function InstallShipSkillModal({
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-dim)", lineHeight: 1.5 }}>
           Install the AgentSystem core skill collection (including <code>/ship</code>) and
           reviewer subagents into this project. Each CLI tool reads skills from its own folder,
-          so Mission Control opens a terminal and runs <code>agentsystem init</code> for each
+          so Mission Gontrol opens a terminal and runs <code>agentsystem init</code> for each
           selected tool.
         </p>
 

@@ -509,7 +509,7 @@ async function fallbackIdentityArgs(cwd: string): Promise<string[]> {
   ]);
   const args: string[] = [];
   if (!(name.code === 0 && name.stdout.trim())) {
-    args.push("-c", "user.name=Mission Control");
+    args.push("-c", "user.name=Mission Gontrol");
   }
   if (!(email.code === 0 && email.stdout.trim())) {
     args.push("-c", "user.email=mission-control@localhost");

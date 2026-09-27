@@ -62,8 +62,8 @@ function pathStatusFor(
         reason: "missing",
         message:
           scope === "worktree"
-            ? "Mission Control cannot find this worktree folder."
-            : "Mission Control cannot find this project folder.",
+            ? "Mission Gontrol cannot find this worktree folder."
+            : "Mission Gontrol cannot find this project folder.",
       };
     }
     const stat = fs.statSync(target);
@@ -86,7 +86,7 @@ function pathStatusFor(
       scope,
       worktreeId,
       reason: "unreadable",
-      message: "Mission Control cannot read this working directory.",
+      message: "Mission Gontrol cannot read this working directory.",
     };
   }
 }

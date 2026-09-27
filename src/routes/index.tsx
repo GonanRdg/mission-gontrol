@@ -376,7 +376,7 @@ function MissionControlPage() {
           {(projectsQuery.isError || groupsQuery.isError) && (
             <EmptyState
               title="Could not load projects"
-              subtitle="Mission Control could not load your local workspace. Restart Mission Control, then retry."
+              subtitle="Mission Gontrol could not load your local workspace. Restart Mission Gontrol, then retry."
               icon="shield"
               action={
                 <Btn

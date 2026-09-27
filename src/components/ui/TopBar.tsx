@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
 
-export type Crumb = { label: string; onClick?: () => void; node?: ReactNode };
+export type Crumb = {
+  label: string;
+  onClick?: () => void;
+  node?: ReactNode;
+  className?: string;
+};
 
 export function TopBar({
   crumbs,
@@ -58,8 +63,8 @@ export function TopBar({
         <button
           type="button"
           onClick={onHome}
-          aria-label="Mission Control home"
-          title="Mission Control — home"
+          aria-label="Mission Gontrol home"
+          title="Mission Gontrol — home"
           className="mc-topbar-home"
           style={{
             display: "inline-flex",
@@ -77,8 +82,8 @@ export function TopBar({
           }}
         >
           <img
-            src="/images/robot.png"
-            alt="Mission Control"
+            src="/brand/mission-gontrol.svg"
+            alt="Mission Gontrol"
             width={22}
             height={22}
             style={{ borderRadius: 5, display: "block" }}
@@ -108,7 +113,7 @@ export function TopBar({
                 boxShadow: "0 0 6px var(--accent)",
               }}
             />
-            <span style={{ color: "var(--accent-ink)" }}>Control</span>
+            <span style={{ color: "var(--accent-ink)" }}>Gontrol</span>
           </span>
         </button>
         {leading && (
@@ -137,7 +142,11 @@ export function TopBar({
           <>
             <Icon name="chevron-right" size={11} style={{ color: "var(--text-faint)" }} />
             {crumbs.map((c, i) => (
-              <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+              <span
+                key={i}
+                className={c.className}
+                style={{ display: "inline-flex", alignItems: "center", gap: 10 }}
+              >
                 {i > 0 && (
                   <Icon name="chevron-right" size={11} style={{ color: "var(--text-faint)" }} />
                 )}

@@ -22,6 +22,7 @@ const baseTask = {
   title: "Task",
   titleManuallySet: false,
   icon: null,
+  action: null,
   status: "ready",
   branch: "main",
   preview: "",
