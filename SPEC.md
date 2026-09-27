@@ -2,7 +2,7 @@
 
 ## Vision
 
-A focused desktop app that helps developers manage agentic coding work across many projects without the cluttered sidebar of Cursor/Codex/etc. Each project gets a card on a single Mission Control surface. Click in, see exactly what your agents are doing, open multiple terminal sessions side-by-side, and get back to the home view in one click. The app is an Electron shell wrapping a TanStack Start app — Electron because we need a long-lived process that can expose local HTTP endpoints other CLI tools can post to (status updates, completion signals).
+A focused desktop app that helps developers manage agentic coding work across many projects without the cluttered sidebar of Cursor/Codex/etc. Each project gets a card on a single Mission Gontrol surface. Click in, see exactly what your agents are doing, open multiple terminal sessions side-by-side, and get back to the home view in one click. The app is an Electron shell wrapping a TanStack Start app — Electron because we need a long-lived process that can expose local HTTP endpoints other CLI tools can post to (status updates, completion signals).
 
 ## Target User
 
@@ -16,7 +16,7 @@ Show me at a glance which projects need my attention and let me pop into a proje
 
 ### Goals (v1)
 
-- Single Mission Control grid view of project cards with at-a-glance status (running / needs-input / done counts)
+- Single Mission Gontrol grid view of project cards with at-a-glance status (running / needs-input / done counts)
 - Add/remove projects by working directory, pin to top, organize into groups
 - Project detail view with tasks broken into Needs-input / Running / Done columns
 - Multi-select tasks → opens a terminal panel that splits horizontally to show all selected sessions concurrently
@@ -40,7 +40,7 @@ Show me at a glance which projects need my attention and let me pop into a proje
 
 ## Features
 
-### Feature 1: Mission Control grid
+### Feature 1: Mission Gontrol grid
 
 - **Story:** As a developer, I want to see all my projects on one screen with high-level status so I know which one to focus on next.
 - **Acceptance:**
@@ -176,7 +176,7 @@ A `Group` has many `Projects`. A `Project` has many `Tasks`. A `Task` has zero o
 
 | Route                | Page                  | Auth        | Description                                                              |
 | -------------------- | --------------------- | ----------- | ------------------------------------------------------------------------ |
-| `/`                  | Mission Control       | none (UI)   | Grid of all project cards                                                |
+| `/`                  | Mission Gontrol       | none (UI)   | Grid of all project cards                                                |
 | `/projects/:id`      | Project Detail        | none (UI)   | Tasks split by status + open-terminals panel                             |
 | `/archive`           | Archive               | none (UI)   | All archived tasks across all projects                                   |
 | `/settings`          | Settings              | none (UI)   | Theme, API token, keyboard shortcuts info                                |
@@ -319,7 +319,7 @@ The Electron main process is the only writer for SQLite. The TanStack Start serv
   - Dependencies: T3
   - Status: Done. Plus `Section`, `EmptyState` added.
 
-- [x] **T6: Mission Control view** — port `MissionControl` + `ProjectCard` + `Section` + `EmptyState` from `designs/views.jsx`. Wire up density toggle, search, group/pin sections, dot-grid background. Hook up to live data via TanStack Query (loaders) hitting the projects API.
+- [x] **T6: Mission Gontrol view** — port `MissionControl` + `ProjectCard` + `Section` + `EmptyState` from `designs/views.jsx`. Wire up density toggle, search, group/pin sections, dot-grid background. Hook up to live data via TanStack Query (loaders) hitting the projects API.
   - Skills: `react-patterns`, `data-fetching`, `tanstack-start`
   - Complexity: M
   - Dependencies: T5, T8 (projects API)
@@ -419,7 +419,7 @@ The Electron main process is the only writer for SQLite. The TanStack Start serv
 
 ## Success Criteria
 
-- [x] App launches into Mission Control view with seed empty state on first run
+- [x] App launches into Mission Gontrol view with seed empty state on first run
 - [x] I can add a project from a real folder on disk and it appears as a card
 - [x] I can pin/unpin and regroup the project; state persists across restart
 - [x] I can click a project, click "New agent", pick Claude Code, and a real `claude` PTY opens in a side panel

@@ -86,14 +86,14 @@ export function ensureRecallSkillForAgent(
   }
 }
 
-// A copy is only "ours" when its SKILL.md self-identifies as Mission Control's
+// A copy is only "ours" when its SKILL.md self-identifies as Mission Gontrol's
 // Recall skill — every bundled version has carried both phrases. The installer
 // above never overwrites an existing SKILL.md, so a user-authored skill that
 // happens to live at the same path must survive removal.
 function isManagedRecallSkill(skillFile: string): boolean {
   try {
     const content = fs.readFileSync(skillFile, "utf8");
-    return content.includes("Mission Control") && content.includes("Recall");
+    return (content.includes("Mission Control") || content.includes("Mission Gontrol")) && content.includes("Recall");
   } catch {
     return false;
   }

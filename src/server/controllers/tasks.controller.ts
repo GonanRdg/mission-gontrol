@@ -7,6 +7,7 @@ import {
   getTask,
   listTasksForProject,
   listTasksForProjectWorktree,
+  listActiveSessions,
   restoreTask,
   sweepOrphanedActiveTasks,
   updateStatus,
@@ -33,6 +34,7 @@ const createTaskBody = z.object({
   id: z.string().min(1).optional(),
   title: z.string().min(1, "title required"),
   agent: z.enum(TASK_AGENTS),
+  action: z.string().trim().min(1).max(64).nullable().optional(),
   branch: z.string().optional(),
   status: z.enum(TASK_STATUSES).optional(),
   preview: z.string().optional(),
@@ -76,6 +78,10 @@ export async function listForProject(rawProjectId: string, request: Request): Pr
   } catch (e) {
     return rethrowUnlessDomain(e);
   }
+}
+
+export function listActive(): Response {
+  return json(listActiveSessions());
 }
 
 export async function create(rawProjectId: string, request: Request): Promise<Response> {

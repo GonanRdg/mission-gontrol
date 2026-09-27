@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { isAccentColorId } from "~/lib/accent-colors";
 import { isSessionIcon } from "~/lib/session-icons";
-import { TASK_AGENTS } from "./domain";
+import { TASK_AGENTS, type TaskAgent } from "./domain";
 
 /**
  * An action is a skill that opts in by carrying an `mc-action` block in its
- * frontmatter. The block declares the form Mission Control renders and the
+ * frontmatter. The block declares the form Mission Gontrol renders and the
  * prompt template it fills; the `skill` key names the workflow skill the action
  * drives. Skills without the block are never actions.
  *
@@ -168,6 +168,27 @@ export type SkillAction = z.infer<typeof skillActionSchema>;
 
 export type SkillActionParse =
   | { ok: true; name: string; action: SkillAction }
+  | { ok: false; name: string; error: string };
+
+export type ActionWorkflowAvailability = {
+  agent: TaskAgent;
+  status: "available" | "installable" | "unavailable";
+  origin: "project" | "global" | "bundled" | null;
+  sourcePath: string | null;
+  targetPath: string;
+  installMethod: "symlink" | "copy" | null;
+};
+
+export type ActionWorkflowChoice = {
+  name: string;
+  workflows: Record<TaskAgent, ActionWorkflowAvailability>;
+};
+
+export type ActionListItem =
+  | ({ ok: true; name: string; action: SkillAction } & {
+      workflows: Record<TaskAgent, ActionWorkflowAvailability>;
+      skills: ActionWorkflowChoice[];
+    })
   | { ok: false; name: string; error: string };
 
 /** Compact, human-readable summary of the first few schema violations. */

@@ -13,7 +13,6 @@ export const SETTINGS_PANEL_IDS = [
   "theme",
   "pet",
   "voice",
-  "recall",
   "keybindings",
   "terms",
 ] as const;
@@ -29,8 +28,8 @@ const LEGACY_PANEL_ALIASES: Record<string, SettingsPanelId> = {
   // Experimental graduated; old links now open the main settings page.
   beta: "general",
   sandbox: "general",
-  // Recall's old "memory" panel id now maps to its restored "recall" page.
-  memory: "recall",
+  memory: "general",
+  recall: "general",
 };
 
 export function normalizeSettingsPanelId(raw: string | null | undefined): SettingsPanelId | null {

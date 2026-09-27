@@ -212,7 +212,7 @@ describe("settings API", () => {
     });
   });
 
-  it("recallEnabled=false forces every Recall flag off, and re-enabling restores stored values", async () => {
+  it("Recall stays disabled even when a client requests re-enabling", async () => {
     // Store an explicit non-default sub-setting so we can see it survive the off/on cycle.
     await handleApiRequest(
       authedRequest("http://localhost/api/settings", {
@@ -249,16 +249,15 @@ describe("settings API", () => {
       }),
     );
     expect(await jsonBody(reenabled!)).toMatchObject({
-      recallEnabled: true,
+      recallEnabled: false,
       // Explicitly stored off — must survive the master toggle round-trip.
       recallAutoCaptureEnabled: false,
-      // Defaults come back on.
-      recallEngineEnabled: true,
-      recallAgentWriteEnabled: true,
-      recallInjectBriefEnabled: true,
-      recallCodeGraphEnabled: true,
-      recallProactiveRecallEnabled: true,
-      recallLearnedToastEnabled: true,
+      recallEngineEnabled: false,
+      recallAgentWriteEnabled: false,
+      recallInjectBriefEnabled: false,
+      recallCodeGraphEnabled: false,
+      recallProactiveRecallEnabled: false,
+      recallLearnedToastEnabled: false,
     });
   });
 
@@ -282,7 +281,7 @@ describe("settings API", () => {
       recallAutoCaptureEnabled: false,
       recallEngineHarness: "codex",
       recallEngineModel: "gpt-5.5",
-      recallEngineEnabled: true,
+      recallEngineEnabled: false,
     });
   });
 

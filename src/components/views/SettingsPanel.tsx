@@ -11,7 +11,6 @@ import { GeneralSettingsPage } from "./GeneralSettingsPage";
 import { KeybindingsPage } from "./KeybindingsPage";
 import { PetSettingsPage } from "./PetSettingsPage";
 import { ProvidersSettingsPage } from "./ProvidersSettingsPage";
-import { RecallSettingsPage } from "./RecallSettings";
 import { InterfaceSettingsPage } from "./InterfaceSettingsPage";
 import { TerminalSettingsPage } from "./TerminalSettingsPage";
 import { ThemeSettingsPage } from "./ThemeSettingsPage";
@@ -254,36 +253,6 @@ export function SettingsPanel({
                 padding: "0 10px 8px",
               }}
             >
-              Beta
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <SettingsNavButton
-                id="recall"
-                label="Recall"
-                icon="sparkles"
-                active={activePanel === "recall"}
-                onClick={() => setActivePanel("recall")}
-              />
-            </div>
-          </div>
-          <div
-            style={{
-              marginTop: 16,
-              paddingTop: 12,
-              borderTop: "1px solid var(--border)",
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--text-dim)",
-                padding: "0 10px 8px",
-              }}
-            >
               Legal
             </div>
             <SettingsNavButton
@@ -333,8 +302,6 @@ export function SettingsPanel({
             <PetSettingsPage />
           ) : activePanel === "voice" ? (
             <VoiceCommandsPage />
-          ) : activePanel === "recall" ? (
-            <RecallSettingsPage />
           ) : activePanel === "keybindings" ? (
             <KeybindingsPage />
           ) : (

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Replace the installed MissionControl.app with a fresh local build.
+// Replace the installed Mission Gontrol.app with a fresh local build.
 //
 // Usage:
 //   pnpm install:local [--skip-build] [--arch arm64|x64]
-//                      [--app /Applications/MissionControl.app]
+//                      [--app /Applications/Mission Gontrol.app]
 //                      [--backup-dir ~/.Trash] [--no-resign]
 //
 // The swap is two rename(2) calls against a bundle staged in the same
@@ -53,7 +53,7 @@ const skipBuild = Boolean(getArg("skip-build", { boolean: true }));
 const resign = !getArg("no-resign", { boolean: true });
 const arch = getArg("arch") ?? (hostArch() === "x64" ? "x64" : "arm64");
 if (!["arm64", "x64"].includes(arch)) fail(`unknown --arch: ${arch}`);
-const targetApp = resolve(getArg("app") ?? "/Applications/MissionControl.app");
+const targetApp = resolve(getArg("app") ?? "/Applications/Mission Gontrol.app");
 const backupDir = resolve(getArg("backup-dir") ?? join(homedir(), ".Trash"));
 
 // ---------- helpers ----------
@@ -221,7 +221,7 @@ try {
 
   log(`✓ installed ${builtVersion ?? "?"} at ${targetApp}`);
   if (backup) log(`  previous ${installedVersion ?? "?"} kept at ${backup}`);
-  log("  quit MissionControl (Cmd+Q) and relaunch — the running instance is still the old build");
+  log("  quit Mission Gontrol (Cmd+Q) and relaunch — the running instance is still the old build");
 } finally {
   if (!swapped) rmSync(staged, { recursive: true, force: true });
 }

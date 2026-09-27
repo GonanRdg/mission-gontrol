@@ -1,3 +1,4 @@
+import { RECALL_AVAILABLE } from "../src/shared/product";
 import log from "electron-log/main";
 import type { PtyHookEnv } from "./pty-hook-env";
 import { supportsMemoryInjection, writeAgentMemoryFile } from "../src/shared/agent-memory-file";
@@ -16,7 +17,12 @@ export async function installAgentMemoryBrief(params: {
   mcEnv: PtyHookEnv | null;
 }): Promise<void> {
   const { agent, cwd, taskId, mcEnv } = params;
-  if (!supportsMemoryInjection(agent) || !mcEnv?.apiUrl || !mcEnv?.token || !taskId) return;
+  if (!supportsMemoryInjection(agent)) return;
+  if (!RECALL_AVAILABLE) {
+    writeAgentMemoryFile(agent, cwd, "");
+    return;
+  }
+  if (!mcEnv?.apiUrl || !mcEnv?.token || !taskId) return;
 
   let brief = "";
   const controller = new AbortController();

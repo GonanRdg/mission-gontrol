@@ -144,7 +144,7 @@ export function InstallDiagramSkillModal({
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-dim)", lineHeight: 1.5 }}>
-          Choose which CLI tools should get the Mission Control diagram skill. Each tool reads
+          Choose which CLI tools should get the Mission Gontrol diagram skill. Each tool reads
           skills from a different folder in this project.
         </p>
 

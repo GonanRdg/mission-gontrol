@@ -296,7 +296,7 @@ export function GeneralSettingsPage() {
   const osNotificationStatusMessage =
     permissionHint ??
     (osNotificationBlocked && permission === "denied" && !isElectron()
-      ? "Notification permission is blocked. On macOS, open System Settings → Notifications → Mission Control, allow notifications, then reload Mission Control."
+      ? "Notification permission is blocked. On macOS, open System Settings → Notifications → Mission Gontrol, allow notifications, then reload Mission Gontrol."
       : osNotificationBlocked && permission === "default" && !isElectron()
         ? "Notification permission is not granted yet. Turn this toggle off and on again to approve the prompt."
         : null);
@@ -340,7 +340,7 @@ export function GeneralSettingsPage() {
         <Field label="Diagram skill">
           <ToggleRow
             title="Install the diagram skill into every project"
-            description="Agents only render diagrams in Mission Control's viewer when they can read the diagram skill from a folder on disk, and CLIs look for it inside the project. With this on, each agent session copies it into the project it runs in (.claude/skills/diagram/, or .agents/skills/diagram/ for Cursor) — which leaves a skill folder in repos you may not want it in. Off, install it per project from the project menu instead."
+            description="Agents only render diagrams in Mission Gontrol's viewer when they can read the diagram skill from a folder on disk, and CLIs look for it inside the project. With this on, each agent session copies it into the project it runs in (.claude/skills/diagram/, or .agents/skills/diagram/ for Cursor) — which leaves a skill folder in repos you may not want it in. Off, install it per project from the project menu instead."
             checked={diagramSkillAutoInstallEnabled}
             onChange={setDiagramSkillAutoInstallEnabled}
             label="Enable"
@@ -349,7 +349,7 @@ export function GeneralSettingsPage() {
         <Field label="Startup loading screen">
           <ToggleRow
             title="Show launch intro"
-            description="Sliding doors, voice, and sound effects play the next time Mission Control loads."
+            description="Sliding doors and sound effects play the next time Mission Gontrol loads."
             checked={launchOverlayEnabled}
             onChange={setLaunchOverlayEnabled}
             label="Enable"
@@ -416,7 +416,7 @@ export function GeneralSettingsPage() {
 
 function AboutSection() {
   return (
-    <SettingsSection title="About" subtitle="Version and credits for Mission Control.">
+    <SettingsSection title="About" subtitle="Version and credits for Mission Gontrol.">
       <Field label="Version">
         <div
           style={{
@@ -449,11 +449,11 @@ function AboutSection() {
           }}
         >
           <div style={{ color: "var(--text)", fontWeight: 600, marginBottom: 4 }}>
-            Mission Control
+            Mission Gontrol
           </div>
-          Created by AgentSystem Labs. Released under the MIT License.
+          Based on Mission Control, created by AgentSystem Labs. Released under the MIT License.
           <br />
-          This build is an independent fork, evolved and maintained by GonanRdg.
+          Mission Gontrol is an independent fork, evolved and maintained by GonanRdg.
         </div>
       </Field>
     </SettingsSection>
@@ -471,7 +471,7 @@ function ReloadSection() {
   };
 
   return (
-    <SettingsSection title="Reload" subtitle="Refresh the current Mission Control window.">
+    <SettingsSection title="Reload" subtitle="Refresh the current Mission Gontrol window.">
       <Field label="Window">
         <div
           style={{

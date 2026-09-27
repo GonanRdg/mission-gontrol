@@ -92,7 +92,7 @@ describe("print-mode CLI spawning", () => {
     expect(invocation.args).toEqual(["-p", "hello"]);
   });
 
-  it("strips Mission Control hook env so helper spawns can't re-fire hooks", () => {
+  it("strips Mission Gontrol hook env so helper spawns can't re-fire hooks", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mc-commit-hookenv-"));
     const binDir = path.join(root, "bin");
     writeExecutable(path.join(binDir, "claude"));

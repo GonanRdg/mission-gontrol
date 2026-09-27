@@ -46,7 +46,7 @@ export function CodexHooksNoticeDialog({
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ fontSize: 13, lineHeight: 1.55, color: "var(--text)" }}>
-          MissionControl wires Codex hooks so it can keep this session’s status
+          Mission Gontrol wires Codex hooks so it can keep this session’s status
           in sync (running, waiting, stopped).
         </div>
         <div
@@ -66,7 +66,7 @@ export function CodexHooksNoticeDialog({
             manually approve these hooks
           </span>{" "}
           inside the Codex TUI. If you decline, session status updates in
-          MissionControl will not work.
+          Mission Gontrol will not work.
         </div>
         <div
           style={{

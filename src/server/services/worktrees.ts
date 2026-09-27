@@ -408,7 +408,13 @@ export function resolveProjectWorktreeCwd(projectId: string, worktreeId?: string
   return cwd;
 }
 
-export async function createWorktree(projectId: string): Promise<{
+function collisionName(baseName: string, attempt: number): string {
+  if (attempt === 0) return baseName;
+  const parts = baseName.split("-").slice(0, 4);
+  return [...parts, String(attempt + 1)].join("-");
+}
+
+export async function createWorktree(projectId: string, requestedName?: string): Promise<{
   worktree: WorktreeInfo;
   setupCommand: string | null;
 }> {
@@ -420,10 +426,15 @@ export async function createWorktree(projectId: string): Promise<{
   }
   await assertGitRepository(projectRoot);
   await fs.promises.mkdir(path.join(projectRoot, ".worktree"), { recursive: true });
+  const preferredName = requestedName?.trim();
+  if (preferredName && !WORKTREE_NAME_RE.test(preferredName)) {
+    throw new Error("invalid worktree name");
+  }
 
+  const baseName = preferredName || generateWorktreeName();
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 12; attempt++) {
-    const name = generateWorktreeName();
+    const name = collisionName(baseName, attempt);
     if (!WORKTREE_NAME_RE.test(name)) continue;
     if (findWorktreeByProjectAndName(projectId, name)) continue;
     const finalPath = resolveWorktreePath(projectRoot, name);
@@ -502,7 +513,7 @@ export async function deleteWorktree(input: {
       "push",
       "-u",
       "-m",
-      `Mission Control backup before deleting worktree ${row.name}`,
+      `Mission Gontrol backup before deleting worktree ${row.name}`,
     ]);
   } else if (isDirty && !input.force) {
     throw new WorktreeDirtyError(info);

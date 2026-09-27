@@ -2,7 +2,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import { execFileSync } from "node:child_process";
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WORKTREE_NAME_RE } from "~/shared/worktrees";
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mc-worktrees-test-db-"));
@@ -20,7 +20,10 @@ const {
 const { createProject, listProjects } = await import("../projects");
 const { BranchInWorktreeError, checkoutGitBranch, gitErrorPayload } = await import("../git");
 const { archiveTask, createTask } = await import("../tasks");
-const { remove: removeWorktree } = await import("~/server/controllers/worktrees.controller");
+const {
+  create: createWorktreeRequest,
+  remove: removeWorktree,
+} = await import("~/server/controllers/worktrees.controller");
 const { getDb } = await import("~/db/client");
 const { projects, tasks, groups, appSettings, worktrees } = await import("~/db/schema");
 
@@ -40,7 +43,7 @@ function createCommittedRepo(): string {
   tempDirs.push(dir);
   git(dir, ["init"]);
   git(dir, ["config", "user.email", "test@example.com"]);
-  git(dir, ["config", "user.name", "Mission Control Test"]);
+  git(dir, ["config", "user.name", "Mission Gontrol Test"]);
   fs.writeFileSync(path.join(dir, "README.md"), "initial\n");
   git(dir, ["add", "README.md"]);
   git(dir, ["commit", "-m", "initial"]);
@@ -76,6 +79,51 @@ describe("worktree helpers", () => {
 
   it("generates three lowercase slug tokens", () => {
     expect(generateWorktreeName()).toMatch(WORKTREE_NAME_RE);
+  });
+
+  it("accepts two to five name segments", () => {
+    expect(WORKTREE_NAME_RE.test("review-pr")).toBe(true);
+    expect(WORKTREE_NAME_RE.test("implement-mc-1234-fast-fix")).toBe(true);
+    expect(WORKTREE_NAME_RE.test("single")).toBe(false);
+    expect(WORKTREE_NAME_RE.test("one-two-three-four-five-six")).toBe(false);
+  });
+
+  it("accepts requested action names and adds a collision suffix", async () => {
+    const root = createCommittedRepo();
+    const project = createProject({ name: "named worktree", path: root });
+    const request = () =>
+      new Request(`http://127.0.0.1/api/projects/${project.id}/worktrees`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "implement-mc-1234" }),
+      });
+
+    const first = await createWorktreeRequest(project.id, request());
+    const second = await createWorktreeRequest(project.id, request());
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    await expect(first.json()).resolves.toMatchObject({
+      worktree: { name: "implement-mc-1234", branch: "implement-mc-1234" },
+    });
+    await expect(second.json()).resolves.toMatchObject({
+      worktree: { name: "implement-mc-1234-2", branch: "implement-mc-1234-2" },
+    });
+  });
+
+  it("adds a collision suffix to generated names", async () => {
+    const root = createCommittedRepo();
+    const project = createProject({ name: "generated worktree", path: root });
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+
+    try {
+      const first = await createWorktree(project.id);
+      const second = await createWorktree(project.id);
+
+      expect(second.worktree.name).toBe(`${first.worktree.name}-2`);
+    } finally {
+      random.mockRestore();
+    }
   });
 
   it("resolves worktrees under the project .worktree directory", () => {
@@ -124,7 +172,7 @@ describe("worktree helpers", () => {
 
     expect(fs.existsSync(worktree.path)).toBe(false);
     expect(git(root, ["stash", "list"])).toContain(
-      `Mission Control backup before deleting worktree ${worktree.name}`,
+      `Mission Gontrol backup before deleting worktree ${worktree.name}`,
     );
   });
 
@@ -142,7 +190,7 @@ describe("worktree helpers", () => {
 
     expect(fs.existsSync(worktree.path)).toBe(false);
     expect(git(root, ["stash", "list"])).not.toContain(
-      `Mission Control backup before deleting worktree ${worktree.name}`,
+      `Mission Gontrol backup before deleting worktree ${worktree.name}`,
     );
   });
 
@@ -535,7 +583,7 @@ describe("worktree helpers", () => {
     expect(response.status).toBe(204);
     expect(fs.existsSync(worktree.path)).toBe(false);
     expect(git(root, ["stash", "list"])).toContain(
-      `Mission Control backup before deleting worktree ${worktree.name}`,
+      `Mission Gontrol backup before deleting worktree ${worktree.name}`,
     );
   });
 });

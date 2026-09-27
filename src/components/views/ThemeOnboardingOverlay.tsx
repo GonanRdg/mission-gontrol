@@ -200,7 +200,7 @@ function ThemeOnboardingOverlay({ onDone }: { onDone: () => void }) {
               color: "var(--text-dim)",
             }}
           >
-            Pick a style and an accent color to make Mission Control yours. You
+            Pick a style and an accent color to make Mission Gontrol yours. You
             can change these anytime in Settings.
           </p>
         </header>
@@ -216,7 +216,7 @@ function ThemeOnboardingOverlay({ onDone }: { onDone: () => void }) {
           >
             <StyleChoiceCard
               title="Painted"
-              description="Pixel-art borders and shell imagery. The full Mission Control look."
+              description="Pixel-art borders and shell imagery. The full Mission Gontrol look."
               accentId={color}
               stylePreview="painted"
               selected={style === "painted"}

@@ -33,3 +33,16 @@ WHISPER_SERVER_BIN=/path/to/whisper-server WHISPER_MODEL=/path/to/ggml-base.en.b
 from `process.resourcesPath/whisper/` (packaged), spawns the server lazily on
 first use, and keeps it warm. If the artifacts are absent, voice transcription
 reports unavailable instead of failing — so a build without them still runs.
+
+## Dual-architecture macOS releases
+
+Both installers need a matching speech-server architecture. The packaging hook rejects an incompatible binary. A universal `whisper-server` can be staged once for both installers with `lipo -create <arm64-server> <x64-server> -output resources/whisper/whisper-server`.
+
+For the 2026.9.21 Intel slice, build whisper.cpp v1.8.3 (`2eeeba56e9edd762b4b38467bab96c2517163158`) with:
+
+```sh
+cmake -S <source> -B <build> -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_METAL=OFF -DGGML_OPENMP=OFF -DWHISPER_COREML=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_F16C=OFF -DGGML_FMA=OFF -DGGML_BMI2=OFF
+cmake --build <build> --config Release -j 6 --target whisper-server
+```
+
+The Intel binary links only system libraries; the existing ARM slice retains its local acceleration support.

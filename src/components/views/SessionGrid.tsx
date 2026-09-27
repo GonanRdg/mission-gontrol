@@ -19,6 +19,7 @@ import { SessionIcon } from "~/components/ui/SessionIcon";
 import { StatusDot } from "~/components/ui/StatusDot";
 import { Tooltip } from "~/components/ui/Tooltip";
 import { archiveOpenSession } from "~/lib/archive-session";
+import { usePaletteCommands } from "~/lib/command-palette";
 import { AGENT_META, GRID_EXPAND_TOGGLE_EVENT, STATUS_META } from "~/lib/design-meta";
 import { getElectron, isElectron } from "~/lib/electron";
 import {
@@ -1584,6 +1585,14 @@ export function SessionGrid({
       enabled: !isFiltered && renderSessions.length > 0,
     },
   );
+  usePaletteCommands([{
+    id: "session.gridLayout",
+    label: "Choose session grid layout",
+    shortcut: "session.gridLayout",
+    scopeKey,
+    disabledReason: isFiltered || renderSessions.length === 0 ? "Open the full session grid first" : undefined,
+    run: () => { announceGridQuickPickerOpen(); setQuickPickerOpen(true); },
+  }]);
 
   // Progressive mount: cells beyond the budget render as empty frames and fill
   // in over the following frames. Panes with a cached surface used to bypass

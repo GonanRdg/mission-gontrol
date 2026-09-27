@@ -153,7 +153,7 @@ export function ConnectSandboxDialog({
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-dim)", lineHeight: 1.5 }}>
-          Run the Mission Control agent on any machine you already have — a cloud VM, a home
+          Run the Mission Gontrol agent on any machine you already have — a cloud VM, a home
           server, a spare laptop — then connect to it here and switch between Local and remote
           from the scope switcher.
         </p>
@@ -173,7 +173,7 @@ export function ConnectSandboxDialog({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <span style={sectionLabelStyle}>3 · Connect Mission Control</span>
+          <span style={sectionLabelStyle}>3 · Connect Mission Gontrol</span>
           <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 10 }}>
             <TextField
               label="Sandbox name"

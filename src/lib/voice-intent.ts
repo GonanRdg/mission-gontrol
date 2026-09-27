@@ -1,3 +1,4 @@
+import { RECALL_AVAILABLE } from "~/shared/product";
 // Deterministic, LLM-free parser that maps a spoken transcript to a Mission
 // Control command. Speed is the point: this runs in the hot path right after
 // transcription, so it is pure string work + a fuzzy project match — no network.
@@ -209,7 +210,7 @@ export function parseVoiceCommand(
   // 1b. "remember that …" — capture a project memory into Recall. Resolved early
   //     (before the builtin action verbs) because the leading verb is explicit.
   const rememberMatch = REMEMBER_RE.exec(cleaned);
-  if (rememberMatch) {
+  if (RECALL_AVAILABLE && rememberMatch) {
     const text = rememberMatch[1].trim();
     if (text) return { kind: "remember", text };
   }
@@ -254,7 +255,7 @@ export function parseVoiceCommand(
   }
 
   const customRememberText = aliasPrefixRemainder(cleaned, aliases, "remember");
-  if (customRememberText) {
+  if (RECALL_AVAILABLE && customRememberText) {
     return { kind: "remember", text: customRememberText };
   }
 
@@ -332,7 +333,7 @@ export const VOICE_COMMANDS: VoiceCommandDoc[] = [
     id: "switch-project",
     title: "Switch project",
     description: "Jump to another project by name (matched by sound and spelling).",
-    examples: ["open agentic jumpstart", "switch to mission control", "go to owl tales"],
+    examples: ["open agentic jumpstart", "switch to mission gontrol", "go to owl tales"],
   },
   {
     id: "run-project",
@@ -373,17 +374,6 @@ export const VOICE_COMMANDS: VoiceCommandDoc[] = [
       "create a claude agent to do add tests",
       "use a codex agent fix the login bug",
       "improve the seo on the landing page",
-    ],
-  },
-  {
-    id: "remember",
-    title: "Remember this",
-    description:
-      "Save a fact about the current project to Recall, so future sessions start already knowing it.",
-    examples: [
-      "remember that the auth flow lives in useAuth",
-      "note that migrations run on boot",
-      "make a note of the staging URL",
     ],
   },
 ];

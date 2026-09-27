@@ -1,9 +1,7 @@
 {
-  "name": "@agentsystemlabs/mission-control",
+  "name": "mission-gontrol",
   "version": "0.1.0",
   "description": "Desktop control surface for managing agentic coding work across many projects.",
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  }
+  "private": true
 }

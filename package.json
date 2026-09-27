@@ -1,6 +1,6 @@
 {
-  "name": "mission-control",
-  "version": "2026.9.8",
+  "name": "mission-gontrol",
+  "version": "2026.9.21",
   "description": "Desktop control surface for managing agentic coding work across many projects.",
   "license": "MIT",
   "private": true,
@@ -183,8 +183,8 @@
     ]
   },
   "build": {
-    "appId": "labs.agentsystem.missioncontrol",
-    "productName": "MissionControl",
+    "appId": "dev.gonanrdg.missiongontrol",
+    "productName": "Mission Gontrol",
     "files": [
       "dist/**/*",
       "!dist/**/*.dmg",
@@ -197,7 +197,8 @@
       "!dist/linux*/**/*",
       "dist-electron/**/*",
       "scripts/remote-vm.mjs",
-      "package.json"
+      "package.json",
+      "LICENSE"
     ],
     "afterPack": "scripts/afterpack-adhoc-sign.mjs",
     "directories": {
@@ -228,8 +229,8 @@
       ],
       "category": "public.app-category.developer-tools",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Mission Control uses the microphone for push-to-talk voice commands. Audio is transcribed locally on your machine and never leaves your computer.",
-        "NSScreenCaptureUsageDescription": "Mission Control captures a screen region you select so you can attach it to an AI session as visual context."
+        "NSMicrophoneUsageDescription": "Mission Gontrol uses the microphone for push-to-talk voice commands. Audio is transcribed locally on your machine and never leaves your computer.",
+        "NSScreenCaptureUsageDescription": "Mission Gontrol captures a screen region you select so you can attach it to an AI session as visual context."
       },
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
@@ -249,7 +250,8 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "${productName}-${version}-Setup.${ext}"
-    }
+      "artifactName": "MissionGontrol-${version}-Setup.${ext}"
+    },
+    "artifactName": "MissionGontrol-${version}-${arch}.${ext}"
   }
 }

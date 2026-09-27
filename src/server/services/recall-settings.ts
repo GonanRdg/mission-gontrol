@@ -1,3 +1,4 @@
+import { RECALL_AVAILABLE } from "~/shared/product";
 // Recall (project-memory) settings, persisted in the app_settings KV store.
 // These control the automatic-capture pipeline and the LLM "Recall engine" that
 // distills sessions and re-ranks briefs. Kept in one place so the settings
@@ -72,10 +73,7 @@ function getEngineHarness(): AiRuntimeHarness {
 }
 
 export function readRecallSettings(): RecallSettings {
-  // Recall is an experimental feature and ships off by default; users opt in
-  // from Settings. The sub-flags below keep their "on" defaults so that when a
-  // user flips the master switch on, the full feature set comes on with it.
-  const enabled = getBooleanSetting(RECALL_ENABLED_KEY, false);
+  const enabled = RECALL_AVAILABLE && getBooleanSetting(RECALL_ENABLED_KEY, false);
   return {
     enabled,
     autoCaptureEnabled: enabled && getBooleanSetting(AUTO_CAPTURE_ENABLED_KEY, true),

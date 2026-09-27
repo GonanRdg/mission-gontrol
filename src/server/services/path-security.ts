@@ -31,5 +31,5 @@ export function resolveRegisteredProjectPath(projectPath: string): string {
       // Ignore stale project rows; they should not grant writes anywhere.
     }
   }
-  throw new Error("projectPath must be a registered Mission Control project");
+  throw new Error("projectPath must be a registered Mission Gontrol project");
 }

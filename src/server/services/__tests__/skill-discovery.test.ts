@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverActions } from "../skill-discovery";
+import { discoverActions, discoverWorkflowSkillNames } from "../skill-discovery";
 
 let home: string;
 let project: string;
@@ -157,5 +157,16 @@ describe("discoverActions", () => {
     const byName = Object.fromEntries(discover().map((a) => [a.name, a]));
     expect(byName.implement?.ok && byName.implement.action.worktree).toBe(true);
     expect(byName.research?.ok && byName.research.action.worktree).toBe(false);
+  });
+});
+
+describe("discoverWorkflowSkillNames", () => {
+  it("lists ordinary project, global, and bundled skills once", () => {
+    writeSkill(path.join(project, ".agents", "skills"), "code-review", "name: code-review\ndescription: Review.");
+    writeSkill(userCodex(), "research", "name: research\ndescription: Research.");
+    writeSkill(bundled, "code-review", "name: code-review\ndescription: Bundled review.");
+
+    expect(discoverWorkflowSkillNames({ projectPath: project, homeDir: home, bundledRoots: [bundled] }))
+      .toEqual(["code-review", "research"]);
   });
 });

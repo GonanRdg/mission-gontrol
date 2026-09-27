@@ -1122,7 +1122,7 @@ export function SandboxConfigPanel({
             title="Versions"
             description={
               agentVersionMismatch
-                ? "Mission Control and the sandbox agent versions do not match. Redeploy or rebuild the sandbox when the sandbox version is below expected."
+                ? "Mission Gontrol and the sandbox agent versions do not match. Redeploy or rebuild the sandbox when the sandbox version is below expected."
                 : "Live sandbox agent version from the connected remote agent. Golden AMI version is recorded at deploy time."
             }
           >
@@ -1172,7 +1172,7 @@ export function SandboxConfigPanel({
           {managedRemote ? (
             <ConfigSection
               title="Provisioned agent"
-              description="URL and API key were generated when this VM was deployed. Mission Control reconnects automatically after resume."
+              description="URL and API key were generated when this VM was deployed. Mission Gontrol reconnects automatically after resume."
             >
               {selectedSandbox.remoteAgentUrl && (
                 <OverviewMetaRow label="Agent URL" value={selectedSandbox.remoteAgentUrl} />
@@ -1530,7 +1530,7 @@ export function SandboxConfigPanel({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <p style={{ margin: 0, fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>
-            Mission Control will close the open terminals for this sandbox, disconnect from the agent, and stop provider compute.
+            Mission Gontrol will close the open terminals for this sandbox, disconnect from the agent, and stop provider compute.
           </p>
           <div
             style={{

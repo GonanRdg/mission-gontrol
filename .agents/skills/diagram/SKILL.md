@@ -1,17 +1,17 @@
 ---
 name: diagram
-description: "Show Mermaid diagrams in Mission Control's diagram viewer instead of dumping raw syntax in the terminal. Use when the user asks for a diagram, flowchart, sequence diagram, architecture sketch, state machine, ER diagram, or any visual that Mermaid can render — and whenever a diagram would clarify a complex flow. Requires a Mission Control agent session (MC_API_URL and MC_API_TOKEN are injected automatically). Not for ASCII art in chat, image generation, or projects running outside Mission Control."
+description: "Show Mermaid diagrams in Mission Gontrol's diagram viewer instead of dumping raw syntax in the terminal. Use when the user asks for a diagram, flowchart, sequence diagram, architecture sketch, state machine, ER diagram, or any visual that Mermaid can render — and whenever a diagram would clarify a complex flow. Requires a Mission Gontrol agent session (MC_API_URL and MC_API_TOKEN are injected automatically). Not for ASCII art in chat, image generation, or projects running outside Mission Gontrol."
 user-invocable: true
 ---
 
-Mission Control agent sessions receive env vars automatically:
+Mission Gontrol agent sessions receive env vars automatically:
 
 - `MC_API_URL` — loopback API base (e.g. `http://127.0.0.1:54321`)
 - `MC_API_TOKEN` — bearer token for that API
 - `MC_TASK_ID` — the active task/session id
-- `MC_THEME` — Mission Control UI theme: `dark` or `light`
+- `MC_THEME` — Mission Gontrol UI theme: `dark` or `light`
 
-**Do not print Mermaid to the user and stop.** POST it to Mission Control so the app opens an interactive viewer modal. The viewer applies Mission Control theme colors automatically — your job is to avoid fighting that styling.
+**Do not print Mermaid to the user and stop.** POST it to Mission Gontrol so the app opens an interactive viewer modal. The viewer applies Mission Gontrol theme colors automatically — your job is to avoid fighting that styling.
 
 ## When to use
 
@@ -19,7 +19,7 @@ Mission Control agent sessions receive env vars automatically:
 - You are explaining a multi-step system and a diagram would land faster than prose
 - You already drafted Mermaid and would otherwise paste it in the terminal
 
-Skip when Mission Control env vars are missing (plain shell outside MC) — fall back to inline Mermaid in markdown.
+Skip when Mission Gontrol env vars are missing (plain shell outside MC) — fall back to inline Mermaid in markdown.
 
 ## API contract
 
@@ -36,9 +36,9 @@ Content-Type: application/json
 }
 ```
 
-`theme` is optional metadata — pass `"$MC_THEME"` when set so Mission Control knows which UI theme was active. The viewer still re-renders using the live app theme; you do **not** need to bake colors into `source` for MC.
+`theme` is optional metadata — pass `"$MC_THEME"` when set so Mission Gontrol knows which UI theme was active. The viewer still re-renders using the live app theme; you do **not** need to bake colors into `source` for MC.
 
-Success (`200`): `{ "ok": true, "id": "<uuid>" }` — Mission Control opens the viewer automatically.
+Success (`200`): `{ "ok": true, "id": "<uuid>" }` — Mission Gontrol opens the viewer automatically.
 
 Common errors:
 
@@ -48,17 +48,17 @@ Common errors:
 
 ## Theme rules (critical)
 
-Mission Control runs in dark mode by default. Diagrams fail when agents embed colors that disappear on dark backgrounds (dark gray boxes, faint borders, `#111` fills).
+Mission Gontrol runs in dark mode by default. Diagrams fail when agents embed colors that disappear on dark backgrounds (dark gray boxes, faint borders, `#111` fills).
 
 1. **Do not override Mermaid theme in `source`.** Never use `%%{init: {'theme':'dark'}}%%`, `%%{init: {'theme':'base', 'themeVariables': ...}}%%`, YAML frontmatter theme blocks, or `classDef` / `style` with hardcoded hex/rgb fills.
-2. **Use plain Mermaid syntax.** Let Mission Control's viewer apply accent, surface, text, and border tokens from the active UI theme.
+2. **Use plain Mermaid syntax.** Let Mission Gontrol's viewer apply accent, surface, text, and border tokens from the active UI theme.
 3. **Read `$MC_THEME`.** When it is `dark`, avoid near-black node/participant fills. When it is `light`, avoid near-white fills on white backgrounds.
 4. **Sequence diagrams:** use default participant boxes — do not set actor background colors inline. Example:
 
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant MC as Mission Control
+  participant MC as Mission Gontrol
   U->>MC: POST /api/diagram
   MC-->>U: Open themed viewer
 ```
@@ -71,9 +71,9 @@ sequenceDiagram
 2. **Keep diagrams focused.** Prefer one concern per diagram; split large maps into multiple POSTs with distinct titles.
 3. **Set a short `title`** when the diagram has a clear name (e.g. "Auth flow", "Worktree lifecycle").
 4. **Pass `"theme": "$MC_THEME"`** in the JSON body when `$MC_THEME` is set.
-5. **Tell the user briefly** that the diagram opened in Mission Control — don't repeat the full source unless they ask.
+5. **Tell the user briefly** that the diagram opened in Mission Gontrol — don't repeat the full source unless they ask.
 6. **On HTTP failure**, show the error and paste the Mermaid source as a fallback.
-7. **Verify env vars before POSTing.** If `MC_API_URL`, `MC_API_TOKEN`, or `MC_TASK_ID` is empty, tell the user the session is not running inside Mission Control.
+7. **Verify env vars before POSTing.** If `MC_API_URL`, `MC_API_TOKEN`, or `MC_TASK_ID` is empty, tell the user the session is not running inside Mission Gontrol.
 
 ## Examples
 
@@ -102,7 +102,7 @@ curl -sS -X POST "$MC_API_URL/api/diagram?taskId=$MC_TASK_ID" \
   -d "$(jq -n \
     --arg source 'sequenceDiagram
   participant U as User
-  participant MC as Mission Control
+  participant MC as Mission Gontrol
   participant A as Agent CLI
   U->>MC: Start session
   MC->>A: Spawn PTY + env
@@ -133,4 +133,4 @@ curl -sS -X POST "$MC_API_URL/api/diagram?taskId=$MC_TASK_ID" \
 - Prefer `flowchart TD/LR`, `sequenceDiagram`, `stateDiagram-v2`, and `erDiagram` — they render reliably.
 - Quote node labels with special characters: `A["Step (retry)"]`
 - Avoid `click` directives and HTML labels — the viewer runs in strict mode.
-- Avoid inline colors — Mission Control themes diagrams to match the app.
+- Avoid inline colors — Mission Gontrol themes diagrams to match the app.

@@ -159,7 +159,7 @@ export function DefaultsSettingsPage() {
       }
       if (isStaleSettingsSchemaError(e, patch)) {
         toast.error(
-          "Settings API is still running the old schema. Restart the Mission Control dev server, then choose the harness again.",
+          "Settings API is still running the old schema. Restart the Mission Gontrol dev server, then choose the harness again.",
         );
         return;
       }
@@ -174,7 +174,7 @@ export function DefaultsSettingsPage() {
     <>
       <SettingsSection
         title="Defaults"
-        subtitle="Tools Mission Control reaches for behind the scenes."
+        subtitle="Tools Mission Gontrol reaches for behind the scenes."
         headingLevel="h1"
       >
         <div
@@ -201,7 +201,7 @@ export function DefaultsSettingsPage() {
                 title="Commit Messages"
                 description={
                   <>
-                    Mission Control can spawn this CLI in print mode to draft a
+                    Mission Gontrol can spawn this CLI in print mode to draft a
                     commit message from a staged diff. The first time it runs, we
                     auto-detect which of these tools are on your PATH and pick
                     the first available one.
@@ -322,7 +322,7 @@ export function DefaultsSettingsPage() {
                 description={
                   <>
                     When you comment on a Markdown preview and press{" "}
-                    <strong>Refine</strong>, Mission Control runs this harness
+                    <strong>Refine</strong>, Mission Gontrol runs this harness
                     in print mode to rewrite the file.
                   </>
                 }

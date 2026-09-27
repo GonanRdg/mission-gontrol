@@ -13,7 +13,7 @@ They work in long, keyboard-first sessions with frequent context switches.
 
 ## Product Purpose
 
-Mission Control is a local-first Electron desktop control surface for running and monitoring parallel
+Mission Gontrol is a local-first Electron desktop control surface for running and monitoring parallel
 coding agents. It makes attention visible across projects and sessions while keeping terminals and
 active work primary.
 

@@ -313,7 +313,7 @@ export function ThemeSettingsPage() {
   return (
     <SettingsSection
       title="Theme"
-      subtitle="Pick the chrome Mission Control wears: painted pixel art or the warm, flat Ember look — each in dark or light."
+      subtitle="Pick the chrome Mission Gontrol wears: painted pixel art or the warm, flat Ember look — each in dark or light."
       headingLevel="h1"
     >
       <Field label="Theme style">
@@ -465,7 +465,7 @@ const THEME_STYLE_OPTIONS: Array<{
   {
     value: "painted",
     label: "Painted",
-    description: "Pixel-art borders and shell imagery. The full Mission Control look.",
+    description: "Pixel-art borders and shell imagery. The full Mission Gontrol look.",
   },
   {
     value: "flat",

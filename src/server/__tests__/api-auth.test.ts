@@ -67,6 +67,9 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; pathname: string }> = [
   { method: "PATCH", pathname: "/api/groups/g1" },
   { method: "DELETE", pathname: "/api/groups/g1" },
   // Tasks
+  { method: "GET", pathname: "/api/tasks/active" },
+  { method: "GET", pathname: "/api/skills/actions/preferences" },
+  { method: "PUT", pathname: "/api/skills/actions/preferences" },
   { method: "GET", pathname: "/api/tasks/t1" },
   { method: "PATCH", pathname: "/api/tasks/t1" },
   { method: "DELETE", pathname: "/api/tasks/t1" },
@@ -77,6 +80,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; pathname: string }> = [
   { method: "GET", pathname: "/api/settings" },
   { method: "POST", pathname: "/api/settings" },
   // Diagram skill
+  { method: "POST", pathname: "/api/skills/actions/install" },
   { method: "GET", pathname: "/api/skills/install/diagram/installed" },
   { method: "POST", pathname: "/api/skills/install/diagram" },
   // Keybindings

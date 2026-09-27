@@ -77,17 +77,18 @@ import {
   productionRuntimePortStart,
 } from "./runtime-port";
 
-const APP_NAME = "MissionControl";
+const APP_NAME = "Mission Gontrol";
+const LEGACY_DATA_DIRECTORY = "MissionControl";
 
 function defaultUserDataDir(): string {
   const home = os.homedir();
   if (process.platform === "darwin") {
-    return path.join(home, "Library/Application Support", APP_NAME);
+    return path.join(home, "Library/Application Support", LEGACY_DATA_DIRECTORY);
   }
   if (process.platform === "win32") {
-    return path.join(home, "AppData/Roaming", APP_NAME);
+    return path.join(home, "AppData/Roaming", LEGACY_DATA_DIRECTORY);
   }
-  return path.join(home, ".config", APP_NAME);
+  return path.join(home, ".config", LEGACY_DATA_DIRECTORY);
 }
 
 function configureUserDataDir(): string {
@@ -292,7 +293,7 @@ body{display:flex;align-items:center;justify-content:center;padding:32px;box-siz
 .w{max-width:520px;}
 h1{font-size:15px;font-weight:600;margin:0 0 12px;color:${heading};text-align:center;}
 pre{white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;color:${codeFg};background:${codeBg};border-radius:8px;padding:12px;margin:0;}
-</style></head><body><div class="w"><h1>Mission Control failed to start</h1><pre>${htmlEscape(message)}</pre></div></body></html>`;
+</style></head><body><div class="w"><h1>Mission Gontrol failed to start</h1><pre>${htmlEscape(message)}</pre></div></body></html>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
@@ -682,7 +683,7 @@ function startRemoteVmDeployJob(input: RemoteVmDeployInput): RemoteVmDeployJob {
   let args: string[];
   try {
     if (!script) {
-      throw new Error("Remote VM deploy script is missing from this Mission Control build.");
+      throw new Error("Remote VM deploy script is missing from this Mission Gontrol build.");
     }
     args = buildRemoteVmDeployArgs(job.input);
     log.info("sandbox.agent-creds.deploy", {
@@ -807,7 +808,7 @@ function destroyRemoteVm(
   if (!script) {
     return Promise.resolve({
       ok: false,
-      error: "Remote VM script is missing from this Mission Control build.",
+      error: "Remote VM script is missing from this Mission Gontrol build.",
     });
   }
   const args = [script, "destroy", id, "--yes"];
@@ -851,7 +852,7 @@ function runRemoteVmLifecycle(
   if (!script) {
     return Promise.resolve({
       ok: false,
-      error: "Remote VM script is missing from this Mission Control build.",
+      error: "Remote VM script is missing from this Mission Gontrol build.",
     });
   }
   const args = [script, command, id];
@@ -889,7 +890,7 @@ function runRemoteVmReconcile(sandboxId: string): Promise<RemoteVmReconcileResul
   if (!script) {
     return Promise.resolve({
       ok: false,
-      error: "Remote VM script is missing from this Mission Control build.",
+      error: "Remote VM script is missing from this Mission Gontrol build.",
     });
   }
   return new Promise((resolve) => {
@@ -1056,7 +1057,7 @@ async function startProductionServer(): Promise<string> {
   serverProcess.on("exit", (code) => {
     if (!serverBooted) {
       rejectEarlyExit?.(
-        new Error(`Mission Control server exited with code ${code} before it finished starting.`),
+        new Error(`Mission Gontrol server exited with code ${code} before it finished starting.`),
       );
       return;
     }
@@ -1487,7 +1488,7 @@ const SCREENSHOT_PREVIEW_WIDTH_PX = 320;
 
 /**
  * Native macOS region capture via `screencapture -i`. The OS draws the crosshair
- * and selection rectangle above every window, so the Mission Control window
+ * and selection rectangle above every window, so the Mission Gontrol window
  * stays put and visible throughout — the user selects any region on screen,
  * including over the app. Cancelling (Esc) writes no file.
  */

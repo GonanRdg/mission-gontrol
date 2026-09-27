@@ -8,7 +8,17 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const sourceRoot = path.join(repoRoot, ".agents", "skills");
 const corePluginSource = path.join(repoRoot, "..", "core", "plugins", "agentsystem-core");
 const targetRoot = path.join(repoRoot, "dist", "bundled-skills");
-const BUNDLED_SKILL_NAMES = ["diagram", "recall"];
+const BUNDLED_SKILL_NAMES = [
+  "diagram",
+  "action-implement-ticket",
+  "action-investigate-issue",
+  "action-review-code",
+  "action-explore-idea",
+  "implement-ticket",
+  "investigate-issue",
+  "code-review",
+  "research",
+];
 
 function copyTree(from, to) {
   fs.mkdirSync(to, { recursive: true });

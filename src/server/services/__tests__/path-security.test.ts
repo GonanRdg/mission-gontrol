@@ -31,7 +31,7 @@ describe("path security guards", () => {
     createProject({ name: "registered", path: registered });
 
     expect(resolveRegisteredProjectPath(registered)).toBe(fs.realpathSync(registered));
-    expect(() => resolveRegisteredProjectPath(outside)).toThrow(/registered Mission Control project/);
+    expect(() => resolveRegisteredProjectPath(outside)).toThrow(/registered Mission Gontrol project/);
   });
 
   it("rejects skills install targets that cross symlinked project subdirectories", () => {

@@ -5,7 +5,7 @@ export function InstallDiagramSkillMenuItem({ onSelect }: { onSelect: () => void
     <DropdownMenuItem
       icon="chart"
       onClick={onSelect}
-      title="Install the Mission Control diagram skill into this project"
+      title="Install the Mission Gontrol diagram skill into this project"
     >
       Install diagram skill
     </DropdownMenuItem>

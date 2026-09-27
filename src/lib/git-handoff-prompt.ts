@@ -24,7 +24,7 @@ export type GitHandoffContext = {
 };
 
 export function buildGitHandoffPrompt(context: GitHandoffContext): string {
-  const lines: string[] = [context.instruction.trim(), "", "Context from Mission Control:"];
+  const lines: string[] = [context.instruction.trim(), "", "Context from Mission Gontrol:"];
   lines.push(`- Project: ${context.projectName}`);
   if (context.worktreeName) lines.push(`- Worktree: ${context.worktreeName}`);
   lines.push(`- Branch: ${context.branch?.trim() || "unknown"}`);

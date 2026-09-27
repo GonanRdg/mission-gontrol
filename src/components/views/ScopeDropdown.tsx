@@ -212,7 +212,7 @@ function StoppingSandboxModal({
       }
     >
       <p style={{ margin: 0, fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>
-        This sandbox is stopping, so Mission Control has closed its terminals and will not switch
+        This sandbox is stopping, so Mission Gontrol has closed its terminals and will not switch
         back until the stop finishes. Wait for it to show Paused, then resume it when needed.
       </p>
     </Modal>
@@ -239,7 +239,7 @@ function DeletingSandboxModal({
       }
     >
       <p style={{ margin: 0, fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>
-        This sandbox is being torn down — Mission Control is terminating its cloud VM and removing
+        This sandbox is being torn down — Mission Gontrol is terminating its cloud VM and removing
         it. It will disappear from the list once the teardown finishes.
       </p>
     </Modal>
@@ -283,7 +283,7 @@ function MissingSandboxModal({
       footer={
         <>
           <Btn variant="danger" icon="trash" onClick={onDelete} disabled={deleting}>
-            {deleting ? "Deleting…" : "Delete from Mission Control"}
+            {deleting ? "Deleting…" : "Delete from Mission Gontrol"}
           </Btn>
           <HotkeyTooltip action="dialog.submit">
             <Btn
@@ -299,9 +299,9 @@ function MissingSandboxModal({
       }
     >
       <p style={{ margin: 0, fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>
-        The cloud instance for this sandbox no longer exists, so Mission Control cannot connect to
+        The cloud instance for this sandbox no longer exists, so Mission Gontrol cannot connect to
         it. Switch back to your Local workspace and keep the record for troubleshooting, or delete
-        the sandbox from Mission Control (this also removes its scoped projects and terminals).
+        the sandbox from Mission Gontrol (this also removes its scoped projects and terminals).
       </p>
     </Modal>
   );
@@ -933,7 +933,7 @@ export function ScopeDropdown() {
         qc.invalidateQueries({ queryKey: queryKeys.projects }),
       ]);
       setMissingRemoteSandbox(null);
-      toast.success(`${missingRemoteSandbox.name} removed from Mission Control.`);
+      toast.success(`${missingRemoteSandbox.name} removed from Mission Gontrol.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete sandbox.");
     } finally {
@@ -1213,7 +1213,7 @@ export function ScopeDropdown() {
         width={460}
       >
         <p style={{ margin: 0, fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>
-          This terminates the cloud VM and removes the sandbox configuration from Mission Control. The owning project
+          This terminates the cloud VM and removes the sandbox configuration from Mission Gontrol. The owning project
           stays in place.
         </p>
       </ConfirmDialog>

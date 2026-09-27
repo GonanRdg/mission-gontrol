@@ -55,7 +55,7 @@ let initialized = false;
 // the host. Injected by main.ts (never trusted from the renderer).
 let getSandboxHookEnv: (() => { port: number; token: string } | null) | null = null;
 
-/** Relay a sandbox agent hook frame to the host Mission Control API. */
+/** Relay a sandbox agent hook frame to the host Mission Gontrol API. */
 function forwardSandboxHook(
   slug: string,
   taskId: string,
@@ -800,7 +800,7 @@ function publicSettings(
 }
 
 function buildDiagnostics(): string {
-  const lines: string[] = ["Mission Control sandbox diagnostics"];
+  const lines: string[] = ["Mission Gontrol sandbox diagnostics"];
   lines.push(`active sandbox: ${activeSandboxId ?? "(none / Local)"}`);
   for (const { sandboxId, state } of getRegistry().allStates()) {
     const detail =

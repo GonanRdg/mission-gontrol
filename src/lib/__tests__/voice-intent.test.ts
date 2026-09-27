@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("~/shared/product", () => ({ RECALL_AVAILABLE: true }));
 import {
   cleanTranscript,
   parseVoiceCommand,
@@ -14,7 +16,7 @@ import {
 
 const PROJECTS: VoiceProject[] = [
   { id: "p1", name: "Agentic Jumpstart" },
-  { id: "p2", name: "Mission Control" },
+  { id: "p2", name: "Mission Gontrol" },
   { id: "p3", name: "Landing Page" },
   { id: "o1", name: "Owl Tales" },
 ];
@@ -83,7 +85,7 @@ describe('workflow: "open <project name>" (+ switch variations)', () => {
     const projects: VoiceProject[] = [
       { id: "a", name: "Owl Tales" },
       { id: "b", name: "Owl Park" },
-      { id: "c", name: "Mission Control" },
+      { id: "c", name: "Mission Gontrol" },
     ];
     const cmd = parseVoiceCommand("open owl", projects);
     expect(cmd.kind).toBe("switch-ambiguous");
@@ -377,7 +379,6 @@ describe("VOICE_COMMANDS catalog (Settings page source of truth)", () => {
       "ship",
       "run-script",
       "new-agent",
-      "remember",
     ];
     for (const kind of actionable) expect(documented.has(kind)).toBe(true);
   });

@@ -28,7 +28,7 @@ export function RemoveProjectConfirmDialog({
       width={460}
     >
       <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 8 }}>
-        Remove &ldquo;{projectName}&rdquo; from MissionControl?
+        Remove &ldquo;{projectName}&rdquo; from Mission Gontrol?
       </div>
       <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
         This only unlinks the project — the files at {projectPath} are not touched.
