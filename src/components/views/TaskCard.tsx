@@ -51,7 +51,7 @@ function TaskCardImpl({
 
   // Archived sessions are parked (their tty was killed on archive), but the
   // card is still openable: clicking it reloads/resumes the session terminal.
-  // The top-right actions swap delete → restore + permanent delete.
+  // Archived cards offer restore; active cards offer archive.
   const archived = task.archived;
 
   const sentinel = isSentinelTitle(task.title);
@@ -196,7 +196,7 @@ function TaskCardImpl({
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              paddingRight: 36,
+              paddingRight: !archived && onTogglePinned ? 110 : 74,
             }}
           >
             {task.title}
@@ -313,24 +313,18 @@ function TaskCardImpl({
               </HotkeyTooltip>
             )}
             {onDelete && (
-              <HotkeyTooltip
-                action="session.closeWindow"
-                label="Delete session"
-                disabled={!selected}
-              >
-                <Btn
-                  variant="ghost"
-                  size="sm"
-                  icon="trash"
-                  aria-label={`Delete ${task.title}`}
-                  title={selected ? undefined : "Delete session"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmOpen(true);
-                  }}
-                  style={{ width: 30, height: 30, padding: 0 }}
-                />
-              </HotkeyTooltip>
+              <Btn
+                variant="ghost"
+                size="sm"
+                icon="trash"
+                aria-label={`Delete ${task.title}`}
+                title="Delete session"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmOpen(true);
+                }}
+                style={{ width: 30, height: 30, padding: 0 }}
+              />
             )}
           </div>
         )}
@@ -429,8 +423,8 @@ function TaskCardImpl({
               Delete &ldquo;{task.title}&rdquo;?
             </div>
             <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
-              This session and its git worktree will be removed. This cannot be
-              undone.
+              This permanently removes the session and closes its terminal.
+              The git worktree stays. This cannot be undone.
             </div>
           </ConfirmDialog>
         </div>

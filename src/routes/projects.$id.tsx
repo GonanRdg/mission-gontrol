@@ -3638,6 +3638,7 @@ function ProjectPage() {
                   activeId={activeId}
                   onToggle={stableSelectTerminal}
                   onArchive={stableArchiveSession}
+                  onDelete={stableDeleteTask}
                   onTogglePinned={stableToggleSessionPinned}
                   pinningTaskIds={pinningTaskIds}
                 />
@@ -3667,7 +3668,7 @@ function ProjectPage() {
                   onToggle={stableSelectTerminal}
                   onArchive={showArchived ? undefined : stableArchiveSession}
                   onRestore={showArchived ? stableRestoreSession : undefined}
-                  onDelete={showArchived ? stableDeleteTask : undefined}
+                  onDelete={stableDeleteTask}
                   onTogglePinned={showArchived ? undefined : stableToggleSessionPinned}
                   pinningTaskIds={showArchived ? undefined : pinningTaskIds}
                   headerAction={
