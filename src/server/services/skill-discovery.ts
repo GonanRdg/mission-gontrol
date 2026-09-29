@@ -103,20 +103,3 @@ export function discoverActions(opts: DiscoverActionsOptions = {}): DiscoveredAc
 
   return [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
-
-export function discoverWorkflowSkillNames(opts: DiscoverActionsOptions = {}): string[] {
-  const home = opts.homeDir ?? os.homedir();
-  const project = opts.projectPath ? path.resolve(opts.projectPath) : null;
-  const bundled = opts.bundledRoots === undefined ? bundledSkillsRoots() : opts.bundledRoots;
-  const roots = [
-    ...(project
-      ? [".agents", ".claude", ".codex", ".cursor", ".opencode"].map((dir) =>
-          path.join(project, dir, "skills"),
-        )
-      : []),
-    ...[".agents", ".claude", ".codex", ".cursor"].map((dir) => path.join(home, dir, "skills")),
-    path.join(home, ".config", "opencode", "skills"),
-    ...(bundled ?? []),
-  ];
-  return [...new Set(roots.flatMap(skillDirsIn).map((dir) => path.basename(dir)))].sort();
-}

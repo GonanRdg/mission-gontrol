@@ -162,16 +162,6 @@ export function SessionSwitcherPalette() {
                   <span>{STATUS_META[session.status].label}</span>
                   <span aria-hidden>·</span>
                   <AgentGlyph agent={session.agent} size={9} />
-                  {session.action && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span
-                        style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                      >
-                        {session.action}
-                      </span>
-                    </>
-                  )}
                 </span>
               </span>
               <span

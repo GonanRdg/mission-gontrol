@@ -1,12 +1,7 @@
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
 
-export type Crumb = {
-  label: string;
-  onClick?: () => void;
-  node?: ReactNode;
-  className?: string;
-};
+export type Crumb = { label: string; onClick?: () => void; node?: ReactNode };
 
 export function TopBar({
   crumbs,
@@ -142,11 +137,7 @@ export function TopBar({
           <>
             <Icon name="chevron-right" size={11} style={{ color: "var(--text-faint)" }} />
             {crumbs.map((c, i) => (
-              <span
-                key={i}
-                className={c.className}
-                style={{ display: "inline-flex", alignItems: "center", gap: 10 }}
-              >
+              <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                 {i > 0 && (
                   <Icon name="chevron-right" size={11} style={{ color: "var(--text-faint)" }} />
                 )}

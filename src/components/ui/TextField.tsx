@@ -18,7 +18,6 @@ export function TextField({
   ariaInvalid,
   onBlur,
   disabled,
-  list,
 }: {
   label?: string;
   hint?: string;
@@ -37,7 +36,6 @@ export function TextField({
   ariaInvalid?: boolean;
   onBlur?: () => void;
   disabled?: boolean;
-  list?: string;
 }) {
   const generatedId = useId();
   const inputId = `mc-text-field-${generatedId}`;
@@ -88,7 +86,6 @@ export function TextField({
           aria-invalid={ariaInvalid}
           onBlur={onBlur}
           disabled={disabled}
-          list={list}
           style={{
             flex: 1,
             height: "100%",

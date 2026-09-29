@@ -19,6 +19,7 @@ import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 import { useHotkey } from "~/lib/use-hotkey";
 import { isCommandPaletteOpen, usePaletteCommands } from "~/lib/command-palette";
 import { CommandPalette, CommandPaletteButton } from "~/components/views/CommandPalette";
+import { SessionSwitcherProvider } from "~/lib/session-switcher-store";
 import { KeybindingsProvider } from "~/lib/keybindings/store";
 import { useNavigationSwipe } from "~/lib/use-navigation-swipe";
 import { THEME_CACHE_KEY, useTheme } from "~/lib/use-theme";
@@ -48,11 +49,9 @@ import { GroupsDialogProvider } from "~/lib/groups-dialog-store";
 import { ACTIVE_GROUP_ALL, ACTIVE_GROUP_UNGROUPED, useActiveGroup } from "~/lib/active-group";
 import { GroupSwitcher } from "~/components/views/GroupSwitcher";
 import { PromptSearchProvider } from "~/lib/prompt-search-store";
-import { SessionSwitcherProvider } from "~/lib/session-switcher-store";
 import { ScratchPadProvider } from "~/lib/scratch-pad-store";
 import { HeaderToolsCluster } from "~/components/views/HeaderToolsCluster";
 import { projectIdFromPath } from "~/lib/project-id-from-path";
-import { isProjectActionsPath } from "~/lib/project-actions-route";
 import {
   HeaderActionsProvider,
   HeaderActionsSlot,
@@ -100,7 +99,6 @@ import {
 import { UsagePanel } from "~/components/views/UsagePanel";
 import { VoiceController } from "~/components/views/VoiceController";
 import { SessionNotificationsButton } from "~/components/views/SessionNotificationsButton";
-import { SessionSwitcherButton } from "~/components/views/SessionSwitcherButton";
 import { Toaster } from "sonner";
 import { MC_TOAST_CLASS_NAMES, MC_TOAST_CLOSE_ICON } from "~/lib/mc-toast";
 import { useSessionFinishNotifications } from "~/lib/use-session-finish-notifications";
@@ -495,7 +493,6 @@ function Shell() {
 
   const path = useRouterState({ select: (state) => state.location.pathname });
   const projectId = projectIdFromPath(path);
-  const actionsActive = isProjectActionsPath(path);
   // Flip-only: true iff this project has a materialized active session. Gates
   // the expanded-terminal layout without subscribing to the churning data slice.
   const hasActiveSession = useHasActiveSession(projectId);
@@ -551,7 +548,7 @@ function Shell() {
     });
   }, [expandedKey]);
   const sessionExpanded =
-    !!projectId && !actionsActive && terminalExpanded && hasActiveSession;
+    !!projectId && terminalExpanded && hasActiveSession;
   // Grid view takes over the whole workspace: the Outlet (which renders the
   // grid below the project header) spans full width and the single right-hand
   // terminal panel is hidden.
@@ -571,17 +568,7 @@ function Shell() {
     : projectId
     ? [
         ...groupCrumb,
-        {
-          label: "Project",
-          node: (
-            <ProjectPicker
-              projectId={projectId}
-              disabled={activeResuming}
-              destination={actionsActive ? "actions" : "project"}
-            />
-          ),
-        },
-        ...(actionsActive ? [{ label: "Actions", className: "mc-actions-topbar-crumb" }] : []),
+        { label: "Project", node: <ProjectPicker projectId={projectId} disabled={activeResuming} /> },
       ]
       : activePanel === "usage"
         ? [{ label: "Usage" }]
@@ -965,7 +952,6 @@ function Shell() {
           right={
             <>
               <ProviderUsageIndicator />
-              <SessionSwitcherButton />
               {/* Scratch pads / prompt search / voice collapse behind "…" so
                * the rail stays at status + settings; grid view moved into the
                * project header beside the session controls it acts on. */}
@@ -999,7 +985,7 @@ function Shell() {
           }}
         >
           <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-            {!actionsActive && <ProjectBar disabled={activeResuming} />}
+            <ProjectBar disabled={activeResuming} />
             <div
               style={{
                 position: "relative",
@@ -1014,14 +1000,14 @@ function Shell() {
                 // right; floor the left panel so dragging the terminal wider
                 // shrinks the terminal instead of wrapping the session columns.
                 // In grid view the panel is hidden, so let the Outlet go full width.
-                minWidth: projectId && !gridActive && !actionsActive ? 640 : 0,
+                minWidth: projectId && !gridActive ? 640 : 0,
                 minHeight: 0,
               }}
             >
               <Outlet />
               {activeResuming && activeSandbox && <SandboxResumingOverlay name={activeSandbox.name} />}
             </div>
-            {projectId && !gridActive && !actionsActive && (
+            {projectId && !gridActive && (
               <ProjectTerminalPanel
                 projectId={projectId}
                 onClose={close}

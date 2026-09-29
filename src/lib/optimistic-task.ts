@@ -25,7 +25,6 @@ export function buildOptimisticTask(input: {
   worktreeId: string | null;
   scopeId?: string | null;
   agent: TaskAgent;
-  action?: string | null;
   branch: string;
   claudeSessionId?: string | null;
   claudeSkipPermissions?: boolean;
@@ -40,7 +39,6 @@ export function buildOptimisticTask(input: {
     title: TITLE_WAITING,
     titleManuallySet: false,
     icon: null,
-    action: input.action?.trim() || null,
     agent: input.agent,
     status: DEFAULT_TASK_STATUS,
     branch: input.branch || DEFAULT_BRANCH,

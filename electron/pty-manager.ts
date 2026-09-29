@@ -222,17 +222,16 @@ function appendBuffer(p: Pty, data: string): number {
 // A voice-seeded starting prompt is written to the agent's stdin like the user
 // typing. Drop C0/DEL control bytes so a mis-transcription can't drive TUI
 // keybindings; the submit CR is added separately by the caller.
-export function prepareInitialInput(text: string | undefined): string | undefined {
+function sanitizeInitialInput(text: string | undefined): string | undefined {
   if (!text) return undefined;
-  const clean = Array.from(text.replace(/\r\n?/g, "\n"))
+  const clean = Array.from(text)
     .filter((ch) => {
       const code = ch.charCodeAt(0);
-      return ch === "\n" || (code >= 32 && code !== 127);
+      return code >= 32 && code !== 127;
     })
     .join("")
     .trim();
-  if (!clean) return undefined;
-  return clean.includes("\n") ? `\x1b[200~${clean}\x1b[201~` : clean;
+  return clean || undefined;
 }
 
 function send(getWin: () => BrowserWindow | null, channel: string, payload: any) {
@@ -673,7 +672,7 @@ export function registerPtyHandlers(
       // single submit CR is added separately below.
       const initialInput =
         plan.mode === "agent" && !opts.shell
-          ? prepareInitialInput(opts.initialInput)
+          ? sanitizeInitialInput(opts.initialInput)
           : undefined;
       // Opt-out of the submit CR: the prompt is typed into the agent's input box
       // and left there for the user to read and send (git handoff).

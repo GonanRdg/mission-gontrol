@@ -38,7 +38,6 @@ const sessionSummaryColumns = {
   scopeId: tasks.scopeId,
   title: tasks.title,
   icon: tasks.icon,
-  action: tasks.action,
   agent: tasks.agent,
   status: tasks.status,
   updatedAt: tasks.updatedAt,
@@ -49,12 +48,7 @@ export function findLiveSessionSummaries(): ActiveSessionSummary[] {
     .select(sessionSummaryColumns)
     .from(tasks)
     .innerJoin(projects, eq(tasks.projectId, projects.id))
-    .where(
-      and(
-        eq(tasks.archived, false),
-        inArray(tasks.status, ["needs-input", "running", "interrupted"]),
-      ),
-    )
+    .where(and(eq(tasks.archived, false), inArray(tasks.status, ["needs-input", "running", "interrupted"])))
     .orderBy(
       asc(sql<number>`CASE WHEN ${tasks.status} = 'needs-input' THEN 0 ELSE 1 END`),
       desc(tasks.updatedAt),

@@ -67,10 +67,11 @@ const META_PROMPT = buildMetaPrompt();
 // destabilize the running session and crash the Electron main process (EPIPE).
 const CURSOR_TITLE_CLI_FALLBACKS: TaskAgent[] = ["claude-code", "codex"];
 
-export function resolveSafePrintInvocation(
+export function resolveTitleInvocation(
   agent: TaskAgent,
-  input: string,
+  prompt: string,
 ): { cmd: string; args: string[] } | undefined {
+  const input = META_PROMPT + prompt;
   if (agent !== "cursor-cli") {
     return AGENT_REGISTRY[agent].titleInvocation?.(input);
   }
@@ -79,13 +80,6 @@ export function resolveSafePrintInvocation(
     if (invocation) return invocation;
   }
   return undefined;
-}
-
-export function resolveTitleInvocation(
-  agent: TaskAgent,
-  prompt: string,
-): { cmd: string; args: string[] } | undefined {
-  return resolveSafePrintInvocation(agent, META_PROMPT + prompt);
 }
 
 type Parsed = { title: string; icon: string | null };

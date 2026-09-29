@@ -62,21 +62,7 @@ function ActivityCounts({ project, size = 6 }: { project: ProjectWithCounts; siz
   );
 }
 
-export function ProjectPicker({
-  projectId,
-  disabled = false,
-  destination = "project",
-  hotkeyEnabled = true,
-  onSelectProject,
-  fullWidth = false,
-}: {
-  projectId?: string;
-  disabled?: boolean;
-  destination?: "project" | "actions";
-  hotkeyEnabled?: boolean;
-  onSelectProject?: (projectId: string) => void;
-  fullWidth?: boolean;
-}) {
+export function ProjectPicker({ projectId, disabled = false }: { projectId?: string; disabled?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { hasRunningLaunchForProject } = useUserTerminals();
@@ -157,16 +143,7 @@ export function ProjectPicker({
   const select = (id: string) => {
     setOpen(false);
     setQuery("");
-    if (id !== projectId) {
-      if (onSelectProject) {
-        onSelectProject(id);
-        return;
-      }
-      router.navigate({
-        to: destination === "actions" ? "/projects/$id/actions" : "/projects/$id",
-        params: { id },
-      });
-    }
+    if (id !== projectId) router.navigate({ to: "/projects/$id", params: { id } });
   };
 
   const selectAllProjects = () => {
@@ -182,7 +159,7 @@ export function ProjectPicker({
       e.preventDefault();
       setOpen((o) => !o);
     },
-    { enabled: hotkeyEnabled, preventDefault: false },
+    { preventDefault: false },
   );
 
   // Force-close if the picker becomes disabled (e.g. the active sandbox starts resuming).
@@ -271,16 +248,8 @@ export function ProjectPicker({
   };
 
   return (
-    <div
-      ref={wrapRef}
-      style={{
-        position: "relative",
-        display: "inline-flex",
-        width: fullWidth ? "100%" : undefined,
-        minWidth: 0,
-      }}
-    >
-      <HotkeyTooltip action="project.picker" label="Switch project" disabled={!hotkeyEnabled}>
+    <div ref={wrapRef} style={{ position: "relative", display: "inline-flex", minWidth: 0 }}>
+      <HotkeyTooltip action="project.picker" label="Switch project">
         <Btn
           variant="gray-frame"
           onClick={() => setOpen((o) => !o)}
@@ -288,13 +257,7 @@ export function ProjectPicker({
           aria-haspopup="listbox"
           aria-expanded={open}
           title={label}
-          style={{
-            width: fullWidth ? "100%" : undefined,
-            maxWidth: fullWidth ? "none" : "min(26ch, 22vw)",
-            justifyContent: fullWidth ? "space-between" : undefined,
-            flexShrink: 1,
-            minWidth: 0,
-          }}
+          style={{ maxWidth: "min(26ch, 22vw)", flexShrink: 1, minWidth: 0 }}
         >
           {current && <ProjectIcon project={current} size={14} />}
           <span
@@ -327,7 +290,7 @@ export function ProjectPicker({
             position: "absolute",
             top: "calc(100% + 6px)",
             left: 0,
-            minWidth: fullWidth ? "min(360px, calc(100vw - 80px))" : 360,
+            minWidth: 360,
             boxShadow: "0 12px 32px rgba(0,0,0,0.45)",
             zIndex: 100,
             display: "flex",

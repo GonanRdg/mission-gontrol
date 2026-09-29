@@ -445,14 +445,6 @@ async function dispatch(
   if (pathname === "/api/skills/actions" && method === "GET") {
     return skillsController.listActions(url);
   }
-  if (pathname === "/api/skills/actions/install" && method === "POST") {
-    return skillsController.installAction(request);
-  }
-  if (pathname === "/api/skills/actions/preferences") {
-    if (method === "GET") return skillsController.readActionPreferences(url);
-    if (method === "PUT") return skillsController.updateActionPreferences(request);
-    if (method === "DELETE") return skillsController.resetActionPreferences(url);
-  }
 
   // Diagram skill (local bundled install)
   if (pathname === "/api/skills/install/diagram/installed" && method === "GET") {
