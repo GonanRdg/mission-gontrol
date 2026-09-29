@@ -8,7 +8,6 @@ export type ActiveSessionSummary = {
   scopeId: string;
   title: string;
   icon: string | null;
-  action: string | null;
   agent: TaskAgent;
   status: TaskStatus;
   updatedAt: number;

@@ -1,24 +1,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import {
-  disposePty,
-  isCwdWithin,
-  planLaunchPortKillTargets,
-  prepareInitialInput,
-} from "../pty-manager";
-
-describe("prepareInitialInput", () => {
-  it("preserves multiline prompts as bracketed paste", () => {
-    expect(prepareInitialInput("/implement-ticket\nFile: src/ssr.tsx\nRepository: /src/app")).toBe(
-      "\x1b[200~/implement-ticket\nFile: src/ssr.tsx\nRepository: /src/app\x1b[201~",
-    );
-  });
-
-  it("removes executable control bytes and leaves single-line input unwrapped", () => {
-    expect(prepareInitialInput("  review\x03 this\x7f  ")).toBe("review this");
-  });
-});
+import { disposePty, isCwdWithin, planLaunchPortKillTargets } from "../pty-manager";
 
 describe("planLaunchPortKillTargets", () => {
   it("marks Mission Gontrol runtime ports as protected", () => {

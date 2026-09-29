@@ -153,7 +153,6 @@ export const tasks = sqliteTable(
     title: text("title").notNull(),
     titleManuallySet: integer("title_manually_set", { mode: "boolean" }).notNull().default(false),
     icon: text("icon"),
-    action: text("action"),
     agent: text("agent").$type<TaskAgent>().notNull(),
     status: text("status").$type<TaskStatus>().notNull().default(DEFAULT_TASK_STATUS),
     branch: text("branch").notNull().default(DEFAULT_BRANCH),

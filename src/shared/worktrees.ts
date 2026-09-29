@@ -1,7 +1,7 @@
 import type { TaskStatus } from "./domain";
 
 export const MAIN_WORKTREE_ID = "main";
-export const WORKTREE_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+){1,4}$/;
+export const WORKTREE_NAME_RE = /^[a-z0-9]+-[a-z0-9]+-[a-z0-9]+$/;
 
 export type WorktreeTaskCounts = Record<TaskStatus, number>;
 

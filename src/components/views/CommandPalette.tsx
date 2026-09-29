@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useRouter, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Modal } from "~/components/ui/Modal";
 import { Btn } from "~/components/ui/Btn";
@@ -9,7 +8,7 @@ import { useKeybindings } from "~/lib/keybindings/store";
 import { formatBinding } from "~/lib/keybindings/format";
 import { bindingsEqual, matchBinding } from "~/lib/keybindings/match";
 import { HOTKEY_ACTIONS } from "~/lib/keybindings/types";
-import { actionsQueryOptions, useScopedProjects } from "~/queries";
+import { useScopedProjects } from "~/queries";
 import { useTerminals } from "~/lib/terminal-store";
 import { useSessionSwitcher } from "~/lib/session-switcher-store";
 import { requestSessionOpenById } from "~/lib/session-notification-store";
@@ -32,7 +31,7 @@ import {
 } from "~/lib/command-palette";
 import type { ActiveSessionSummary } from "~/shared/active-sessions";
 
-type Item = PaletteCommand & { category: "Actions" | "Projects" | "Sessions" };
+type Item = PaletteCommand & { category: "Commands" | "Projects" | "Sessions" };
 type Target = { scopeKey?: string; session?: ActiveSessionSummary; detail?: string };
 const RECENT_KEY = "mc:commandPaletteRecent";
 
@@ -56,8 +55,6 @@ export function CommandPalette() {
   const scratch = useScratchPad();
   const registered = useRegisteredPaletteCommands();
   const [target, setTarget] = useState<Target | null>(null);
-  const actionProjectId = projectId ?? target?.session?.projectId ?? null;
-  const actionsQuery = useQuery({ ...actionsQueryOptions(actionProjectId ?? ""), enabled: !!actionProjectId });
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [highlight, setHighlight] = useState(0);
@@ -88,7 +85,7 @@ export function CommandPalette() {
         taskId: focused.taskId, projectId: focused.project.id, projectName: focused.project.name,
         worktreeId: focused.project.activeWorktreeId ?? null,
         scopeId: focused.project.activeRuntimeScopeId ?? LOCAL_SCOPE_ID,
-        title: focused.task.title, icon: null, action: null, agent: focused.task.agent,
+        title: focused.task.title, icon: null, agent: focused.task.agent,
         status: focused.task.status, updatedAt: Date.now(),
       } : undefined;
       const stored = readJson<unknown>(RECENT_KEY, []);
@@ -159,21 +156,11 @@ export function CommandPalette() {
       run: scratch.openLatest },
     ...groups.map((group) => ({ id: `group:${group.id}`, label: `Switch group: ${group.name}`, run: () => setActiveGroup(group.id) })),
     { id: "group:all", label: "Show all project groups", run: () => setActiveGroup(ACTIVE_GROUP_ALL) },
-    ...(actionProjectId ? (actionsQuery.data ?? []).filter((item) => item.ok).map((item): PaletteCommand => ({
-      id: `flow:${actionProjectId}:${item.name}`,
-      label: item.action.title,
-      detail: `Action · /${item.action.skill}`,
-      keywords: `${item.name} flow workflow`,
-      run: async () => {
-        if (isFocusPath(path)) await exitFocusSession(router);
-        await router.navigate({ to: "/projects/$id/actions", params: { id: actionProjectId }, search: { action: item.name } });
-      },
-    })) : []),
   ];
   const commands: Item[] = [...common, ...registered].map((command) => {
     const differentScope = !!command.scopeKey && command.scopeKey !== target?.scopeKey;
     return {
-      ...command, category: "Actions",
+      ...command, category: "Commands",
       detail: differentScope ? target?.detail : command.detail,
       disabledReason: differentScope && !target?.session ? "Workspace changed; reopen the palette" : differentScope ? undefined : command.disabledReason,
       run: async () => {
@@ -202,7 +189,7 @@ export function CommandPalette() {
     const summary: ActiveSessionSummary = {
       taskId: session.taskId, projectId: session.project.id, projectName: session.project.name,
       worktreeId: session.project.activeWorktreeId ?? null, scopeId: session.project.activeRuntimeScopeId ?? LOCAL_SCOPE_ID,
-      title: session.task.title, icon: null, action: null, agent: session.task.agent, status: session.task.status, updatedAt: Date.now(),
+      title: session.task.title, icon: null, agent: session.task.agent, status: session.task.status, updatedAt: Date.now(),
     };
     const key = `${summary.taskId}:${summary.worktreeId}:${summary.scopeId}`;
     if (!sessionMap.has(key)) sessionMap.set(key, summary);
@@ -242,10 +229,10 @@ export function CommandPalette() {
       <input ref={input} className="mc-command-search" role="combobox" aria-label="Search commands, projects, and sessions"
         aria-expanded="true" aria-autocomplete="list" aria-controls={listId}
         aria-activedescendant={items.length ? `${listId}-${selected}` : undefined}
-        placeholder="Search actions, projects, sessions…" value={query}
+        placeholder="Search commands, projects, sessions…" value={query}
         onChange={(event) => { setQuery(event.target.value); setHighlight(0); }} />
       <div className="mc-command-filters" role="group" aria-label="Search category">
-        {["All", "Actions", "Projects", "Sessions"].map((filter) => <button key={filter} type="button" aria-pressed={category === filter}
+        {["All", "Commands", "Projects", "Sessions"].map((filter) => <button key={filter} type="button" aria-pressed={category === filter}
           onClick={() => { setCategory(filter); setHighlight(0); input.current?.focus(); }}>{filter}</button>)}
       </div>
       <div className="mc-command-results" ref={list} id={listId} role="listbox" aria-label="Results">
@@ -255,7 +242,7 @@ export function CommandPalette() {
           <span className="mc-command-copy"><span>{item.label}</span><small>{item.disabledReason ?? item.detail ?? ""}</small></span>
           <span className="mc-command-hint">{item.shortcut ? formatBinding(bindings[item.shortcut]) : item.category}</span>
         </div>)}
-        {!items.length && <div className="mc-command-empty">No results. Try a project name, session title, or action.</div>}
+        {!items.length && <div className="mc-command-empty">No results. Try a project name, session title, or command.</div>}
       </div>
       {(category === "Sessions" || category === "All") && switcher.isError && <button type="button" onClick={switcher.retry}>Could not refresh sessions. Retry</button>}
       {(category === "Projects" || category === "All") && projectsQuery.isError && <button type="button" onClick={() => void projectsQuery.refetch()}>Could not load projects. Retry</button>}
