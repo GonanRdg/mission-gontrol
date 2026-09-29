@@ -92,120 +92,7 @@ pnpm dev:electron       # runs Vite dev server + Electron
 
 Projects and settings use `~/Library/Application Support/MissionControl/missioncontrol.db` (macOS) or the equivalent on Linux/Windows, preserving existing installations.
 
-### Remote VM Sandboxes
-
-Mission Gontrol can provision AWS EC2 instances with
-`mission-control-agent` installed directly on the VM host. Create one from a
-project page (**Create sandbox**), or use the CLI:
-
-```bash
-pnpm remote-vm deploy aws --name client-vm --region us-east-1
-```
-
-Defaults to a **`t3.medium`** (2 vCPU, 4 GiB) in `us-east-1` (~**$30/mo** on-demand if
-left running 24/7; less with the built-in 30-minute idle auto-stop). Override with
-`--size` or `--idle-timeout`.
-
-See [docs/remote-vm-cli.md](docs/remote-vm-cli.md) for AWS flags,
-bootstrap details, and cleanup commands.
-
-### Build
-
-```bash
-pnpm build              # builds web client + Electron
-pnpm package            # rebuilds native deps for Electron and produces dist/
-```
-
-### Install a local build over the installed app (macOS)
-
-```bash
-pnpm install:local      # build, then swap "/Applications/Mission Gontrol.app"
-```
-
-Builds an `.app` only (no DMG/ZIP), re-signs it so the Screen Recording grant
-sticks ([why](docs/local-build-screen-recording.md)), and swaps it in with two
-`rename(2)` calls. The previous bundle moves to `~/.Trash` for rollback. A
-running instance keeps its own inodes, so it survives the swap and picks up the
-new build on the next launch — **quit (⌘Q) and relaunch**.
-
-Flags: `--skip-build` (reuse `dist-electron-out/`), `--arch x64`, `--app <path>`,
-`--backup-dir <dir>`, `--no-resign`.
-
-The build is stamped with the release it is on the way to, marked as a local
-prerelease of it — `0.49.1-local.22.g1a2b3c4` is 22 commits past `v0.49.0`
-(`.dirty` is appended when the tree has uncommitted changes). `package.json`
-stays at the last released version; the stamp is injected at build time.
-
-Automatic updates are off in a `-local.` build, in both the Electron updater and
-the in-app CTA: it sits between two published releases, so a released build
-outranks it and would otherwise silently replace it. Settings → About reports
-the local build and the latest release instead.
-
-### Native module rebuild
-
-`better-sqlite3` and `node-pty` have native bindings, but they do not need the same ABI in development:
-
-- `better-sqlite3` is loaded by the Vite/TanStack server under stock Node, so `pnpm dev`, `pnpm dev:electron`, `pnpm test`, and `pnpm db:*` first rebuild it for the current Node runtime.
-- `node-pty` only runs inside Electron, so postinstall rebuilds it for Electron.
-
-When you need both native modules rebuilt for Electron (for example before packaging), run:
-
-```bash
-pnpm rebuild
-```
-
-## External API
-
-When Mission Gontrol is running, it binds an HTTP server on `127.0.0.1:<port>`. The port is written to `$USER_DATA_DIR/.port` and shown in the Settings page along with the bearer token.
-
-### Endpoints (writable — bearer token required)
-
-| Method | Path                                   | Description                                  |
-| ------ | -------------------------------------- | -------------------------------------------- |
-| POST   | `/api/projects/:id/tasks`              | Create a task scoped to a project            |
-| POST   | `/api/tasks/:id/status`                | Update a task's status / preview / line count |
-
-### Example: mark a task done
-
-```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  -X POST http://127.0.0.1:$PORT/api/tasks/$TASK_ID/status \
-  -d '{"status":"done","preview":"All tests passing"}'
-```
-
-The UI updates within ~1 second over its SSE connection.
-
-### Endpoints (localhost only; bearer-token required on every route)
-
-All `/api/*` routes require an `Authorization: Bearer <token>` header (token in
-Settings → API). The renderer attaches it automatically; external CLIs (Claude,
-Codex, Cursor) receive it via the `$MC_API_TOKEN` env var when launched from
-within Mission Gontrol. `/api/events` (SSE) uses a short-lived ticket from
-`POST /api/events/ticket` because `EventSource` cannot send custom headers.
-
-
-| Method | Path                                   |
-| ------ | -------------------------------------- |
-| GET    | `/api/projects`                        |
-| POST   | `/api/projects`                        |
-| GET    | `/api/projects/:id`                    |
-| PATCH  | `/api/projects/:id`                    |
-| DELETE | `/api/projects/:id`                    |
-| GET    | `/api/groups`                          |
-| POST   | `/api/groups`                          |
-| PATCH  | `/api/groups/:id`                      |
-| DELETE | `/api/groups/:id`                      |
-| GET    | `/api/projects/:id/tasks`              |
-| GET    | `/api/tasks/:id`                       |
-| PATCH  | `/api/tasks/:id`                       |
-| POST   | `/api/tasks/:id/archive`               |
-| POST   | `/api/tasks/:id/restore`               |
-| GET    | `/api/archive`                         |
-| GET    | `/api/events` (SSE)                    |
-| GET    | `/api/settings`                        |
-| POST   | `/api/settings` (regenerate token)     |
-
-## Observability
+## Logs
 
 Main-process logs are written via `electron-log`. In a packaged build they persist to:
 
@@ -213,41 +100,16 @@ Main-process logs are written via `electron-log`. In a packaged build they persi
 - **Windows:** `%USERPROFILE%\AppData\Roaming\MissionControl\logs\main.log`
 - **Linux:** `~/.config/MissionControl/logs/main.log`
 
-In dev (`pnpm dev`) the same lines are written to stdout/stderr.
-
-### Event prefixes
-
-| Prefix | Surface | Dispatch sites |
-| --- | --- | --- |
-| `update.check.*` | Auto-updater check lifecycle (entry, failure) | `electron/update-manager.ts:safeCheck` |
-| `update.download.*` | Auto-updater download lifecycle | `electron/update-manager.ts:safeDownload` |
-| `update.install.*` | Auto-updater install lifecycle | `electron/update-manager.ts:safeInstall` |
-| `update.state.*` | Auto-updater UpdateState transitions (sampled at 10% boundaries for downloading) | `electron/update-manager.ts:broadcast` |
-| `update.error.*` | Errors emitted by electron-updater itself | `electron/update-manager.ts:wireEvents` |
-| `update.load.*` | electron-updater module load failure | `electron/update-manager.ts:loadUpdater` |
-
-When investigating "the update never installed," start with `rg 'event: "update\.' ~/Library/Logs/Mission Gontrol/main.log`. electron-updater's own internal log stream (URL resolution, signature verification, retries) is also routed into the same file.
-
-## Skill file for external CLIs
-
-A drop-in skill for Claude Code / Codex / Cursor CLI lives in `docs/skills/missioncontrol-notify.md`. Paste it into the CLI's instructions or memory so the agent knows to POST its lifecycle events back to Mission Gontrol.
-
 ## Credits
 
 Mission Gontrol is an independent fork of Mission Control, created by **AgentSystem Labs**
 ([AgentSystemLabs/mission-control](https://github.com/AgentSystemLabs/mission-control)).
 
 This repository is an independent fork, evolved and maintained by
-**[GonanRdg](https://github.com/GonanRdg)** — git actions without an agent
-session, the Painted Light theme, local build tooling, and assorted fixes.
+**[GonanRdg](https://github.com/GonanRdg)**
 
 ## License
 
 [MIT](LICENSE) — copyright AgentSystem Labs, with fork modifications copyright
 GonanRdg. The original notice is preserved as the license requires.
 
-## Mission Gontrol releases
-
-Build macOS installers locally with `pnpm dist:mac:x64` and `pnpm dist:mac`. Publish the verified `MissionGontrol-<version>-<arch>.dmg` files to this repository after tagging the matching package version. There is no upstream release service or automatic update feed.
-
-Existing projects and settings retain the legacy `MissionControl` data directory and `missioncontrol.db` filename. Recall is disabled, including capture and agent integration; existing memory records are preserved.
