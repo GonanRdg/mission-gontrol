@@ -72,7 +72,7 @@ mission-gontrol/
 
 This is a fork. Builds here are **unsigned and not notarized**, and **automatic updates are off** — this fork does not run an update server, and it deliberately does not use the upstream project's. Update by downloading a newer release and replacing the app.
 
-- **GitHub Releases:** [GonanRdg/mission-control/releases](https://github.com/GonanRdg/mission-control/releases) — unsigned macOS builds, installed manually
+- **GitHub Releases:** [GonanRdg/mission-gontrol/releases](https://github.com/GonanRdg/mission-gontrol/releases) — unsigned macOS builds, installed manually
 - **Build it yourself:** `pnpm install:local` builds and swaps the app in place, signing on your own machine (no Gatekeeper prompt at all)
 
 After download on macOS: open the `.dmg` and drag the app to Applications. Because the build is unsigned, Gatekeeper will refuse it with *"Mission Gontrol is damaged and can't be opened"* — clear the quarantine flag once:
