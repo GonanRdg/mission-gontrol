@@ -6,7 +6,6 @@ import * as esbuild from "esbuild";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = path.join(repoRoot, ".agents", "skills");
-const corePluginSource = path.join(repoRoot, "..", "core", "plugins", "agentsystem-core");
 const targetRoot = path.join(repoRoot, "dist", "bundled-skills");
 const BUNDLED_SKILL_NAMES = [
   "diagram",
@@ -17,6 +16,9 @@ const BUNDLED_SKILL_NAMES = [
   "action-explore-idea",
   "implement-ticket",
   "investigate-issue",
+  "verify-claims",
+  "optimize-skill",
+  "write-adr",
   "code-review",
   "research",
 ];
@@ -56,18 +58,6 @@ for (const skillName of BUNDLED_SKILL_NAMES) {
 
 if (copied === 0) {
   console.warn("[copy-bundled-skills] no skills with SKILL.md found");
-}
-
-const coreSkillMarker = path.join(corePluginSource, "skills", "ship", "SKILL.md");
-if (fs.existsSync(coreSkillMarker)) {
-  const coreDest = path.join(targetRoot, "agentsystem-core");
-  fs.rmSync(coreDest, { recursive: true, force: true });
-  copyTree(corePluginSource, coreDest);
-  console.info("[copy-bundled-skills] copied agentsystem-core plugin");
-} else {
-  console.warn(
-    `[copy-bundled-skills] missing core plugin source: ${corePluginSource}`,
-  );
 }
 
 // Recall Code Graph: bundle the tree-sitter grammar wasm (+ web-tree-sitter's

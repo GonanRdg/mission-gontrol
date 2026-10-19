@@ -60,6 +60,7 @@ import {
 import { useHotkey } from "~/lib/use-hotkey";
 import { SandboxCloneOfferBanner } from "~/components/views/SandboxCloneOfferBanner";
 import { TerminalZoomControls } from "~/components/views/TerminalZoomControls";
+import { PrBrowserButton, SessionPrBrowser, useSessionPrBrowser } from "./SessionPrBrowser";
 import { api, resolveApiToken } from "~/lib/api";
 import { remoteStartErrorMessage } from "~/lib/remote-runtime-errors";
 import { useSandboxCloneConfirm } from "~/lib/use-sandbox-clone-confirm";
@@ -217,6 +218,7 @@ function HeaderMoreMenu({
   canZoomOut,
   onZoomIn,
   onZoomOut,
+  prAction,
 }: {
   title: string;
   statusLabel: string;
@@ -242,6 +244,7 @@ function HeaderMoreMenu({
   canZoomOut: boolean;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  prAction?: { label: string; run: () => void };
 }) {
   const [open, setOpen] = useState(false);
   useSuspendAppDragRegion(open);
@@ -328,6 +331,7 @@ function HeaderMoreMenu({
               zIndex: Z_INDEX.popover,
             }}
           >
+            {prAction && <DropdownMenuItem icon="github" onClick={() => pick(prAction.run)}>{prAction.label}</DropdownMenuItem>}
             {showTitle && (
               <>
                 <div style={{ padding: "7px 8px 5px", fontFamily: "var(--mono)", minWidth: 0 }}>
@@ -457,6 +461,11 @@ export function TerminalPane({
   const headerRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<XFitAddon | null>(null);
   const termSurfaceRef = useRef<CachedTerminalControls | null>(null);
+  const prBrowser = useSessionPrBrowser({
+    project, taskId: descriptor.taskId, paneRef, expanded, onToggleExpanded,
+    focusTerminal: () => termSurfaceRef.current?.focus(),
+    enabled: !descriptor.awaitingCreate && !descriptor.pendingValidation,
+  });
   const renameFormId = useId();
   const queryClient = useQueryClient();
   const terminals = useTerminalActions();
@@ -1671,6 +1680,10 @@ export function TerminalPane({
               canZoomOut={canZoomOut}
               onZoomIn={zoomIn}
               onZoomOut={zoomOut}
+              prAction={microHeader && (prBrowser.pr || prBrowser.error) ? {
+                label: prBrowser.error ? "Retry PR lookup" : prBrowser.open ? "Hide PR browser" : `Open PR #${prBrowser.pr?.number}`,
+                run: prBrowser.error ? prBrowser.retry : prBrowser.toggle,
+              } : undefined}
             />
             ) : null
           ) : (
@@ -1733,6 +1746,7 @@ export function TerminalPane({
           {/* Portals to document.body; kept outside the compact-header ternary
               so collapsing the pane mid-open can't strand the menu's state. */}
           {hideableMenu}
+          {!microHeader && <PrBrowserButton browser={prBrowser} compact={compactHeader} />}
           {onTogglePin && !microHeader && (
             <Tooltip content={liveTask.pinned ? "Unpin session" : "Pin session"}>
               <Btn
@@ -1784,11 +1798,15 @@ export function TerminalPane({
         </div>
       </div>
       )}
+      <div className="mc-session-content" data-pr-open={prBrowser.open || undefined}>
       <div
         data-terminal-body
         style={{
           flex: 1,
+          minWidth: 0,
+          minHeight: 0,
           position: "relative",
+          ...(prBrowser.open && prBrowser.full ? { visibility: "hidden" as const, position: "absolute" as const, inset: 0 } : {}),
           // The flat theme repaints this translucent (glass panes over the
           // pattern ground) — see the [data-terminal-body] rule in styles.css.
           background: "var(--terminal-bg)",
@@ -1810,6 +1828,8 @@ export function TerminalPane({
             restoreTerminalFocus={() => termSurfaceRef.current?.focus()}
           />
         )}
+      </div>
+      {prBrowser.open && <SessionPrBrowser browser={prBrowser} />}
       </div>
       </div>
       <Modal

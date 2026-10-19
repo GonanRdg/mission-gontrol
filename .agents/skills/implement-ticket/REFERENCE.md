@@ -7,12 +7,17 @@ coverage commands plus a testing style.
 
 | Rung | Source | Notes |
 |---|---|---|
-| 1 | `.serena/memories/*` | Serena MCP only. `suggested_commands.md`, `task_completion_checklist.md`, `style_and_conventions.md`, `tech_stack.md`. Richest source when present; absent in a worktree until copied |
-| 2 | `CLAUDE.md`, `AGENTS.md` | Repo root and the subproject you are touching |
-| 3 | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` | Common where there is no `CLAUDE.md`, often the only convention file |
-| 4 | `.cursorrules`, `.cursor/rules/*`, `.windsurfrules` | Same content, different vendor |
-| 5 | `CONTRIBUTING.md`, `README.md`, `docs/` | Process, setup, sometimes test commands. Public settings tables live here |
-| 6 | The code + `git log --oneline -30` | Fallback. Say in the report that you inferred |
+| 1 | `CLAUDE.md`, `AGENTS.md` | Repo root and the subproject you are touching |
+| 2 | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` | Common where there is no `CLAUDE.md`, often the only convention file |
+| 3 | `.cursorrules`, `.cursor/rules/*`, `.windsurfrules` | Same content, different vendor |
+| 4 | `CONTRIBUTING.md`, `README.md`, `docs/` | Process, setup, sometimes test commands. Public settings tables live here |
+| 5 | The code + `git log --oneline -30` | Fallback. Say in the report that you inferred |
+
+No convention files does not lower the bar. Infer from the code what the files would have said —
+build and test commands from the build files and CI config, testing style from the tests beside the
+code being changed, naming and layering from its neighbours, commit style from the log. Read as much
+as the change's risk warrants: a one-file fix needs its neighbours, a new seam needs the patterns
+around every place it touches.
 
 PR machinery, checked separately:
 
@@ -24,7 +29,7 @@ PR machinery, checked separately:
 | Default branch | `git symbolic-ref refs/remotes/origin/HEAD` — do not assume `main` |
 
 Variance is wide even inside one organisation: no template and no agent file at all (default branch
-`master`, Serena memories the only source); a title regex plus release-please; a conventional-commit
+`master`, the code the only source); a title regex plus release-please; a conventional-commit
 glossary embedded in the template; nothing but `.github/copilot-instructions.md`. Check each repo —
 never carry over what the last one did.
 
@@ -34,18 +39,7 @@ Untracked files do not follow a worktree. Copy in before Phase 3:
 
 | What | Why |
 |---|---|
-| `.serena/` | rung 1 of the ladder, plus memories |
 | `.env`, user secrets, dev appsettings | the suite reads them; missing → Phase 3 fails on config, not code |
-
-Serena resolves its project from the directory the session launched in, once. `cd` does not move it,
-and the `claude-code` context sets `single_project: true`, which disables `activate_project`.
-
-| Session launched in | Serena project | Consequence |
-|---|---|---|
-| the repo | the repo | symbol edits land in the repo, not the worktree — use plain file tools |
-| the worktree | the worktree | symbol tools work normally |
-
-Restarting the session inside the worktree buys Serena back; worth it for a large change, not a small one.
 
 ## Ticket type → branch and commit type (Phase 2)
 
@@ -63,7 +57,7 @@ No type at all → read it off the work itself.
 Branch `<type>/<TICKET-KEY>-<kebab-slug>`, slug from the summary, ~5 words. A narrower repo `regexp`
 (e.g. `^(feat|fix|chore|refactor|docs|build|tech-debt)`) wins.
 
-## Tracker status moves (Phases 2 and 4)
+## Tracker status move (Phase 2)
 
 Jira, via Atlassian MCP, is the wired path. `getTransitionsForJiraIssue` returns only what is
 available from the ticket's *current* status, and workflows differ per project. Match generically:
@@ -72,18 +66,19 @@ available from the ticket's *current* status, and workflows differ per project. 
    stable, transition names are not, and two differently named transitions often land on the same
    target status.
 2. Fall back to the transition's own `name`.
-3. Preferred targets, in order:
-   - in progress: `In Progress`, `Start Progress`, `In Development`, `Doing`, `Start`
-   - review: `PR`, `In Review`, `Code Review`, `Ready for Review`, `Review`
+3. Preferred targets, in order: `In Progress`, `Start Progress`, `In Development`, `Doing`, `Start`.
 4. Never hardcode ids — they are workflow-local, and the same numeric id means a different
    transition in another project's workflow.
 
 No match → skip and note it. Never invent a transition or chain two to force a path. Status only;
 this skill never comments on the ticket.
 
-Another tracker — Linear, GitHub Issues, Azure DevOps — takes the same two moves through whatever
-tool is connected, matching on target state by meaning. No tool for it → the user moves it; say so
-in the report rather than asking mid-run.
+Another tracker — Linear, GitHub Issues, Azure DevOps — takes the same in-progress move through
+whatever tool is connected, matching on target state by meaning. No tool for it → the user moves it;
+say so in the report rather than asking mid-run.
+
+There is no review move: the PR opens as a draft, and the user moves the ticket when they mark it
+ready.
 
 ## Plan sketch shape (Phase 2)
 
@@ -114,13 +109,17 @@ on a large diff only. Then ship, without cataloguing gaps for the reader.
 
 ## Review scaling (Phase 3)
 
+Size scales how many agents run, never whether they run. There is no inline rung: every review is a
+subagent review.
+
 | Diff size | Review |
 |---|---|
-| < ~50 changed lines, no new public API, no boundary crossed | Inline self-review against the criteria and the repo's standards. No subagents |
-| Normal feature or fix | The `code-review` skill, spec + standards axes |
-| Large, cross-cutting, security-relevant, or a public/published API | Full two-axis subagent run, plus a targeted third agent for the risky dimension |
+| Small — under ~50 changed lines, no new public API, no boundary crossed | Two subagents, spec and standards |
+| Normal feature or fix | Code review, spec + standards axes |
+| Large, cross-cutting, security-relevant, or a public/published API | Two-axis run plus a targeted third agent for the risky dimension |
 
-The briefing rules hold at every size — see Phase 3.
+The briefing rules hold at every size — see Phase 3. Each agent gets the same brief and no knowledge
+of the others; order between them is irrelevant, isolation is not.
 
 ### Scope fence
 

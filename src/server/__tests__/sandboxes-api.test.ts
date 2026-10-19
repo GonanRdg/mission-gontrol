@@ -84,6 +84,7 @@ function makeProject(id: string, sandboxId: string | null) {
     savedAgent: null,
     savedSkipPermissions: false,
     savedBareSession: false,
+    savedClaudeChrome: null,
     defaultGridView: false,
     createdAt: now,
     updatedAt: now,
@@ -217,6 +218,7 @@ describe("sandboxes API", () => {
         claudeSessionId: null,
         claudeSkipPermissions: false,
         claudeBareSession: false,
+        claudeChrome: null,
         createdAt: now,
         updatedAt: now,
       })

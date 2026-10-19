@@ -153,6 +153,7 @@ export function GeneralSettingsPage() {
     providerUsageEnabled: settings?.providerUsageEnabled ?? false,
     providerUsageIds: settings?.providerUsageIds ?? ["claude", "codex", "cursor"],
     agentLauncherConfig: settings?.agentLauncherConfig ?? DEFAULT_AGENT_LAUNCHER_CONFIG,
+    agentSessionDefaults: settings?.agentSessionDefaults ?? {},
     recallEnabled: settings?.recallEnabled ?? false,
     recallAutoCaptureEnabled: settings?.recallAutoCaptureEnabled ?? true,
     recallEngineEnabled: settings?.recallEngineEnabled ?? true,

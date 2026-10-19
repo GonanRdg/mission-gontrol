@@ -1,4 +1,5 @@
 export const HOTKEY_ACTIONS = [
+  "command.palette",
   "agent.new",
   "project.add",
   "project.edit",
@@ -55,6 +56,7 @@ export type Binding = {
 export type BindingMap = Record<HotkeyAction, Binding>;
 
 export const ACTION_META: Record<HotkeyAction, { label: string; description: string }> = {
+  "command.palette": { label: "Open command palette", description: "Search actions, projects, and sessions." },
   "agent.new": { label: "New agent / project", description: "Create a new agent on a project page, or a new project on the home page." },
   "project.add": { label: "Add project", description: "Open the Add Project dialog from anywhere in the app." },
   "project.edit": { label: "Edit project", description: "Open the edit dialog for the current project." },

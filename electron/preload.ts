@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 import { IPC } from "./ipc-channels";
+import type { PrBrowserBounds, PrBrowserCommand, PrBrowserIntent, PrBrowserState } from "../src/shared/pr-browser";
 
 /** Subscribe to a main→renderer IPC channel; returns an unsubscribe fn. */
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -166,6 +167,17 @@ const electronAPI = {
     getToken: (): Promise<string> => ipcRenderer.invoke(IPC.settingsGetToken),
     regenerateToken: (): Promise<string> =>
       ipcRenderer.invoke(IPC.settingsRegenerateToken),
+  },
+  prBrowser: {
+    show: (sessionId: string, mountId: string, url: string, bounds: PrBrowserBounds): Promise<PrBrowserState> =>
+      ipcRenderer.invoke(IPC.prBrowserShow, sessionId, mountId, url, bounds),
+    layout: (sessionId: string, mountId: string, bounds: PrBrowserBounds | null): Promise<void> =>
+      ipcRenderer.invoke(IPC.prBrowserLayout, sessionId, mountId, bounds),
+    command: (sessionId: string, command: PrBrowserCommand): Promise<PrBrowserState> =>
+      ipcRenderer.invoke(IPC.prBrowserCommand, sessionId, command),
+    destroy: (sessionId: string): Promise<void> => ipcRenderer.invoke(IPC.prBrowserDestroy, sessionId),
+    onState: (cb: (state: PrBrowserState) => void) => subscribe(IPC.prBrowserState, cb),
+    onIntent: (cb: (intent: PrBrowserIntent) => void) => subscribe(IPC.prBrowserIntent, cb),
   },
   voice: {
     /** Whether the bundled whisper model is installed on this platform. */

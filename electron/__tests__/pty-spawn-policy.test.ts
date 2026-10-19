@@ -228,6 +228,15 @@ describe("resolveSpawnPlan — agent allow-list", () => {
     }
   });
 
+  it.each(["--chrome", "--no-chrome"])("accepts Claude %s without bypassing permission checks", (flag) => {
+    const result = resolveSpawnPlan(spawnReq({ agent: "claude-code", command: `claude ${flag}` }), depsFor());
+    expect(result).toMatchObject({ argv: [flag] });
+    expectRejected(spawnReq({ agent: "claude-code", command: `claude ${flag} --dangerously-skip-permissions` }),
+      depsFor(), "agent-arg-not-allowed");
+    expectRejected(spawnReq({ agent: "codex", command: `codex ${flag}` }),
+      depsFor(), "agent-arg-not-allowed");
+  });
+
   it("accepts permission-bypass flags with explicit opt-in", () => {
     const cases: Array<{ req: SpawnRequest; argv: string[] }> = [
       {

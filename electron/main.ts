@@ -23,6 +23,7 @@ import * as readline from "node:readline";
 import * as os from "node:os";
 import { spawn, ChildProcess, spawnSync } from "node:child_process";
 import { registerPtyHandlers, killAllPtys } from "./pty-manager";
+import { registerPrBrowserHandlers } from "./pr-browser";
 import { setPtyStreamHidden, setPtyStreamPowerSave } from "./pty-output-batch";
 import { setAppThemeFromBackground } from "./app-theme";
 import {
@@ -77,17 +78,18 @@ import {
   productionRuntimePortStart,
 } from "./runtime-port";
 
-const APP_NAME = "MissionControl";
+const APP_NAME = "Mission Gontrol";
+const LEGACY_DATA_DIRECTORY = "MissionControl";
 
 function defaultUserDataDir(): string {
   const home = os.homedir();
   if (process.platform === "darwin") {
-    return path.join(home, "Library/Application Support", APP_NAME);
+    return path.join(home, "Library/Application Support", LEGACY_DATA_DIRECTORY);
   }
   if (process.platform === "win32") {
-    return path.join(home, "AppData/Roaming", APP_NAME);
+    return path.join(home, "AppData/Roaming", LEGACY_DATA_DIRECTORY);
   }
-  return path.join(home, ".config", APP_NAME);
+  return path.join(home, ".config", LEGACY_DATA_DIRECTORY);
 }
 
 function configureUserDataDir(): string {
@@ -2013,6 +2015,7 @@ registerPtyHandlers(
   }
 );
 registerFileHandlers(ipcMain, () => win);
+registerPrBrowserHandlers();
 
 // Starts (or reuses) a loopback static server rooted at the project, so the HTML
 // preview iframe can load the file over http and resolve its assets/scripts. The

@@ -11,9 +11,7 @@ degrades.
 | Datadog MCP | Lane A only — say so: a production-only bug without telemetry yields a hypothesis, not a confirmed cause |
 | Slack MCP | Ask for the relevant messages as text |
 | `implement-ticket` | Phase 4 fallback path, driven here |
-| `diagnosing-bugs` | Build the failing test directly, same discipline |
-| `code-review` | Inline self-review, and say that is what happened |
-| Serena MCP | `grep` and `git log -S` reach the same lines, slower. Same fallback in a worktree the session did not launch in |
+| DB access | Hand the queries to the user, batched, read-only, with what each result would decide — see Lane C. Never infer a datastore's state from application logs alone |
 
 ## 2. Link parsing (Phase 1)
 
@@ -68,16 +66,29 @@ Also useful with no link at all:
 Query hygiene: always pin `env:` and `service:`. Aggregates measure blast radius; **one complete
 trace plus its logs finds the cause**. Get both, in that order of importance.
 
+**Do not guess parameter names.** Much of this surface is deferred — the name is visible, the schema
+is not. Load the schemas with `ToolSearch` (`select:<tool>,<tool>`) before the first call to anything
+outside the common log/span/metric set, and especially to DBM, change-story and workflow tools. A
+parameter rejection means the schema is unknown: load it, then call. Never a second guess, never a
+third.
+
+Database instance work (`postgresql`, `mysql`, …) beyond the DBM row above:
+`find_datadog_database_instances` for the instance id, then
+`get_datadog_database_health_signals`, `get_datadog_database_query_statement`,
+`get_datadog_database_calling_services`, `get_datadog_database_explain_plans`. A managed instance
+(Cloud SQL, RDS) publishes host-level limits under the cloud namespace, not the agent one —
+`gcp.cloudsql.*` / `aws.rds.*` for cores, CPU, memory and backends; `postgresql.*` /
+`mysql.*` for the in-engine view. `MISSING_DATA` on one side is a reason to look on the other, not
+a reason to conclude.
+
 ## 4. Resolving the working directory (Phase 1)
 
 ```
 git rev-parse --show-toplevel 2>/dev/null            # current repo, if any
-ls -d ~/src/*/ ~/dev/*/ 2>/dev/null                  # wherever checkouts live
-ls -d <current-repo>/../*/ 2>/dev/null               # siblings of the current repo
-git -C <dir> remote get-url origin                   # confirm a candidate is what you think
+git remote get-url origin                            # its organisation and naming prefix
 ```
 
-Candidate signals, strongest first:
+The signals below decide whether the open repo is the right one. Signals, strongest first:
 
 1. Datadog `service:` tag. A service tag usually maps to a repo sharing its stem, with or without
    the organisation prefix (`statements` → `statements` or `<org>-statements`). Get the prefix in use
@@ -91,22 +102,36 @@ Candidate signals, strongest first:
 Decision:
 
 - Current repo matches the strongest candidate → use it, state it, do not ask.
-- Otherwise **ask once** with `AskUserQuestion`, offering the directories that actually exist on disk,
-  the current directory, and "other".
-- Candidate not checked out → say so and ask. Never clone unprompted.
+- Otherwise reach the code of the service the evidence names, in this order, and say which was used:
+  1. **A sibling of the open repo** matching its stem — one look in the open repo's parent directory,
+     wherever that is: `ls -d "$(dirname "$(git rev-parse --show-toplevel)")"/*<stem>*/`.
+  2. **`gh` read-only, best effort**, at the deployed ref — the Datadog `version:` tag or the image
+     sha; the default branch only when neither is known, and say so:
+     `gh search code --repo <org>/<repo> "<symbol>"`,
+     `gh api "repos/<org>/<repo>/contents/<path>?ref=<ref>" --jq .content | base64 -d`.
+     No LSP and no build; code search can miss. A trace that needs more than a few files → say so
+     and go to 3.
+  3. **Ask once** for a path, or for the user to clone it.
+- Never scan the disk or the organisation, never clone unprompted.
 - Cross-repo → one primary plus named read-only secondaries.
 
 ## 5. Write-up file (Phase 3)
 
 Location ladder, first hit wins:
 
-1. An existing `docs/investigations/`, `docs/rca/`, `docs/incidents/` → use it, match its file naming.
-2. `docs/` exists → `docs/investigations/<KEY-or-slug>.md`.
-3. Neither → the session scratchpad, and tell the user where it is plus that you can move it into the
-   repo.
+1. An existing `docs/investigations/`, `docs/rca/`, `docs/incidents/` → the repo already keeps
+   investigations in tree, so use it and match its file naming.
+2. Otherwise **outside the repo**, at a path that survives `/clear` and the end of the session: the
+   agent's durable notes directory when it has one, else `~/.claude/investigations/` in Claude Code.
+   Never the session scratchpad — the implementation may run in a fresh session. Most investigations are never committed — a new `docs/investigations/`
+   created for one write-up is unwanted tree noise. Say the path, and offer to move it in.
 
-The file is not part of the fix commit unless the repo already keeps investigations in tree. Keep the
-PR body short and free of investigation narration regardless.
+The file is not part of the fix commit unless case 1 applies. Keep the PR body short and free of
+investigation narration regardless.
+
+It is the answer to "give me the full detail" and to a lost context window — so it carries the
+things the chat summary drops: every metric with its ceiling, the ruled-out hypotheses with what
+ruled them out, the query text, the full EXPLAIN, the handoff block as sent.
 
 ```markdown
 # <KEY or slug> — <one-line symptom>
@@ -132,6 +157,7 @@ Two or three sentences. The input, the line, and why it did not happen before.
 Hypotheses tested and killed, each with what killed it. Stops the next person re-testing them.
 
 ## Fix options
+Each names the repo it lands in — the one that owns the defect.
 ### A — minimal, releasable now
 ### B — proper
 **Recommendation**: A or B, one line of why.
@@ -152,6 +178,13 @@ Records already broken: how many, and whether they need backfill or replay. Or "
 
 ## Open questions
 ## Out of scope
+
+## Handoff
+Filled when the user says to implement; `implement-ticket` builds from this section.
+- **Fix**: <approved option, one line> · **Repo**: <repo it lands in>
+- **Acceptance criteria**: 1. … (numbered, observable)
+- **Out of scope**: …
+- **Sources**: <ticket · thread · Datadog link>
 ```
 
 ## 6. Redaction — before anything is written to a file
@@ -170,18 +203,7 @@ Untracked files do not follow a worktree. Copy in before the first build:
 
 | What | Why |
 |---|---|
-| `.serena/` | memories, and the convention ladder's first rung |
 | `.env`, user secrets, dev appsettings | the suite reads them; missing → the build fails on config, not code |
-
-Serena resolves its project from the directory the session launched in, once. `cd` does not move it,
-and the `claude-code` context sets `single_project: true`, which disables `activate_project`.
-
-| Session launched in | Serena project | Consequence |
-|---|---|---|
-| the repo | the repo | symbol edits land in the repo, not the worktree — use plain file tools |
-| the worktree | the worktree | symbol tools work normally |
-
-Restarting the session inside the worktree buys Serena back; worth it for a large fix, not a small one.
 
 ## 8. Anti-patterns
 
@@ -202,3 +224,8 @@ Restarting the session inside the worktree buys Serena back; worth it for a larg
 | Stale tree state | "Working tree is dirty" from the session-start snapshot, then a no-op stash | `git status --porcelain` at the top of Phase 4, decide from that |
 | Stashing work you do not own | `git stash` on a dirty tree that another session or task is mid-way through | `git worktree add ../wk-<taskname>`, leave the tree untouched, say where you moved |
 | Cleared checks listed as debt | "Removing the public method is safe because X" filed under "not fixed" | A check you performed and cleared is not a leftover — review notes or nowhere |
+| Saturation without a ceiling | "The server ran out of connections" from a connection count with no `max_connections` beside it | Value and limit in the same sentence, or label it a hypothesis and name the falsifier |
+| Inference where a query was waiting | Pages of telemetry reasoning about a datastore whose index list is two commands away | Lane C: run the structural checks, or hand them to the user with what each would decide |
+| Parameter roulette | The same tool called four times with `db_type`, `database_type`, `dbType` | `ToolSearch` the schema after the first rejection |
+| Summary assembled from history | "As I said above, plus the correction, plus this new table" | One canonical block, rewritten whole when a fact changed |
+| Compress on request | A long report, then "shorter", then "shorter" | The first version is the shippable one; overflow was always the write-up's job |

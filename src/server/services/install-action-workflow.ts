@@ -5,10 +5,11 @@ import type { ActionWorkflowAvailability } from "~/shared/skill-actions";
 import { TASK_AGENTS, type TaskAgent } from "~/shared/domain";
 import { bundledSkillsRoots } from "../bundled-skills-path";
 import { assertSafeProjectRelativePath, copySkillTree } from "./_skills-install-helpers";
+import { discoverPluginSkills, type PluginSkillsOptions } from "./plugin-skills";
 
 const SKILL_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-type WorkflowRootsOptions = {
+type WorkflowRootsOptions = PluginSkillsOptions & {
   projectPath: string;
   homeDir?: string;
   bundledRoots?: string[];
@@ -81,7 +82,8 @@ function isWithin(root: string, candidate: string): boolean {
 }
 
 function assertSkillName(skillName: string): void {
-  if (!SKILL_NAME_RE.test(skillName) || skillName.length > 64) {
+  const parts = skillName.split(":");
+  if (parts.length > 2 || parts.some((part) => !SKILL_NAME_RE.test(part) || part.length > 64)) {
     throw new Error("invalid workflow skill name");
   }
 }
@@ -97,8 +99,9 @@ export function readActionWorkflowAvailability(
   const bundled = unique(opts.bundledRoots ?? bundledSkillsRoots());
   const targetRoot = globalTargetRoot(agent, home);
   const targetPath = path.join(targetRoot, skillName);
+  const qualified = skillName.includes(":");
 
-  const installed = unique(compatibleRoots(agent, project, home))
+  const installed = qualified ? undefined : unique(compatibleRoots(agent, project, home))
     .map((root) => path.join(root, skillName))
     .find(hasSkill);
   if (installed) {
@@ -112,7 +115,21 @@ export function readActionWorkflowAvailability(
     };
   }
 
-  const source = unique(sourceRoots(project, home, bundled))
+  const plugins = discoverPluginSkills(opts).filter((entry) => entry.agent === agent
+    && (qualified ? entry.qualifiedName === skillName : entry.name === skillName));
+  if (plugins.length === 1) {
+    return {
+      agent,
+      status: "available",
+      origin: "plugin",
+      sourcePath: plugins[0].dir,
+      targetPath,
+      installMethod: null,
+      invocation: plugins[0].qualifiedName,
+    };
+  }
+
+  const source = qualified ? null : unique(sourceRoots(project, home, bundled))
     .map((root) => path.join(root, skillName))
     .find(hasSkill) ?? null;
   const fromBundle = !!source && bundled.some((root) => path.dirname(source) === root);
@@ -130,8 +147,9 @@ export function readActionWorkflowAvailabilities(
   skillName: string,
   opts: Omit<WorkflowRootsOptions, "createSymlink">,
 ): Record<TaskAgent, ActionWorkflowAvailability> {
+  const snapshot = { ...opts, pluginSkills: discoverPluginSkills(opts) };
   return Object.fromEntries(
-    TASK_AGENTS.map((agent) => [agent, readActionWorkflowAvailability(skillName, agent, opts)]),
+    TASK_AGENTS.map((agent) => [agent, readActionWorkflowAvailability(skillName, agent, snapshot)]),
   ) as Record<TaskAgent, ActionWorkflowAvailability>;
 }
 

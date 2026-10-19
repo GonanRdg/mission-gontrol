@@ -106,6 +106,7 @@ export const projects = sqliteTable(
     savedBareSession: integer("saved_bare_session", { mode: "boolean" })
       .notNull()
       .default(false),
+    savedClaudeChrome: integer("saved_claude_chrome", { mode: "boolean" }),
     // Which layout this project opens in: true = grid (all sessions tiled),
     // false = list (sessions stacked in a column). Chosen at create time; the
     // in-session toggle still lets the user switch on the fly.
@@ -163,6 +164,7 @@ export const tasks = sqliteTable(
     pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
     claudeSessionId: text("claude_session_id"),
     claudeSkipPermissions: integer("claude_skip_permissions", { mode: "boolean" }).notNull().default(false),
+    claudeChrome: integer("claude_chrome", { mode: "boolean" }),
     claudeBareSession: integer("claude_bare_session", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),

@@ -29,6 +29,9 @@ import { deleteAllProjectImagesFor } from "./project-images";
 import { reconcileProjectWorktrees } from "./worktrees";
 import { newId } from "./_ids";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
+import { AGENT_SESSION_DEFAULTS_KEY, normalizeAgentSessionDefaults, sessionOptionsForAgent } from "~/shared/agent-session-defaults";
+import { getSetting } from "./settings";
+import { safeJsonParse } from "~/shared/safe-json";
 import { getPinnedProjects, nextPinnedOrder, validatePinnedReorder } from "~/lib/pinned-project-order";
 
 export type { ProjectWithCounts } from "~/shared/projects";
@@ -109,12 +112,8 @@ export function getProjectPathStatus(
 // multiplayer-pets repo key), which fires for every project on every
 // listProjects(); /api/projects re-lists on each project:*/task:* SSE event,
 // so a burst of agent activity re-read and re-parsed each .git/config many
-// times a minute. Cache the raw origin url per path, keyed by the config
-// file's mtime so an external remote change still refreshes. The statSync
-// itself is cheap and runs every call — only the read + regex is skipped on a
-// hit. `mtimeMs: -1` records a "no config" result (missing file, or a worktree
-// whose .git is a file) so repeated misses don't churn; it invalidates the
-// moment a real config appears with a genuine mtime.
+// times a minute. Cache by the resolved config path and mtime so linked
+// worktrees share the parse and external remote changes still refresh it.
 type OriginUrlCacheEntry = { mtimeMs: number; url: string | null };
 const originUrlCache = new Map<string, OriginUrlCacheEntry>();
 
@@ -123,19 +122,38 @@ export function _resetGithubUrlCache(): void {
   originUrlCache.clear();
 }
 
-/** Raw `origin` remote url from a repo's .git/config, or null. Cached by mtime. */
+function repositoryConfigPath(dir: string): string | null {
+  const entry = path.join(dir, ".git");
+  try {
+    if (!fs.statSync(entry).isFile()) return path.join(entry, "config");
+    const pointer = fs.readFileSync(entry, "utf8").trim().match(/^gitdir:\s*(.+)$/);
+    if (!pointer) return null;
+    const gitDir = path.resolve(dir, pointer[1]);
+    let commonDir: string;
+    try {
+      commonDir = fs.readFileSync(path.join(gitDir, "commondir"), "utf8").trim();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") return null;
+      return path.join(gitDir, "config");
+    }
+    return commonDir ? path.join(path.resolve(gitDir, commonDir), "config") : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Raw `origin` remote url from the shared repository config. Cached by mtime. */
 function readOriginRemoteUrl(dir: string): string | null {
-  const cfg = path.join(dir, ".git", "config");
+  const cfg = repositoryConfigPath(dir);
+  if (!cfg) return null;
   let mtimeMs: number;
   try {
     mtimeMs = fs.statSync(cfg).mtimeMs;
   } catch {
-    // Missing config, or .git is a file (worktree) — matches the pre-cache
-    // behavior of returning null for anything that isn't a readable config.
-    originUrlCache.set(dir, { mtimeMs: -1, url: null });
+    originUrlCache.delete(cfg);
     return null;
   }
-  const cached = originUrlCache.get(dir);
+  const cached = originUrlCache.get(cfg);
   if (cached && cached.mtimeMs === mtimeMs) return cached.url;
   let url: string | null;
   try {
@@ -145,7 +163,7 @@ function readOriginRemoteUrl(dir: string): string | null {
   } catch {
     url = null;
   }
-  originUrlCache.set(dir, { mtimeMs, url });
+  originUrlCache.set(cfg, { mtimeMs, url });
   return url;
 }
 
@@ -318,6 +336,11 @@ export function createProject(input: {
   // "remember" with no agent would make "New session" a no-op.
   const savedAgent = input.savedAgent ?? null;
   const rememberAgentSettings = !!input.rememberAgentSettings && !!savedAgent;
+  const launchOptions = savedAgent
+    ? sessionOptionsForAgent(savedAgent, normalizeAgentSessionDefaults(
+        safeJsonParse<unknown>(getSetting(AGENT_SESSION_DEFAULTS_KEY), null),
+      ))
+    : { skipPermissions: false, chrome: null };
   const row = {
     id,
     name,
@@ -337,8 +360,9 @@ export function createProject(input: {
     worktreeSetupCommand: null,
     rememberAgentSettings,
     savedAgent,
-    savedSkipPermissions: false,
+    savedSkipPermissions: launchOptions.skipPermissions,
     savedBareSession: false,
+    savedClaudeChrome: launchOptions.chrome,
     defaultGridView: !!input.defaultGridView,
     createdAt: now,
     updatedAt: now,
@@ -368,6 +392,7 @@ export function updateProject(
       | "savedAgent"
       | "savedSkipPermissions"
       | "savedBareSession"
+      | "savedClaudeChrome"
     >
   > & { launchCommands?: LaunchCommand[] | null; customScripts?: CustomScript[] | null }
 ): Project | null {

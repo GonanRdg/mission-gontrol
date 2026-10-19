@@ -22,6 +22,8 @@ import { openExternal } from "~/lib/open-external";
 import { recordGitRemoteActionNotification } from "~/lib/session-notification-store";
 import { useSuspendAppDragRegion } from "~/lib/use-dismissable-menu";
 import { useHotkey } from "~/lib/use-hotkey";
+import { usePaletteCommands } from "~/lib/command-palette";
+import { worktreeScopeKey } from "~/shared/worktrees";
 import { VOICE_SHIP_EVENT } from "~/lib/voice-events";
 import { Z_INDEX } from "~/lib/z-index";
 import {
@@ -257,6 +259,16 @@ export function GitRemoteActions({
   }, [busyAction, onHandOffToAgent, prM]);
 
   const remoteHotkeysEnabled = enabled && !historyOpen && manualCommitReason === null;
+  const paletteScopeKey = `${worktreeScopeKey(projectId, worktreeId)}:${scopeId}`;
+  const paletteDisabledReason = !enabled ? disabledReason ?? "Git unavailable" : busyAction ? "A Git operation is already running" : undefined;
+  usePaletteCommands([
+    { id: "git.fetch", label: "Git: Fetch", shortcut: "git.fetch", scopeKey: paletteScopeKey,
+      detail: `${projectName} · ${branch ?? "detached HEAD"}`, disabledReason: paletteDisabledReason, run: runFetch },
+    { id: "git.pull", label: "Git: Pull (fast-forward)", shortcut: "git.pull", scopeKey: paletteScopeKey,
+      detail: `${projectName} · ${branch ?? "detached HEAD"}`, disabledReason: paletteDisabledReason, run: () => runPull("ff-only") },
+    { id: "git.history", label: "Git: Commit history", shortcut: "git.history", scopeKey: paletteScopeKey,
+      detail: `${projectName} · ${branch ?? "detached HEAD"}`, disabledReason: !enabled ? disabledReason ?? "Git unavailable" : undefined, run: () => setHistoryOpen(true) },
+  ]);
   useHotkey("git.history", () => setHistoryOpen((value) => !value), {
     capture: true,
     enabled: enabled && manualCommitReason === null,

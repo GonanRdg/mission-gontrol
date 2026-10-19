@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
@@ -7,14 +7,23 @@ import { EmptyState } from "~/components/ui/EmptyState";
 import { ActionsView, type ActionStartRequest } from "~/components/views/ActionsView";
 import { markActionLaunchIntent } from "~/lib/action-launch-intent";
 import { api } from "~/lib/api";
+import { ACTIONS_WINDOW_ENABLED } from "~/lib/project-actions-route";
 import { queryKeys, useActions, useProject } from "~/queries";
 
 export const Route = createFileRoute("/projects/$id/actions")({
-  component: ProjectActionsPage,
+  validateSearch: (search: Record<string, unknown>): { action?: string } =>
+    typeof search.action === "string" ? { action: search.action } : {},
+  beforeLoad: ({ params }) => {
+    if (!ACTIONS_WINDOW_ENABLED) {
+      throw redirect({ to: "/projects/$id", params: { id: params.id }, replace: true });
+    }
+  },
+  component: ACTIONS_WINDOW_ENABLED ? ProjectActionsPage : undefined,
 });
 
 function ProjectActionsPage() {
   const { id } = Route.useParams();
+  const { action } = Route.useSearch();
   const router = useRouter();
   const queryClient = useQueryClient();
   const projectQuery = useProject(id);
@@ -91,6 +100,7 @@ function ProjectActionsPage() {
       <ActionsView
         project={projectQuery.data}
         actions={actionsQuery.data}
+        initialActionName={action}
         onBack={back}
         onStart={start}
         onInstallWorkflow={installWorkflow}

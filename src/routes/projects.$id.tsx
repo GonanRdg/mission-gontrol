@@ -54,6 +54,8 @@ import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 import { RemoveProjectConfirmDialog } from "~/components/views/RemoveProjectConfirmDialog";
 import { TextField } from "~/components/ui/TextField";
 import { isEditableTarget, useHotkey } from "~/lib/use-hotkey";
+import { usePaletteCommands } from "~/lib/command-palette";
+import { ACTIONS_WINDOW_ENABLED } from "~/lib/project-actions-route";
 import { ApiError, api, type AppSettings } from "~/lib/api";
 import { getElectron } from "~/lib/electron";
 import {
@@ -154,8 +156,6 @@ import { DEFAULT_GIT_HANDOFF_PROMPT } from "~/shared/git-handoff-defaults";
 import { HeaderActions } from "~/components/ui/HeaderActionsSlot";
 import { InstallDiagramSkillMenuItem } from "~/components/views/InstallDiagramSkillMenuItem";
 import { InstallDiagramSkillModal } from "~/components/views/InstallDiagramSkillModal";
-import { InstallShipSkillMenuItem } from "~/components/views/InstallShipSkillMenuItem";
-import { InstallShipSkillModal } from "~/components/views/InstallShipSkillModal";
 import { SandboxProvisioningState } from "~/components/views/SandboxProvisioningState";
 import {
   isSandboxProvisioning,
@@ -491,13 +491,15 @@ function ProjectPage() {
       : null;
   const terminalProject = projectPathReady ? scopedProject : null;
   const defaultWarmPayload = useMemo(
-    () => (project ? defaultSessionPayload(project) : null),
+    () => (project ? defaultSessionPayload(project, settings?.agentSessionDefaults) : null),
     [
       project?.branch,
       project?.rememberAgentSettings,
       project?.savedAgent,
       project?.savedSkipPermissions,
       project?.savedBareSession,
+      project?.savedClaudeChrome,
+      settings?.agentSessionDefaults,
     ],
   );
   const warmPrepareKey =
@@ -654,7 +656,6 @@ function ProjectPage() {
   const [showCustomScriptsConfig, setShowCustomScriptsConfig] = useState(false);
   const [showWorktreeSetupConfig, setShowWorktreeSetupConfig] = useState(false);
   const [showInstallDiagramSkill, setShowInstallDiagramSkill] = useState(false);
-  const [showInstallShipSkill, setShowInstallShipSkill] = useState(false);
   const [showLaunchEmpty, setShowLaunchEmpty] = useState(false);
   const [confirmDeleteWorktree, setConfirmDeleteWorktree] = useState(false);
   const [worktreeDeleteConfirmName, setWorktreeDeleteConfirmName] = useState("");
@@ -944,24 +945,6 @@ function ProjectPage() {
       }
     },
     [createTerminal, setPanelOpen]
-  );
-
-  const runShipSkillInstallCommand = useCallback(
-    async (command: string) => {
-      try {
-        await createTerminal({
-          name: "Install ship skills",
-          startCommand: command,
-          cwd: selectedWorktreePath || project?.path || null,
-        });
-        setPanelOpen(true);
-        toast.success("Started ship skill install in a terminal.");
-      } catch {
-        toast.error("Failed to start ship skill install terminal.");
-        throw new Error("Failed to start install terminal");
-      }
-    },
-    [createTerminal, project?.path, selectedWorktreePath, setPanelOpen]
   );
 
   const runScript = useCallback(
@@ -1542,7 +1525,7 @@ function ProjectPage() {
             void Promise.all([invalidateProject(), invalidateTasks(), invalidateProjects()]);
             replenishSessionWarmSlot({
               project: sessionProject,
-              payload: defaultSessionPayload(project),
+              payload: defaultSessionPayload(project, settings?.agentSessionDefaults),
             });
             if (payload.agent === "codex" && !hasSeenCodexHooksNotice()) {
               setShowCodexHooksNotice(true);
@@ -1559,7 +1542,7 @@ function ProjectPage() {
             toast.error(e instanceof Error ? e.message : "Could not create session");
             replenishSessionWarmSlot({
               project: sessionProject,
-              payload: defaultSessionPayload(project),
+              payload: defaultSessionPayload(project, settings?.agentSessionDefaults),
             });
           }
         })();
@@ -1585,6 +1568,7 @@ function ProjectPage() {
           ? payload.skipPermissions
           : undefined,
         claudeBareSession: payload.agent === "claude-code" ? payload.bareSession : undefined,
+        claudeChrome: payload.agent === "claude-code" ? payload.chrome ?? null : undefined,
       });
       appendOptimisticTask(queryClient, project.id, sessionWorktreeId, optimisticTask, activeRuntimeScopeId);
       if (opts?.initialInput) {
@@ -1616,6 +1600,7 @@ function ProjectPage() {
             branch: payload.branch,
             claudeSessionId,
             claudeBareSession: payload.agent === "claude-code" ? payload.bareSession : undefined,
+            claudeChrome: payload.agent === "claude-code" ? payload.chrome ?? null : undefined,
             claudeSkipPermissions: agentSupportsSkipPermissions(payload.agent)
               ? payload.skipPermissions
               : undefined,
@@ -1643,7 +1628,7 @@ function ProjectPage() {
           void Promise.all([invalidateProject(), invalidateTasks(), invalidateProjects()]);
           replenishSessionWarmSlot({
             project: sessionProject,
-            payload: defaultSessionPayload(project),
+            payload: defaultSessionPayload(project, settings?.agentSessionDefaults),
           });
           if (payload.agent === "codex" && !hasSeenCodexHooksNotice()) {
             setShowCodexHooksNotice(true);
@@ -1678,6 +1663,7 @@ function ProjectPage() {
       terminals,
       cliAvailability,
       showAgentUpdateRequired,
+      settings?.agentSessionDefaults,
     ]
   );
 
@@ -1745,7 +1731,7 @@ function ProjectPage() {
         const prompt = renderActionLaunchPrompt(intent, worktreeBranch);
 
         const started = await createSession(
-          { ...defaultWarmPayload, agent: intent.agent, branch: intent.branch },
+          { ...defaultSessionPayload(project, settings?.agentSessionDefaults, intent.agent), branch: intent.branch },
           {
             initialInput: prompt,
             submitInitialInput: true,
@@ -1774,6 +1760,7 @@ function ProjectPage() {
     createSession,
     createTerminal,
     defaultWarmPayload,
+    settings?.agentSessionDefaults,
     invalidateWorktrees,
     project,
     queryClient,
@@ -1810,15 +1797,10 @@ function ProjectPage() {
     const anchor = anchorSessionId();
     if (anchor) terminals.requestCloneInsertAfter(anchor);
     createSession(
-      {
-        agent: project.savedAgent,
-        branch: project.branch || DEFAULT_BRANCH,
-        skipPermissions: !!project.savedSkipPermissions,
-        bareSession: project.savedAgent === "claude-code" ? !!project.savedBareSession : false,
-      },
+      defaultSessionPayload(project, settings?.agentSessionDefaults),
       { focusOnCreate: true },
     );
-  }, [project, createSession, cliAvailability, showAgentUpdateRequired, anchorSessionId, terminals]);
+  }, [project, settings?.agentSessionDefaults, createSession, cliAvailability, showAgentUpdateRequired, anchorSessionId, terminals]);
 
   const startWithSavedInNewRow = useCallback(() => {
     if (!project) return;
@@ -1835,15 +1817,10 @@ function ProjectPage() {
     // Start session in a fresh grid row instead of beside the active one.
     terminals.requestNewRow();
     createSession(
-      {
-        agent: project.savedAgent,
-        branch: project.branch || DEFAULT_BRANCH,
-        skipPermissions: !!project.savedSkipPermissions,
-        bareSession: project.savedAgent === "claude-code" ? !!project.savedBareSession : false,
-      },
+      defaultSessionPayload(project, settings?.agentSessionDefaults),
       { focusOnCreate: true },
     );
-  }, [project, createSession, cliAvailability, showAgentUpdateRequired, terminals]);
+  }, [project, settings?.agentSessionDefaults, createSession, cliAvailability, showAgentUpdateRequired, terminals]);
 
   const onNewAgentPrimary = useCallback(() => {
     if (!projectPathReady) return;
@@ -1949,12 +1926,12 @@ function ProjectPage() {
         toast.error("Voice agents aren't supported in sandbox sessions yet.");
         return;
       }
-      const payload = defaultSessionPayload(project);
+      const payload = defaultSessionPayload(project, settings?.agentSessionDefaults, agent ?? settings?.defaultAgent ?? "claude-code");
       // Drop the new session beside the active one and focus it, like Clone.
       const anchor = anchorSessionId();
       if (anchor) terminals.requestCloneInsertAfter(anchor);
       void createSession(
-        { ...payload, agent: agent ?? settings?.defaultAgent ?? "claude-code", bareSession: false },
+        { ...payload, bareSession: false },
         { initialInput: prompt, focusOnCreate: true },
       );
     },
@@ -1964,6 +1941,7 @@ function ProjectPage() {
       activeRuntimeScopeId,
       createSession,
       settings?.defaultAgent,
+      settings?.agentSessionDefaults,
       anchorSessionId,
       terminals,
     ],
@@ -2071,7 +2049,6 @@ function ProjectPage() {
     showLaunchConfig ||
     showWorktreeSetupConfig ||
     showInstallDiagramSkill ||
-    showInstallShipSkill ||
     showLaunchEmpty ||
     confirmDeleteArchived ||
     !!projectPathIssue ||
@@ -2162,6 +2139,7 @@ function ProjectPage() {
           branch: sourceTask.branch || project.branch || DEFAULT_BRANCH,
           skipPermissions: !!sourceTask.claudeSkipPermissions,
           bareSession: sourceTask.agent === "claude-code" ? !!sourceTask.claudeBareSession : false,
+          chrome: sourceTask.agent === "claude-code" ? sourceTask.claudeChrome : null,
         },
         { focusOnCreate: true },
       );
@@ -2267,6 +2245,25 @@ function ProjectPage() {
   );
 
   const hiddenSession = lastHiddenSessionRef.current;
+  const paletteUnavailable = !projectPathReady ? "Project folder is not ready" : anyBlockingDialogOpen ? "Close the open dialog first" : undefined;
+  usePaletteCommands(project ? [
+    { id: "agent.new", label: "New agent session", shortcut: "agent.new", run: onNewAgentPrimary },
+    { id: "project.edit", label: "Edit project", shortcut: "project.edit", run: () => setShowEdit(true) },
+    { id: "file.finder", label: "Find file", shortcut: "file.finder", run: openFileFinderFresh },
+    { id: "git.diff", label: "Git: Review changes", shortcut: "git.diff", run: onToggleDiffView },
+    { id: "session.gridView", label: "Toggle session grid", shortcut: "session.gridView", run: toggleGridViewShowingAll },
+    { id: "session.clone", label: "Clone current session", shortcut: "session.clone", run: () => duplicateActiveSession(),
+      disabledReason: anchorSessionId() ? undefined : "Open a session first" },
+    { id: "session.cycleNext", label: "Next session", shortcut: "session.cycleNext", run: () => cycleSession(-1) },
+    { id: "session.cyclePrev", label: "Previous session", shortcut: "session.cyclePrev", run: () => cycleSession(1) },
+    { id: "session.focusMode", label: "Focus session in floating window", shortcut: "session.focusMode",
+      disabledReason: anchorSessionId() ? undefined : "Open a session first",
+      run: () => { const taskId = anchorSessionId(); if (taskId) void enterFocusSession(router, taskId); } },
+    ...(ACTIONS_WINDOW_ENABLED ? [{ id: "project.actions", label: "Open project Actions", run: () => router.navigate({ to: "/projects/$id/actions", params: { id } }) }] : []),
+  ].map((command) => ({ ...command, shortcut: command.shortcut as import("~/lib/keybindings/types").HotkeyAction | undefined,
+    scopeKey: selectedScopeKey, detail: `${project.name} · ${selectedWorktree?.branch ?? "main"}`,
+    disabledReason: paletteUnavailable ?? command.disabledReason,
+  })) : []);
   const canRestoreHiddenSession =
     !!project &&
     hiddenSession?.projectId === selectedScopeKey &&
@@ -2416,7 +2413,7 @@ function ProjectPage() {
         toast.error("Handing git off to an agent isn't supported in sandbox sessions yet.");
         return;
       }
-      const payload = defaultSessionPayload(project);
+      const payload = defaultSessionPayload(project, settings?.agentSessionDefaults);
       const anchor = anchorSessionId();
       if (anchor) terminals.requestCloneInsertAfter(anchor);
       void createSession(
@@ -2440,6 +2437,7 @@ function ProjectPage() {
       activeRuntimeScopeId,
       createSession,
       settings?.gitHandoffPrompt,
+      settings?.agentSessionDefaults,
       gitStatus?.branch,
       selectedWorktree,
       anchorSessionId,
@@ -2856,6 +2854,7 @@ function ProjectPage() {
     branch: string;
     dangerouslySkipPermissions: boolean;
     bareSession: boolean;
+    chrome: boolean | null;
   }) => {
     setShowNewAgent(false);
     if (newAgentTarget === "newRow") {
@@ -2873,6 +2872,7 @@ function ProjectPage() {
         branch: data.branch,
         skipPermissions: data.dangerouslySkipPermissions,
         bareSession: data.bareSession,
+        chrome: data.chrome,
       },
       { focusOnCreate: true },
     );
@@ -2931,7 +2931,7 @@ function ProjectPage() {
         }
         onStop={stopLaunch}
       />
-      <Btn
+      {ACTIONS_WINDOW_ENABLED && <Btn
         variant="ghost"
         icon="sparkles"
         onClick={() => void router.navigate({ to: "/projects/$id/actions", params: { id } })}
@@ -2939,7 +2939,7 @@ function ProjectPage() {
         title="Open project actions"
       >
         Actions
-      </Btn>
+      </Btn>}
       {worktreesEnabled && (
         // "New worktree" now lives inside the branch dropdown (below), so the
         // standalone create-worktree button is gone — one fewer control, and no
@@ -3258,12 +3258,6 @@ function ProjectPage() {
                   onSelect={() => {
                     setOverflowOpen(false);
                     setShowInstallDiagramSkill(true);
-                  }}
-                />
-                <InstallShipSkillMenuItem
-                  onSelect={() => {
-                    setOverflowOpen(false);
-                    setShowInstallShipSkill(true);
                   }}
                 />
                 <DropdownMenuSeparator />
@@ -3616,6 +3610,7 @@ function ProjectPage() {
                   activeId={activeId}
                   onToggle={stableSelectTerminal}
                   onArchive={stableArchiveSession}
+                  onDelete={stableDeleteTask}
                   onTogglePinned={stableToggleSessionPinned}
                   pinningTaskIds={pinningTaskIds}
                 />
@@ -3645,7 +3640,7 @@ function ProjectPage() {
                   onToggle={stableSelectTerminal}
                   onArchive={showArchived ? undefined : stableArchiveSession}
                   onRestore={showArchived ? stableRestoreSession : undefined}
-                  onDelete={showArchived ? stableDeleteTask : undefined}
+                  onDelete={stableDeleteTask}
                   onTogglePinned={showArchived ? undefined : stableToggleSessionPinned}
                   pinningTaskIds={showArchived ? undefined : pinningTaskIds}
                   headerAction={
@@ -3935,13 +3930,6 @@ function ProjectPage() {
         open={showInstallDiagramSkill}
         onClose={() => setShowInstallDiagramSkill(false)}
         projectPath={selectedWorktreePath || project.path}
-      />
-
-      <InstallShipSkillModal
-        open={showInstallShipSkill}
-        onClose={() => setShowInstallShipSkill(false)}
-        projectPath={selectedWorktreePath || project.path}
-        onRunInstall={runShipSkillInstallCommand}
       />
 
       <RemoveProjectConfirmDialog

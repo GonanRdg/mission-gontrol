@@ -41,6 +41,7 @@ import type { ProjectWithCounts } from "~/shared/projects";
 import type {
   ActionListItem,
   ActionWorkflowChoice,
+  ActionWorkflowAvailability,
   SkillAction,
 } from "~/shared/skill-actions";
 
@@ -416,7 +417,7 @@ function ActionEditor({
     (agent) => AGENT_REGISTRY[agent].uiVisible,
   );
   const selectedSkill = skills.find((candidate) => candidate.name === workflowSkill);
-  const workflow = selectedSkill?.workflows[state.agent] ?? {
+  const workflow: ActionWorkflowAvailability = selectedSkill?.workflows[state.agent] ?? {
     agent: state.agent,
     status: "unavailable" as const,
     origin: null,
@@ -424,6 +425,7 @@ function ActionEditor({
     targetPath: "",
     installMethod: null,
   };
+  const workflowInvocation = workflow.invocation ?? workflowSkill;
   const recentLaunch = useMemo(
     () => readRecentActionLaunches(project.id).find((entry) => entry.intent.actionName === actionName) ?? null,
     [actionName, project.id],
@@ -455,9 +457,9 @@ function ActionEditor({
           selectActionWorkflow(
             renderActionPrompt(action.prompt, promptContext),
             action.skill,
-            workflowSkill,
+            workflowInvocation,
           ),
-          workflowSkill,
+          workflowInvocation,
           state.agent,
         ),
       };
@@ -467,7 +469,7 @@ function ActionEditor({
         error: error instanceof Error ? error.message : "Could not render prompt",
       };
     }
-  }, [action.prompt, action.skill, promptContext, state.agent, workflowSkill]);
+  }, [action.prompt, action.skill, promptContext, state.agent, workflowInvocation]);
   const preferenceSnapshot = useMemo(
     () => getActionFormPreferences(action, state, preferences?.workflowSkill ?? null),
     [action, state],
@@ -501,9 +503,9 @@ function ActionEditor({
 
   const start = async () => {
     const nextIssues = validateActionForm(action, effectiveState);
-    if (!selectedSkill) nextIssues.push("Choose a discovered workflow skill.");
+    if (!selectedSkill) nextIssues.push("Choose a discovered skill.");
     if (workflow.status !== "available") {
-      nextIssues.push(`Install the ${workflowSkill} workflow skill for ${AGENT_REGISTRY[state.agent].label} first.`);
+      nextIssues.push(`Make ${workflowSkill} available to ${AGENT_REGISTRY[state.agent].label} first.`);
     }
     if (!selectedProject) nextIssues.push("Choose a project that is still available.");
     if (!preview.ok) nextIssues.push(preview.error);
@@ -522,6 +524,7 @@ function ActionEditor({
         intent: {
           actionName,
           workflowSkill,
+          workflowInvocation,
           defaultWorkflowSkill: action.skill,
           agent: state.agent,
           branch,
@@ -774,9 +777,9 @@ function ActionEditor({
             />
           </FormSection>
 
-          <FormSection title="Workflow skill">
+          <FormSection title="Skill">
             <TextField
-              label="Skill"
+              label="Instructions to follow"
               value={workflowSkill}
               onChange={(value) => {
                 setIssues([]);
@@ -791,7 +794,7 @@ function ActionEditor({
             </datalist>
             <div className="mc-actions-skill-status" data-status={workflow.status}>
               <span>{workflow.status === "available" ? "Available" : workflow.status === "installable" ? "Install required" : "Not found"}</span>
-              <span>{workflow.origin === "project" ? "Project" : workflow.origin === "bundled" ? "Bundled" : workflow.origin === "global" ? "Global" : "No source"}</span>
+              <span>{workflow.origin === "project" ? "Project" : workflow.origin === "bundled" ? "Bundled" : workflow.origin === "global" ? "Global" : workflow.origin === "plugin" ? `Plugin · ${workflow.invocation}` : "No source"}</span>
               {workflowSkill === action.skill && <span>Action default</span>}
               {preferences?.workflowSkill === workflowSkill && <span>Saved default</span>}
             </div>
@@ -801,7 +804,7 @@ function ActionEditor({
                 variant="ghost"
                 size="sm"
                 disabled={!selectedSkill || preferences?.workflowSkill === workflowSkill}
-                onClick={() => void onPreferencesChange(getActionFormPreferences(action, state, workflowSkill)).then(() => setAnnouncement(`${workflowSkill} saved as the default workflow.`))}
+                onClick={() => void onPreferencesChange(getActionFormPreferences(action, state, workflowSkill)).then(() => setAnnouncement(`${workflowSkill} saved as the default skill.`))}
               >
                 Save skill as default
               </Btn>
@@ -859,10 +862,18 @@ function ActionEditor({
           </div>
           {workflow.status === "installable" && workflow.sourcePath ? (
             <>
-              <div style={{ display: "grid", gap: 4, color: "var(--text-faint)", fontFamily: "var(--mono)", fontSize: 10.5 }}>
-                <span style={{ overflowWrap: "anywhere" }}>From: {workflow.sourcePath}</span>
-                <span style={{ overflowWrap: "anywhere" }}>To: {workflow.targetPath}</span>
+              <div style={{ color: "var(--text-dim)", fontSize: 12, lineHeight: 1.5 }}>
+                {workflow.installMethod === "symlink"
+                  ? `Link the existing skill into ${AGENT_REGISTRY[state.agent].label}’s skills folder.`
+                  : `Copy the bundled skill into ${AGENT_REGISTRY[state.agent].label}’s skills folder.`}
               </div>
+              <details style={{ color: "var(--text-dim)", fontSize: 12 }}>
+                <summary>Skill locations</summary>
+                <div style={{ display: "grid", gap: 4, paddingTop: 6, fontFamily: "var(--mono)", fontSize: 10.5 }}>
+                  <span style={{ overflowWrap: "anywhere" }}>From: {workflow.sourcePath}</span>
+                  <span style={{ overflowWrap: "anywhere" }}>To: {workflow.targetPath}</span>
+                </div>
+              </details>
               <Btn
                 type="button"
                 variant="solid"
@@ -875,13 +886,13 @@ function ActionEditor({
                 {installingWorkflow
                   ? "Installing…"
                   : workflow.installMethod === "symlink"
-                    ? "Mirror workflow skill"
-                    : "Install bundled workflow"}
+                    ? "Make skill available"
+                    : "Install bundled skill"}
               </Btn>
             </>
           ) : (
             <div style={{ color: "var(--text-dim)", fontSize: 12, lineHeight: 1.5 }}>
-              No copy exists in another skill root or this app build.
+              Choose another skill, or install and enable the plugin for this agent.
             </div>
           )}
         </div>
@@ -1000,18 +1011,23 @@ function ActionChoice({
 export function ActionsView({
   project,
   actions,
+  initialActionName,
   onBack,
   onStart,
   onInstallWorkflow,
 }: {
   project: ProjectWithCounts;
   actions: ActionListItem[];
+  initialActionName?: string;
   onBack: () => void;
   onStart: (request: ActionStartRequest) => void | Promise<void>;
   onInstallWorkflow: (actionName: string, workflowSkill: string, agent: TaskAgent) => Promise<void>;
 }) {
   const queryClient = useQueryClient();
-  const [selectedName, setSelectedName] = useState(actions[0]?.name ?? "");
+  const [selectedName, setSelectedName] = useState(initialActionName ?? actions[0]?.name ?? "");
+  useEffect(() => {
+    if (initialActionName) setSelectedName(initialActionName);
+  }, [initialActionName]);
   const projectsQuery = useProjects();
   const allProjects = projectsQuery.data;
   const selected = actions.find((action) => action.name === selectedName) ?? actions[0] ?? null;
