@@ -120,6 +120,7 @@ export function buildAgentLaunchCommand(
         sessionId,
         skipPermissions,
         bareSession: !!task.claudeBareSession,
+        chrome: task.claudeChrome,
         model,
       });
     case "cursor-cli":

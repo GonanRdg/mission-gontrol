@@ -290,6 +290,7 @@ async function dispatch(
     const id = decode(m[1]);
     const action = m[2]!;
     if (action === "status" && method === "GET") return gitController.status(id, url);
+    if (action === "pull-request" && method === "GET") return gitController.pullRequest(id, url);
     if (action === "branches" && method === "GET") return gitController.branches(id, url);
     if (action === "history" && method === "GET") return gitController.history(id, url);
     if (action === "commit-files" && method === "GET") return gitController.commitFiles(id, url);
@@ -453,13 +454,6 @@ async function dispatch(
   if (pathname === "/api/skills/install/diagram" && method === "POST") {
     return skillsController.installDiagram(request);
   }
-  if (pathname === "/api/skills/install/ship/installed" && method === "GET") {
-    return skillsController.shipInstalled(url);
-  }
-  if (pathname === "/api/skills/install/ship" && method === "POST") {
-    return skillsController.installShip(request);
-  }
-
   // Keybindings
   if (pathname === "/api/keybindings") {
     if (method === "GET") return keybindingsController.list();

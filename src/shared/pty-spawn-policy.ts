@@ -128,6 +128,8 @@ type AgentArgRule = {
 const AGENT_ARG_RULES: Readonly<Record<TaskAgentSpawn, Readonly<Record<string, AgentArgRule>>>> = {
   "claude-code": {
     "--bare": { value: false },
+    "--chrome": { value: false },
+    "--no-chrome": { value: false },
     "--session-id": { value: {} },
     "--resume": { value: {} },
     "--model": { value: {} },

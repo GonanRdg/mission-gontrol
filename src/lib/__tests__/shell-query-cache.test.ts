@@ -54,6 +54,7 @@ function makeProject(overrides: Partial<ProjectWithCounts> = {}): ProjectWithCou
     savedAgent: null,
     savedSkipPermissions: false,
     savedBareSession: false,
+    savedClaudeChrome: null,
     defaultGridView: false,
     createdAt: 1,
     updatedAt: 1,
