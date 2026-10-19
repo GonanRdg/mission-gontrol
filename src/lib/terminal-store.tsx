@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { getElectron } from "./electron";
+import { forgetPrBrowserSession } from "./pr-browser-store";
 import { screenshotSupported } from "./screenshot";
 import { formatPathForTerminalPaste } from "./project-path-drag";
 import { markIntentionalSessionClose } from "./intentional-session-close";
@@ -982,6 +983,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     setSessions((prev) => {
       const target = prev.find((p) => p.taskId === taskId);
       if (target) {
+        forgetPrBrowserSession(target.project, target.taskId);
         terminalSurfaceCache.destroy(terminalSurfaceIdForProject(target.project, target.taskId));
         rememberRemotePtyForTask(
           remotePtyStorageKey(scopeKeyForProject(target.project), target.taskId),
@@ -1112,6 +1114,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
             null,
           );
           terminalSurfaceCache.destroy(terminalSurfaceIdForProject(t.project, t.taskId));
+          forgetPrBrowserSession(t.project, t.taskId);
           void killPty(t.ptyId);
         } else remaining.push(t);
       }

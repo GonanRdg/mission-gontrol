@@ -16,6 +16,8 @@ import {
 import { TITLE_WAITING } from "~/lib/task-sentinels";
 import { useSettings } from "~/queries";
 import { AGENT_REGISTRY, agentSupportsSkipPermissions } from "~/shared/agents";
+import { sessionOptionsForAgent, type AgentSessionDefaults } from "~/shared/agent-session-defaults";
+import { ClaudeChromeControl } from "./ClaudeChromeControl";
 import {
   DEFAULT_AGENT_LAUNCHER_CONFIG,
   visibleLauncherAgents,
@@ -29,6 +31,7 @@ export type RememberPatch = {
   savedAgent: TaskAgent | null;
   savedSkipPermissions: boolean;
   savedBareSession: boolean;
+  savedClaudeChrome: boolean | null;
 };
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
@@ -54,6 +57,7 @@ export function NewAgentDialog({
     branch: string;
     dangerouslySkipPermissions: boolean;
     bareSession: boolean;
+    chrome: boolean | null;
   }) => Promise<void> | void;
   onPersistRemember: (patch: RememberPatch) => Promise<void> | void;
   onAgentUpdateRequired?: (agent: TaskAgent, availability: CliAvailability) => void;
@@ -62,15 +66,18 @@ export function NewAgentDialog({
     branch: string;
     skipPermissions: boolean;
     bareSession: boolean;
+    chrome: boolean | null;
   }) => void;
 }) {
   const [agent, setAgent] = useState<TaskAgent>("claude-code");
-  const [dangerouslySkipPermissions, setDangerouslySkipPermissions] = useState(false);
+  const [launchOptions, setLaunchOptions] = useState<AgentSessionDefaults>({});
   const [rememberSettings, setRememberSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const cliAvailability = useCliAvailability();
   const { data: settings } = useSettings();
+  const { skipPermissions: dangerouslySkipPermissions, chrome } = launchOptions[agent] ??
+    sessionOptionsForAgent(agent, settings?.agentSessionDefaults, project ?? undefined);
 
   // Order + visibility come from Settings → Providers. Hiding only affects
   // this picker; a hidden savedAgent still launches through the skip-dialog path.
@@ -86,12 +93,14 @@ export function NewAgentDialog({
   const buildSessionSettingsPatch = (
     nextRememberSettings: boolean,
     nextAgent: TaskAgent,
-    nextSkipPermissions: boolean
+    nextSkipPermissions: boolean,
+    nextChrome: boolean | null = chrome,
   ): RememberPatch => ({
     rememberAgentSettings: nextRememberSettings,
     savedAgent: nextAgent,
     savedSkipPermissions: nextSkipPermissions,
     savedBareSession: false,
+    savedClaudeChrome: nextAgent === "claude-code" ? nextChrome : null,
   });
 
   const persistRememberedSettings = async (
@@ -109,8 +118,9 @@ export function NewAgentDialog({
       branch: project.branch || DEFAULT_BRANCH,
       skipPermissions: supportsSkip && dangerouslySkipPermissions,
       bareSession: false,
+      chrome,
     });
-  }, [open, project, agent, dangerouslySkipPermissions, onPrepareWarm]);
+  }, [open, project, agent, dangerouslySkipPermissions, chrome, onPrepareWarm]);
 
   useEffect(() => {
     if (!open) {
@@ -124,9 +134,10 @@ export function NewAgentDialog({
       project?.savedAgent && agentOptions.some((a) => a.id === project.savedAgent)
         ? project.savedAgent
         : agentOptions[0]?.id ?? "claude-code";
-    const seedSkip = !!project?.savedSkipPermissions;
     setAgent(seedAgent);
-    setDangerouslySkipPermissions(seedSkip);
+    setLaunchOptions({ [seedAgent]: sessionOptionsForAgent(
+      seedAgent, settings?.agentSessionDefaults, project ?? undefined,
+    ) });
     setRememberSettings(!!project?.rememberAgentSettings);
     setError(null);
     setSubmitting(false);
@@ -144,13 +155,22 @@ export function NewAgentDialog({
     const canSelect = agentCanLaunch(cliAvailability, nextAgent) ||
       nextAvailability.status === "outdated";
     if (!canSelect) return;
+    const options = launchOptions[nextAgent] ?? sessionOptionsForAgent(
+      nextAgent, settings?.agentSessionDefaults, project ?? undefined,
+    );
     setAgent(nextAgent);
-    void onPersistRemember(buildSessionSettingsPatch(rememberSettings, nextAgent, dangerouslySkipPermissions));
+    setLaunchOptions((current) => ({ ...current, [nextAgent]: options }));
+    void onPersistRemember(buildSessionSettingsPatch(rememberSettings, nextAgent, options.skipPermissions, options.chrome));
   };
 
   const setSkipPermissions = (nextSkipPermissions: boolean) => {
-    setDangerouslySkipPermissions(nextSkipPermissions);
+    setLaunchOptions((current) => ({ ...current, [agent]: { skipPermissions: nextSkipPermissions, chrome } }));
     void onPersistRemember(buildSessionSettingsPatch(rememberSettings, agent, nextSkipPermissions));
+  };
+
+  const setChrome = (nextChrome: boolean | null) => {
+    setLaunchOptions((current) => ({ ...current, [agent]: { skipPermissions: dangerouslySkipPermissions, chrome: nextChrome } }));
+    void onPersistRemember(buildSessionSettingsPatch(rememberSettings, agent, dangerouslySkipPermissions, nextChrome));
   };
 
   const submit = () => {
@@ -180,6 +200,7 @@ export function NewAgentDialog({
         branch: project?.branch || DEFAULT_BRANCH,
         dangerouslySkipPermissions: skip,
         bareSession: false,
+        chrome,
       });
     } catch (e: any) {
       setError(e?.message || "Failed to start session");
@@ -192,7 +213,7 @@ export function NewAgentDialog({
     if (!open) return;
     if (availabilityFor(cliAvailability, agent).status !== "missing") return;
     const next = agentOptions.find((a) => agentCanLaunch(cliAvailability, a.id))?.id;
-    if (next && next !== agent) setAgent(next);
+    if (next && next !== agent) selectAgent(next);
   }, [open, agent, cliAvailability, agentOptions]);
 
   useEffect(() => {
@@ -212,7 +233,7 @@ export function NewAgentDialog({
         const next = e.key === "ArrowDown"
           ? Math.min(ids.length - 1, idx + 1)
           : Math.max(0, idx - 1);
-        if (next !== idx && ids[next]) setAgent(ids[next]);
+        if (next !== idx && ids[next]) selectAgent(ids[next]);
         return;
       }
       if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
@@ -223,7 +244,7 @@ export function NewAgentDialog({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, agent, submitting, project, rememberSettings, dangerouslySkipPermissions, cliAvailability, agentOptions]);
+  }, [open, agent, submitting, project, rememberSettings, dangerouslySkipPermissions, chrome, launchOptions, settings, cliAvailability, agentOptions]);
 
   const selectedAvailability = availabilityFor(cliAvailability, agent);
   const selectedAgentOutdated = selectedAvailability.status === "outdated";
@@ -431,6 +452,8 @@ export function NewAgentDialog({
             </div>
           </label>
         )}
+
+        {agent === "claude-code" && <ClaudeChromeControl value={chrome} onChange={setChrome} />}
 
         <label
           style={{

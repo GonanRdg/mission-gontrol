@@ -23,6 +23,7 @@ import * as readline from "node:readline";
 import * as os from "node:os";
 import { spawn, ChildProcess, spawnSync } from "node:child_process";
 import { registerPtyHandlers, killAllPtys } from "./pty-manager";
+import { registerPrBrowserHandlers } from "./pr-browser";
 import { setPtyStreamHidden, setPtyStreamPowerSave } from "./pty-output-batch";
 import { setAppThemeFromBackground } from "./app-theme";
 import {
@@ -2014,6 +2015,7 @@ registerPtyHandlers(
   }
 );
 registerFileHandlers(ipcMain, () => win);
+registerPrBrowserHandlers();
 
 // Starts (or reuses) a loopback static server rooted at the project, so the HTML
 // preview iframe can load the file over http and resolve its assets/scripts. The

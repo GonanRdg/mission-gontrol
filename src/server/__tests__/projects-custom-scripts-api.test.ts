@@ -48,6 +48,7 @@ function makeProject(): string {
     savedAgent: null,
     savedSkipPermissions: false,
     savedBareSession: false,
+    savedClaudeChrome: null,
     defaultGridView: false,
     createdAt: now,
     updatedAt: now,

@@ -2946,7 +2946,7 @@ html[data-window-idle] .mc-pet * {
   background: color-mix(in srgb, var(--accent) 5%, var(--surface-1));
 }
 
-.mc-projects-table-row[data-active="true"]::before {
+.mc-projects-table-row[data-active="true"] .mc-projects-table-name::before {
   content: "";
   position: absolute;
   left: 0;
@@ -2963,6 +2963,7 @@ html[data-window-idle] .mc-pet * {
 }
 
 .mc-projects-table-name {
+  position: relative;
   min-width: 220px;
 }
 

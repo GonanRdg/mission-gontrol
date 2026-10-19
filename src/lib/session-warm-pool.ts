@@ -3,6 +3,7 @@ import type { TaskAgent } from "~/shared/domain";
 import type { ScopedProject } from "~/lib/scoped-project";
 import { DEFAULT_BRANCH } from "~/shared/domain";
 import { agentSupportsSkipPermissions } from "~/shared/agents";
+import { sessionOptionsForAgent, type AgentSessionDefaults } from "~/shared/agent-session-defaults";
 import { newClientId } from "~/shared/client-id";
 import { newSessionId } from "~/lib/agent-command";
 import { buildOptimisticTask } from "~/lib/optimistic-task";
@@ -20,6 +21,7 @@ export type SessionCreatePayload = {
   branch: string;
   skipPermissions: boolean;
   bareSession: boolean;
+  chrome?: boolean | null;
 };
 
 export type SessionWarmSlot = {
@@ -41,6 +43,7 @@ export function sessionCreateSignature(payload: SessionCreatePayload, cwd: strin
     payload.branch,
     payload.skipPermissions ? "1" : "0",
     payload.bareSession ? "1" : "0",
+    payload.agent === "claude-code" ? String(payload.chrome ?? "default") : "default",
     // A warm slot pre-spawns the agent PTY with the theme captured at prepare
     // time (COLORFGBG / MC_THEME). Include the theme so switching light/dark
     // invalidates a slot warmed under the old theme — otherwise a new session
@@ -83,6 +86,7 @@ function buildDraftTask(
       ? payload.skipPermissions
       : false,
     claudeBareSession: payload.agent === "claude-code" ? payload.bareSession : false,
+    claudeChrome: payload.agent === "claude-code" ? payload.chrome ?? null : null,
   });
 }
 
@@ -92,14 +96,17 @@ export function defaultSessionPayload(project: {
   savedAgent?: TaskAgent | null;
   savedSkipPermissions?: boolean;
   savedBareSession?: boolean;
-}): SessionCreatePayload {
-  const agent = project.savedAgent ?? "claude-code";
+  savedClaudeChrome?: boolean | null;
+}, defaults?: AgentSessionDefaults, selectedAgent?: TaskAgent): SessionCreatePayload {
+  const agent = selectedAgent ?? project.savedAgent ?? "claude-code";
+  const options = sessionOptionsForAgent(agent, defaults, project);
   return {
     agent,
     branch: project.branch || DEFAULT_BRANCH,
-    skipPermissions: !!project.savedSkipPermissions,
+    skipPermissions: options.skipPermissions,
+    chrome: options.chrome,
     bareSession:
-      project.rememberAgentSettings && project.savedAgent === "claude-code"
+      agent === "claude-code" && project.rememberAgentSettings && project.savedAgent === agent
         ? !!project.savedBareSession
         : false,
   };
@@ -230,6 +237,7 @@ export async function persistWarmSlotTask(
     agent: slot.payload.agent,
     branch: slot.payload.branch,
     claudeSessionId: slot.draftTask.claudeSessionId,
+    claudeChrome: slot.payload.agent === "claude-code" ? slot.payload.chrome ?? null : undefined,
     claudeBareSession:
       slot.payload.agent === "claude-code" ? slot.payload.bareSession : undefined,
     claudeSkipPermissions: agentSupportsSkipPermissions(slot.payload.agent)

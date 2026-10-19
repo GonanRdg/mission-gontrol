@@ -29,6 +29,7 @@ export function buildOptimisticTask(input: {
   claudeSessionId?: string | null;
   claudeSkipPermissions?: boolean;
   claudeBareSession?: boolean;
+  claudeChrome?: boolean | null;
 }): Task {
   const now = Date.now();
   return {
@@ -49,6 +50,7 @@ export function buildOptimisticTask(input: {
     claudeSessionId: input.claudeSessionId ?? null,
     claudeSkipPermissions: input.claudeSkipPermissions ?? false,
     claudeBareSession: input.claudeBareSession ?? false,
+    claudeChrome: input.agent === "claude-code" ? input.claudeChrome ?? null : null,
     createdAt: now,
     updatedAt: now,
   };
