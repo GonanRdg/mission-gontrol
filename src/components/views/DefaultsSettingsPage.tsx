@@ -15,7 +15,9 @@ import {
   type CommitCli,
   type CommitCliDetection,
 } from "~/shared/commit-cli";
-import { AGENT_REGISTRY } from "~/shared/agents";
+import { AGENT_REGISTRY, UI_AGENTS } from "~/shared/agents";
+import { sessionOptionsForAgent } from "~/shared/agent-session-defaults";
+import { ClaudeChromeControl } from "./ClaudeChromeControl";
 import {
   AI_RUNTIME_HARNESS_VALUES,
   isAiModelId,
@@ -27,13 +29,18 @@ import {
   type AiRuntimeModelsResponse,
 } from "~/shared/ai-runtime-defaults";
 
-type DefaultsFeatureId = "commit" | "voice" | "markdown" | "git-handoff";
+type DefaultsFeatureId = "sessions" | "commit" | "voice" | "markdown" | "git-handoff";
 
 const DEFAULTS_FEATURES: Array<{
   id: DefaultsFeatureId;
   label: string;
   description: string;
 }> = [
+  {
+    id: "sessions",
+    label: "Agent Sessions",
+    description: "Launch options for new sessions from the palette and New session button.",
+  },
   {
     id: "commit",
     label: "Commit Messages",
@@ -73,7 +80,7 @@ export function DefaultsSettingsPage() {
   const [detectError, setDetectError] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [cliUpdating, setCliUpdating] = useState(false);
-  const [activeFeature, setActiveFeature] = useState<DefaultsFeatureId>("commit");
+  const [activeFeature, setActiveFeature] = useState<DefaultsFeatureId>("sessions");
   const [runtimeUpdating, setRuntimeUpdating] = useState(false);
   const runtimeUpdateInFlightRef = useRef(false);
   const [gitHandoffPromptDraft, setGitHandoffPromptDraft] = useState(
@@ -135,6 +142,7 @@ export function DefaultsSettingsPage() {
         | "annotationAgent"
         | "annotationModel"
         | "gitHandoffPrompt"
+        | "agentSessionDefaults"
       >
     >,
   ) => {
@@ -174,7 +182,7 @@ export function DefaultsSettingsPage() {
     <>
       <SettingsSection
         title="Defaults"
-        subtitle="Tools Mission Control reaches for behind the scenes."
+        subtitle="Default tools and agent session options."
         headingLevel="h1"
       >
         <div
@@ -195,6 +203,44 @@ export function DefaultsSettingsPage() {
               padding: 16,
             }}
           >
+            {activeFeature === "sessions" && (
+              <FeaturePanel
+                featureId="sessions"
+                title="Agent Sessions"
+                description="New sessions use these options for the selected agent. You can override them in the launch dialog. Remembered project settings take precedence."
+              >
+                {UI_AGENTS.map((agent) => {
+                  const meta = AGENT_REGISTRY[agent];
+                  const options = sessionOptionsForAgent(agent, settings?.agentSessionDefaults);
+                  const updateOptions = (patch: Partial<typeof options>) =>
+                    void updateRuntimeDefaults({ agentSessionDefaults: {
+                      ...settings?.agentSessionDefaults,
+                      [agent]: { ...options, ...patch },
+                    } });
+                  return (
+                    <Field key={agent} label={meta.label}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {meta.supportsSkipPermissions ? (
+                          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+                            <input type="checkbox" checked={options.skipPermissions}
+                              disabled={runtimeUpdating || !settings}
+                              onChange={(event) => updateOptions({ skipPermissions: event.target.checked })}
+                              style={{ accentColor: "var(--accent)" }} />
+                            Skip permission prompts (YOLO)
+                          </label>
+                        ) : <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Uses the agent’s permission configuration.</span>}
+                        {agent === "claude-code" && <ClaudeChromeControl value={options.chrome}
+                          disabled={runtimeUpdating || !settings}
+                          onChange={(chrome) => updateOptions({ chrome })} />}
+                        {agent === "codex" && <span style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.5 }}>
+                          Browser validation requires separate browser tooling, such as a browser MCP server.
+                        </span>}
+                      </div>
+                    </Field>
+                  );
+                })}
+              </FeaturePanel>
+            )}
             {activeFeature === "commit" && (
               <FeaturePanel
                 featureId="commit"

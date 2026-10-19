@@ -101,29 +101,36 @@ Roots, highest precedence first. Dedupe by `name`; the first root wins.
 ```
 <project>/.claude/skills   <project>/.codex/skills
 ~/.claude/skills           ~/.codex/skills
+enabled Claude Code and Codex plugins
 dist/bundled-skills
 ```
 
 - Dot-directories are skipped — excludes `~/.codex/skills/.system/` (Codex built-ins).
-- Plugin marketplaces are **not** scanned: `~/.claude/plugins/marketplaces/**` mirrors the same
-  skill under `skills/`, `.cursor/skills/`, `.windsurf/skills/`, so it needs dedupe rules first.
+- Plugin discovery uses Claude Code's installation registry and enabled-plugin settings, and
+  Codex's enabled-plugin configuration and installed cache. Project scope and disabled plugins
+  are respected. Manifest skill paths support nested skill directories; marketplace mirrors
+  and inactive cache versions do not create duplicate choices.
 - The project tier is why the surface is project-scoped (see [Surface](#surface)).
 
 ### Harness availability
 
-An action is defined by whichever root won. The **workflow skill** it names must exist under the
-root belonging to the *selected agent*, or the run does nothing useful — the slash command is not
-recognised and the agent improvises from the surrounding text.
+An action is defined by whichever root won. Its **skill** must be available to the selected agent.
+An enabled plugin provides its native qualified command, such as
+`/lodgify-workflows:implement-ticket` for Claude Code. Project and global loose skills take
+precedence; an unambiguous plugin skill takes precedence over a bundled fallback. Qualified
+choices distinguish plugins that expose the same skill name.
 
 Start is blocked with a one-click install:
 
 | Source | Rule |
 |---|---|
-| Skill found under another root | **Mirror it** — symlink `~/.codex/skills/<name>` → `~/.claude/skills/<name>` |
+| Enabled plugin for the selected agent | Use the native command; no install |
+| Skill found under another root | **Make skill available** — link into the selected agent's global skills folder |
 | Windows without developer mode | copy (`symlinkSync` throws) |
 | Found nowhere | copy from `dist/bundled-skills` |
 
-Always an explicit click showing source and destination. Writes land outside any project.
+Installation requires an explicit click. Source and destination appear under **Skill locations**.
+Writes land outside any project.
 
 ## Surface
 
@@ -239,9 +246,11 @@ Four distinct axes: URL source with a code outcome, URL source with a document o
 and free-text source without a worktree.
 
 Bundling means adding the wrapper and workflow skills to `.agents/skills/` and appending to
-`BUNDLED_SKILL_NAMES` in `scripts/copy-bundled-skills.mjs`. The bundled `implement-ticket` and
-`investigate-issue` are copies of the current global ones, which carry no org-specific values —
-site ids are discovered via `getAccessibleAtlassianResources`, hosts arrive in the source rows.
+`BUNDLED_SKILL_NAMES` in `scripts/copy-bundled-skills.mjs`. The Lodgify snapshot includes
+`implement-ticket`, `investigate-issue`, `verify-claims`, `optimize-skill`, and `write-adr`, with
+their reference files. Refresh it from a toolbox checkout with
+`node scripts/sync-workflow-skills.mjs <toolbox>/plugins/lodgify-workflows` before building.
+Builds use the checked-in snapshot and require no external checkout.
 
 A user's own copy under `~/.claude/skills` outranks the bundled one, so an existing machine keeps
 its current behaviour.
@@ -253,7 +262,7 @@ its current behaviour.
 | Schema + widget vocabulary | `src/shared/skill-actions.ts` (new) — renderer-reachable, so no `yaml` import here |
 | SKILL.md parsing | `src/server/services/skill-actions.ts` (new), `yaml` dep |
 | Discovery | `src/server/services/skill-discovery.ts` (new) |
-| Harness install | generalise `install-diagram-skill.ts` + `install-ship-skills.ts` into `install-bundled-skill.ts`; reuse `copySkillTree`, `assertSafeProjectRelativePath` |
+| Harness install | generalise `install-diagram-skill.ts` into `install-bundled-skill.ts`; reuse `copySkillTree`, `assertSafeProjectRelativePath` |
 | API | `skills.controller.ts` (list actions, install workflow skill), `tasks.controller.ts` (`/api/tasks/active`) |
 | Route | `src/routes/projects.$id.actions.tsx` (new), `pnpm generate:routes` |
 | Form | new views; reuse `ProjectPicker`, `BranchTypeahead`, `FileFinderDialog`, `TextField`, `MarkdownPreview` |
@@ -281,7 +290,7 @@ Each phase ends with a local commit, typecheck and tests green.
 - Named templates.
 - A global `/actions` route.
 - Write tests and Refactor actions — no workflow skill exists for either.
-- Plugin marketplace discovery.
+- Installing or enabling plugins in-app.
 
 ## Open
 

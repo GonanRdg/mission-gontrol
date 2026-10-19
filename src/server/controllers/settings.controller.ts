@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TASK_AGENTS } from "~/shared/domain";
 import {
   deleteSetting,
   getBooleanSetting,
@@ -61,6 +62,7 @@ import {
   normalizeAgentLauncherConfig,
   type AgentLauncherConfig,
 } from "~/shared/agent-launcher-config";
+import { AGENT_SESSION_DEFAULTS_KEY, normalizeAgentSessionDefaults } from "~/shared/agent-session-defaults";
 import {
   DEFAULT_TERMINAL_ZOOM_LEVEL,
   TERMINAL_ZOOM_MAX,
@@ -314,6 +316,10 @@ const updateSettingsBody = z
     agentLauncherConfig: z
       .object({ order: z.array(z.string()), hidden: z.array(z.string()) })
       .transform((value): AgentLauncherConfig => normalizeAgentLauncherConfig(value)),
+    agentSessionDefaults: z.partialRecord(
+      z.enum(TASK_AGENTS),
+      z.object({ skipPermissions: z.boolean(), chrome: z.boolean().nullable() }),
+    ).transform(normalizeAgentSessionDefaults),
     recallEnabled: z.boolean(),
     recallAutoCaptureEnabled: z.boolean(),
     recallEngineEnabled: z.boolean(),
@@ -639,6 +645,9 @@ function settingsPayload() {
     providerUsageEnabled: getProviderUsageEnabledSetting(),
     providerUsageIds: getProviderUsageIdsSetting(),
     agentLauncherConfig: getAgentLauncherConfigSetting(),
+    agentSessionDefaults: normalizeAgentSessionDefaults(
+      safeJsonParse<unknown>(getSetting(AGENT_SESSION_DEFAULTS_KEY), null),
+    ),
     petEnabled: getBooleanSetting(PET_ENABLED_KEY, true),
     petMessagesEnabled: getBooleanSetting(PET_MESSAGES_ENABLED_KEY, true),
     petSoundsEnabled: getBooleanSetting(PET_SOUNDS_ENABLED_KEY, false),
@@ -950,6 +959,9 @@ export async function update(request: Request): Promise<Response> {
   }
   if (body.agentLauncherConfig !== undefined) {
     setSetting(AGENT_LAUNCHER_CONFIG_KEY, JSON.stringify(body.agentLauncherConfig));
+  }
+  if (body.agentSessionDefaults !== undefined) {
+    setSetting(AGENT_SESSION_DEFAULTS_KEY, JSON.stringify(body.agentSessionDefaults));
   }
   if (body.petEnabled !== undefined) {
     setBooleanSetting(PET_ENABLED_KEY, body.petEnabled);

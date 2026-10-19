@@ -3,11 +3,8 @@ import {
   installDiagramSkill,
   readDiagramSkillInstallStatus,
 } from "../services/install-diagram-skill";
-import {
-  installShipSkills,
-  readShipSkillInstallStatus,
-} from "../services/install-ship-skills";
 import { discoverActions, discoverWorkflowSkillNames } from "../services/skill-discovery";
+import { discoverPluginSkills } from "../services/plugin-skills";
 import {
   installActionWorkflow,
   readActionWorkflowAvailabilities,
@@ -37,16 +34,11 @@ const diagramInstallBody = z.object({
   harnesses: harnessSelectionBody,
 });
 
-const shipInstallBody = z.object({
-  projectPath: z.string().min(1, "projectPath is required"),
-  harnesses: harnessSelectionBody,
-});
-
 const actionWorkflowInstallBody = z.object({
   projectId: z.string().min(1),
   actionName: z.string().min(1).max(64),
   agent: z.enum(TASK_AGENTS),
-  workflowSkill: z.string().min(1).max(64).optional(),
+  workflowSkill: z.string().min(1).max(129).optional(),
 });
 
 const actionPreferenceKey = z.object({
@@ -78,19 +70,22 @@ export function listActions(url: URL): Response {
     if (!project) return notFound("project not found");
     projectPath = project.path;
   }
-  const skills = discoverWorkflowSkillNames({ projectPath }).map((name) => ({
+  const pluginSkills = discoverPluginSkills({ projectPath });
+  const skills = discoverWorkflowSkillNames({ projectPath, pluginSkills }).map((name) => ({
     name,
     workflows: readActionWorkflowAvailabilities(name, {
       projectPath: projectPath ?? process.cwd(),
+      pluginSkills,
     }),
   }));
   return json({
-    actions: discoverActions({ projectPath }).map((entry) =>
+    actions: discoverActions({ projectPath, pluginSkills }).map((entry) =>
       entry.ok
         ? {
             ...entry,
             workflows: readActionWorkflowAvailabilities(entry.action.skill, {
               projectPath: projectPath ?? process.cwd(),
+              pluginSkills,
             }),
             skills,
           }
@@ -174,31 +169,6 @@ export async function installDiagram(request: Request): Promise<Response> {
   if (!parsed.ok) return parsed.response;
   try {
     const result = await installDiagramSkill({
-      projectPath: parsed.data.projectPath,
-      harnesses: {
-        claude: !!parsed.data.harnesses?.claude,
-        codex: !!parsed.data.harnesses?.codex,
-        cursor: !!parsed.data.harnesses?.cursor,
-      },
-    });
-    return json({ result });
-  } catch (e: any) {
-    const mapped = handleDomainError(e);
-    if (mapped) return mapped;
-    return jsonError(HTTP_BAD_REQUEST, e?.message ?? "Install failed");
-  }
-}
-
-export function shipInstalled(url: URL): Response {
-  const projectPath = url.searchParams.get("projectPath") ?? "";
-  return json({ installed: readShipSkillInstallStatus(projectPath) });
-}
-
-export async function installShip(request: Request): Promise<Response> {
-  const parsed = await parseJsonBody(request, shipInstallBody);
-  if (!parsed.ok) return parsed.response;
-  try {
-    const result = await installShipSkills({
       projectPath: parsed.data.projectPath,
       harnesses: {
         claude: !!parsed.data.harnesses?.claude,

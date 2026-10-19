@@ -8,7 +8,7 @@ export const actionFormPreferencesSchema = z
     branch: z.string().max(512).nullable(),
     options: z.record(z.string().max(64), z.boolean()),
     sourceTypes: z.array(z.string().max(64)).max(32),
-    workflowSkill: z.string().max(64).nullable().optional(),
+    workflowSkill: z.string().max(129).nullable().optional(),
   })
   .strict();
 

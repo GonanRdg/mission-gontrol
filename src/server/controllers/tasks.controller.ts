@@ -41,6 +41,7 @@ const createTaskBody = z.object({
   claudeSessionId: z.string().nullable().optional(),
   claudeSkipPermissions: z.boolean().optional(),
   claudeBareSession: z.boolean().optional(),
+  claudeChrome: z.boolean().nullable().optional(),
   worktreeId: z.string().nullable().optional(),
   scopeId: z.string().optional(),
 });
@@ -54,6 +55,7 @@ const updateTaskBody = z
     claudeSessionId: z.string().nullable(),
     claudeSkipPermissions: z.boolean(),
     claudeBareSession: z.boolean(),
+    claudeChrome: z.boolean().nullable(),
   })
   .partial();
 

@@ -5,6 +5,7 @@ export function makeBinding(partial: Partial<Binding> & { key: string }): Bindin
 }
 
 export const DEFAULT_BINDINGS: BindingMap = {
+  "command.palette": makeBinding({ mod: true, key: "k" }),
   "agent.new": makeBinding({ mod: true, key: "n" }),
   "project.add": makeBinding({ mod: true, key: "o" }),
   "project.edit": makeBinding({ mod: true, key: "e" }),
@@ -14,7 +15,7 @@ export const DEFAULT_BINDINGS: BindingMap = {
   "search.focus": makeBinding({ mod: true, key: "/" }),
   "terminal.toggle": makeBinding({ mod: true, key: "`" }),
   "terminal.close": makeBinding({ mod: true, key: "l" }),
-  "terminal.expandToggle": makeBinding({ mod: true, key: "k" }),
+  "terminal.expandToggle": makeBinding({ mod: true, shift: true, key: "k" }),
   "terminal.newTab": makeBinding({ mod: true, key: "t" }),
   "terminal.cycleNext": makeBinding({ mod: true, key: "]" }),
   "terminal.cyclePrev": makeBinding({ mod: true, key: "[" }),

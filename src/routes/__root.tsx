@@ -11,12 +11,14 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import { getRailClusters, usesDirectRailProjectShortcuts } from "~/lib/rail-projects";
 import { getElectron } from "~/lib/electron";
-import { isFocusPath } from "~/lib/focus-session";
+import { exitFocusSession, isFocusPath } from "~/lib/focus-session";
 import { screenshotSupported } from "~/lib/screenshot";
 import { TopBar, type Crumb } from "~/components/ui/TopBar";
 import { Btn } from "~/components/ui/Btn";
 import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
 import { useHotkey } from "~/lib/use-hotkey";
+import { isCommandPaletteOpen, usePaletteCommands } from "~/lib/command-palette";
+import { CommandPalette, CommandPaletteButton } from "~/components/views/CommandPalette";
 import { KeybindingsProvider } from "~/lib/keybindings/store";
 import { useNavigationSwipe } from "~/lib/use-navigation-swipe";
 import { THEME_CACHE_KEY, useTheme } from "~/lib/use-theme";
@@ -228,7 +230,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "MissionControl" },
+      { title: "Mission Gontrol" },
     ],
   }),
   // Prime the bearer cache via IPC so the module-level token in src/lib/api.ts
@@ -280,6 +282,7 @@ function RootComponent() {
                              * slot for an app-wide skeleton if we want one later.
                              */}
                             <ClientOnly fallback={null}>
+                              <CommandPalette />
                               <Shell />
                               {/* Sibling of Shell so the pet controller mounts once
                                * and survives Shell's focus-mode early return. */}
@@ -400,6 +403,7 @@ function Shell() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isCommandPaletteOpen()) return;
       if (!isOpenSettingsShortcut(event)) return;
       event.preventDefault();
       event.stopPropagation();
@@ -750,10 +754,21 @@ function Shell() {
     { capture: true },
   );
   useHotkey("nav.toggle", goHome);
+  usePaletteCommands([
+    { id: "nav.home", label: "Go home", run: async () => { if (focusActive) await exitFocusSession(router); goHome(); } },
+    { id: "terminal.toggle", label: "Show / hide terminal panel", shortcut: "terminal.toggle", run: togglePanel },
+    { id: "terminal.newTab", label: "New terminal tab", shortcut: "terminal.newTab", run: () => createTerminal() },
+    { id: "terminal.cycleNext", label: "Next terminal tab", shortcut: "terminal.cycleNext", run: cycleNext },
+    { id: "terminal.cyclePrev", label: "Previous terminal tab", shortcut: "terminal.cyclePrev", run: cyclePrev },
+    { id: "terminal.expandToggle", label: "Expand / collapse session", shortcut: "terminal.expandToggle",
+      disabledReason: gridActive || hasActiveSession ? undefined : "Open a session first",
+      run: () => { if (gridActive) window.dispatchEvent(new Event(GRID_EXPAND_TOGGLE_EVENT)); else toggleTerminalExpanded(); } },
+  ]);
   // Cmd/Ctrl + =/-/0 zoom or reset the focused terminal; otherwise leave browser
   // zoom alone.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isCommandPaletteOpen()) return;
       const intent = terminalZoomIntentFromKeyboard(e);
       if (intent === null) return;
       if (!isTerminalXtermFocused()) return;
@@ -774,6 +789,7 @@ function Shell() {
   // Capture phase: a focused xterm textarea swallows these on bubble.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isCommandPaletteOpen()) return;
       const shortcutKey = terminalManagementShortcutKeyFromKeyboard(e);
       if (shortcutKey === null) return;
       if (shortcutKey === "t") {
@@ -842,6 +858,7 @@ function Shell() {
     // Releasing Cmd/Ctrl with a group digit still pending jumps to that
     // group's first project (a single-digit chord).
     const onKeyUp = (e: KeyboardEvent) => {
+      if (isCommandPaletteOpen()) { pendingRailGroupRef.current = null; return; }
       if (e.key !== "Meta" && e.key !== "Control") return;
       const pending = pendingRailGroupRef.current;
       pendingRailGroupRef.current = null;
@@ -954,6 +971,7 @@ function Shell() {
                * the rail stays at status + settings; grid view moved into the
                * project header beside the session controls it acts on. */}
               <HeaderToolsCluster />
+              <CommandPaletteButton />
               <SessionNotificationsButton
                 notifications={appNotifications}
                 onClearNotification={clearAppNotificationItem}

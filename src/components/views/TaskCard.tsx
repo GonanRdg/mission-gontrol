@@ -51,8 +51,10 @@ function TaskCardImpl({
 
   // Archived sessions are parked (their tty was killed on archive), but the
   // card is still openable: clicking it reloads/resumes the session terminal.
-  // The top-right actions swap delete → restore + permanent delete.
+  // Archived cards offer restore; active cards offer archive.
   const archived = task.archived;
+  const actionCount = Number(!archived && !!onTogglePinned) + Number(!archived && !!onArchive) +
+    Number(archived && !!onRestore) + Number(!!onDelete);
 
   const sentinel = isSentinelTitle(task.title);
   const sessionIcon = isSessionIcon(task.icon) ? task.icon : DEFAULT_SESSION_ICON;
@@ -196,7 +198,7 @@ function TaskCardImpl({
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              paddingRight: 36,
+              paddingRight: actionCount * 36,
             }}
           >
             {task.title}
@@ -316,14 +318,14 @@ function TaskCardImpl({
               <HotkeyTooltip
                 action="session.closeWindow"
                 label="Delete session"
-                disabled={!selected}
+                disabled={!selected || !archived}
               >
                 <Btn
                   variant="ghost"
                   size="sm"
                   icon="trash"
                   aria-label={`Delete ${task.title}`}
-                  title={selected ? undefined : "Delete session"}
+                  title={selected && archived ? undefined : "Delete session"}
                   onClick={(e) => {
                     e.stopPropagation();
                     setConfirmOpen(true);
@@ -429,8 +431,8 @@ function TaskCardImpl({
               Delete &ldquo;{task.title}&rdquo;?
             </div>
             <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
-              This session and its git worktree will be removed. This cannot be
-              undone.
+              This permanently removes the session and closes its terminal.
+              The git worktree stays. This cannot be undone.
             </div>
           </ConfirmDialog>
         </div>

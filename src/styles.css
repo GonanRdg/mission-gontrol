@@ -3190,7 +3190,7 @@ html[data-window-idle] .mc-pet * {
   background: color-mix(in srgb, var(--accent) 5%, var(--surface-1));
 }
 
-.mc-projects-table-row[data-active="true"]::before {
+.mc-projects-table-row[data-active="true"] .mc-projects-table-name::before {
   content: "";
   position: absolute;
   left: 0;
@@ -3207,6 +3207,7 @@ html[data-window-idle] .mc-pet * {
 }
 
 .mc-projects-table-name {
+  position: relative;
   min-width: 220px;
 }
 
@@ -7399,3 +7400,19 @@ body[data-card-glow] .cursor-glow {
     opacity: 0.85;
   }
 }
+.mc-command-palette { display: flex; flex-direction: column; min-height: 0; }
+.mc-command-search { width: 100%; box-sizing: border-box; padding: 18px; border: 0; border-bottom: 1px solid var(--border); background: var(--surface-1); color: var(--text); font: inherit; font-size: 15px; }
+.mc-command-search:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.mc-command-filters { display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.mc-command-filters button { padding: 5px 10px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--text-dim); font: inherit; font-size: 12px; cursor: pointer; }
+.mc-command-filters button[aria-pressed="true"] { background: var(--accent-faint); color: var(--text); border-color: var(--accent-border); }
+.mc-command-filters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mc-command-results { overflow-y: auto; max-height: 46vh; padding: 6px; }
+.mc-command-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; color: var(--text); }
+.mc-command-row[aria-selected="true"] { background: var(--accent-faint); border-color: var(--accent-border); }
+.mc-command-row[aria-disabled="true"] { cursor: default; color: var(--text-dim); }
+.mc-command-copy { display: grid; gap: 4px; min-width: 0; font-size: 13px; }
+.mc-command-copy > span, .mc-command-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-command-copy small, .mc-command-hint { color: var(--text-dim); font-family: var(--mono); font-size: 11px; }
+.mc-command-hint { flex-shrink: 0; }
+.mc-command-empty { padding: 28px 18px; color: var(--text-dim); font-size: 13px; }

@@ -4,6 +4,7 @@ import { renderActionPrompt, type ActionTemplateContext } from "~/lib/action-tem
 export type ActionLaunchIntent = {
   actionName: string;
   workflowSkill: string;
+  workflowInvocation?: string;
   defaultWorkflowSkill: string;
   agent: TaskAgent;
   branch: string;
@@ -55,9 +56,10 @@ export function renderActionLaunchPrompt(
     ...intent.promptContext,
     worktree: intent.worktree && worktreeBranch ? { branch: worktreeBranch } : null,
   });
+  const invocation = intent.workflowInvocation ?? intent.workflowSkill;
   return adaptActionPromptForAgent(
-    selectActionWorkflow(prompt, intent.defaultWorkflowSkill, intent.workflowSkill),
-    intent.workflowSkill,
+    selectActionWorkflow(prompt, intent.defaultWorkflowSkill, invocation),
+    invocation,
     intent.agent,
   );
 }

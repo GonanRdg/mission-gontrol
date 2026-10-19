@@ -4,6 +4,7 @@ import * as path from "node:path";
 import type { SkillActionParse } from "~/shared/skill-actions";
 import { bundledSkillsRoots } from "../bundled-skills-path";
 import { parseSkillAction } from "./skill-actions";
+import { discoverPluginSkills, type PluginSkillsOptions } from "./plugin-skills";
 
 /**
  * Where an action was found. Ordered by precedence: a project-local skill
@@ -14,6 +15,8 @@ export const ACTION_ROOT_KINDS = [
   "project-codex",
   "user-claude",
   "user-codex",
+  "claude-plugin",
+  "codex-plugin",
   "bundled",
 ] as const;
 export type ActionRootKind = (typeof ACTION_ROOT_KINDS)[number];
@@ -26,7 +29,7 @@ export type ActionOrigin = {
 
 export type DiscoveredAction = SkillActionParse & { origin: ActionOrigin };
 
-export type DiscoverActionsOptions = {
+export type DiscoverActionsOptions = PluginSkillsOptions & {
   /** Absolute path of the project in scope; omitted drops the project tier. */
   projectPath?: string | null;
   /** Overridable for tests. */
@@ -58,9 +61,8 @@ function actionRoots(opts: DiscoverActionsOptions): ActionOrigin[] {
  * one root declaring the same name resolve the same way on every filesystem and
  * in every locale.
  * Dot-directories are skipped, which is what keeps `~/.codex/skills/.system/` —
- * Codex's own built-ins — out. Plugin marketplaces are not scanned at all: they
- * mirror the same skill under `skills/`, `.cursor/skills/` and
- * `.windsurf/skills/`, so they need dedupe rules of their own first.
+ * Codex's own built-ins — out. Plugins use their enabled installations and
+ * manifest paths rather than recursively scanning marketplace mirrors.
  */
 function skillDirsIn(root: string): string[] {
   let entries: fs.Dirent[];
@@ -86,19 +88,27 @@ function skillDirsIn(root: string): string[] {
 export function discoverActions(opts: DiscoverActionsOptions = {}): DiscoveredAction[] {
   const found = new Map<string, DiscoveredAction>();
 
-  for (const root of actionRoots(opts)) {
-    for (const dir of skillDirsIn(root.dir)) {
-      let content: string;
-      try {
-        content = fs.readFileSync(path.join(dir, "SKILL.md"), "utf8");
-      } catch {
-        continue;
-      }
-      const parsed = parseSkillAction(content, path.basename(dir));
-      if (!parsed) continue;
-      if (found.has(parsed.name)) continue;
-      found.set(parsed.name, { ...parsed, origin: { kind: root.kind, dir } });
+  const roots = actionRoots(opts);
+  const pluginOrigins: ActionOrigin[] = discoverPluginSkills(opts).map((entry) => ({
+    kind: entry.agent === "claude-code" ? "claude-plugin" : "codex-plugin",
+    dir: entry.dir,
+  }));
+  const origins = [
+    ...roots.filter((root) => root.kind !== "bundled").flatMap((root) => skillDirsIn(root.dir).map((dir) => ({ ...root, dir }))),
+    ...pluginOrigins,
+    ...roots.filter((root) => root.kind === "bundled").flatMap((root) => skillDirsIn(root.dir).map((dir) => ({ ...root, dir }))),
+  ];
+  for (const { kind, dir } of origins) {
+    let content: string;
+    try {
+      content = fs.readFileSync(path.join(dir, "SKILL.md"), "utf8");
+    } catch {
+      continue;
     }
+    const parsed = parseSkillAction(content, path.basename(dir));
+    if (!parsed) continue;
+    if (found.has(parsed.name)) continue;
+    found.set(parsed.name, { ...parsed, origin: { kind, dir } });
   }
 
   return [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -118,5 +128,6 @@ export function discoverWorkflowSkillNames(opts: DiscoverActionsOptions = {}): s
     path.join(home, ".config", "opencode", "skills"),
     ...(bundled ?? []),
   ];
-  return [...new Set(roots.flatMap(skillDirsIn).map((dir) => path.basename(dir)))].sort();
+  const plugins = discoverPluginSkills(opts).flatMap((entry) => [entry.name, entry.qualifiedName]);
+  return [...new Set([...roots.flatMap(skillDirsIn).map((dir) => path.basename(dir)), ...plugins])].sort();
 }

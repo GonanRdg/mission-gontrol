@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { isCommandPaletteOpen } from "~/lib/command-palette";
 import { matchBinding } from "~/lib/keybindings/match";
 import { useKeybindings } from "~/lib/keybindings/store";
 import { HOTKEY_ACTIONS, type HotkeyAction } from "~/lib/keybindings/types";
@@ -64,6 +65,7 @@ export function useHotkey(
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
+      if (isCommandPaletteOpen()) return;
       const matched = isAction(target)
         ? matchBinding(e, bindingsRef.current[target])
         : matchLiteral(e, target);

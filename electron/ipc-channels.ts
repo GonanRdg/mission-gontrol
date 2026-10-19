@@ -1,4 +1,10 @@
 export const IPC = {
+  prBrowserShow: "pr-browser:show",
+  prBrowserLayout: "pr-browser:layout",
+  prBrowserCommand: "pr-browser:command",
+  prBrowserDestroy: "pr-browser:destroy",
+  prBrowserState: "pr-browser:state",
+  prBrowserIntent: "pr-browser:intent",
   dialogBrowseFolder: "dialog:browseFolder",
   dialogListFolders: "dialog:listFolders",
   dialogGrantFolder: "dialog:grantFolder",

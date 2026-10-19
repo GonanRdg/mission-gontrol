@@ -73,6 +73,7 @@ const updateProjectBody = z
     rememberAgentSettings: z.boolean(),
     savedAgent: z.enum(TASK_AGENTS).nullable(),
     savedSkipPermissions: z.boolean(),
+    savedClaudeChrome: z.boolean().nullable(),
     savedBareSession: z.boolean(),
     launchCommands: z.array(launchCommandSchema).nullable(),
     customScripts: z.array(customScriptSchema).nullable(),

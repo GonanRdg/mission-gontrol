@@ -28,6 +28,12 @@ const intent: ActionLaunchIntent = {
 };
 
 describe("action launch intent", () => {
+  it.each(["claude-code", "codex"] as const)("uses the resolved plugin invocation for %s", (agent) => {
+    expect(renderActionLaunchPrompt({
+      ...intent, agent, workflowInvocation: "lodgify-workflows:implement-ticket",
+      promptTemplate: "/implement-ticket\nTicket: MC-123",
+    }, null)).toBe(`${agent === "codex" ? "$" : "/"}lodgify-workflows:implement-ticket\nTicket: MC-123`);
+  });
   it("is consumed exactly once", () => {
     markActionLaunchIntent("project-1", intent);
 
