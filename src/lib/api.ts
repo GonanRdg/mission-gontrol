@@ -1,6 +1,7 @@
 import type { Group, Project, Task, UserTerminal } from "~/db/schema";
 import type { TaskAgent, TaskStatus } from "~/shared/domain";
 import type { ActiveSessions } from "~/shared/active-sessions";
+import type { BranchPullRequestResult } from "~/shared/pr-browser";
 import type { ProjectPathStatus, ProjectWithCounts } from "~/shared/projects";
 import { DEV_SERVER_ORIGIN } from "~/shared/dev-server";
 import type {
@@ -24,6 +25,7 @@ import type { UsageSummary } from "~/shared/token-usage";
 import type { ClaudeUsageLimits } from "~/shared/claude-usage-limits";
 import type { ProviderUsageId, ProviderUsageResponse } from "~/shared/provider-usage";
 import type { AgentLauncherConfig } from "~/shared/agent-launcher-config";
+import type { AgentSessionDefaults } from "~/shared/agent-session-defaults";
 import type { AgentAccountStatus, AgentLatestVersion } from "~/shared/agent-launchers";
 import type { PendingQuestion } from "~/shared/agent-questions";
 import type { PromptSearchResponse } from "~/shared/prompts";
@@ -238,6 +240,7 @@ export type AppSettings = {
   providerUsageIds: ProviderUsageId[];
   /** New Session picker: agent display order + hidden agents (never all hidden). */
   agentLauncherConfig: AgentLauncherConfig;
+  agentSessionDefaults: AgentSessionDefaults;
   /**
    * Recall (project memory) controls. `recallEnabled` is the experimental
    * master switch — it ships off by default (opt in from Settings). When off
@@ -631,6 +634,7 @@ export const api = {
       claudeSessionId?: string | null;
       claudeSkipPermissions?: boolean;
       claudeBareSession?: boolean;
+      claudeChrome?: boolean | null;
       worktreeId?: string | null;
       scopeId?: string | null;
     },
@@ -648,6 +652,7 @@ export const api = {
       claudeSessionId?: string | null;
       claudeSkipPermissions?: boolean;
       claudeBareSession?: boolean;
+      claudeChrome?: boolean | null;
     }
   ) =>
     req<{ task: Task }>(`/api/tasks/${id}`, {
@@ -788,6 +793,7 @@ export const api = {
         | "providerUsageEnabled"
         | "providerUsageIds"
         | "agentLauncherConfig"
+        | "agentSessionDefaults"
         | "recallEnabled"
         | "recallAutoCaptureEnabled"
         | "recallEngineEnabled"
@@ -827,6 +833,8 @@ export const api = {
 
   getGitStatus: (projectId: string, worktreeId?: string | null) =>
     req<GitStatus>(`/api/projects/${projectId}/git/status${worktreeQuery(worktreeId)}`),
+  getBranchPullRequest: (projectId: string, worktreeId?: string | null) =>
+    req<BranchPullRequestResult>(`/api/projects/${projectId}/git/pull-request${worktreeQuery(worktreeId)}`),
   getGitBranches: (projectId: string, worktreeId?: string | null) =>
     req<GitBranchesResult>(`/api/projects/${projectId}/git/branches${worktreeQuery(worktreeId)}`),
   getGitHistory: (projectId: string, worktreeId?: string | null, branch?: string | null) =>

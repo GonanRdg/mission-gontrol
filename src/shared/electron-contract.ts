@@ -1,5 +1,6 @@
 import type { AgentCliUpdateRun } from "~/shared/agent-cli-update";
 import type { GitStatus, GitDiff } from "~/shared/git-status";
+import type { PrBrowserBounds, PrBrowserCommand, PrBrowserIntent, PrBrowserState } from "./pr-browser";
 
 export const FILE_READ_ERRORS = ["invalid-path", "not-found", "binary", "too-large"] as const;
 export const FILE_WRITE_ERRORS = [
@@ -47,7 +48,6 @@ export type FileWriteResult =
   | { ok: false; error: FileWriteError | string; currentMtimeMs?: number };
 
 export type InstallDiagramSkillResult = import("~/shared/diagram-skill-install").DiagramSkillInstallResult;
-export type InstallShipSkillsResult = import("~/shared/ship-skill-install").ShipSkillInstallResult;
 
 export type LaunchProcessKillResult = {
   ptyCount: number;
@@ -363,6 +363,14 @@ export type ElectronBridge = {
     captureRegion: () => Promise<ScreenshotCaptureResult>;
     /** Read a saved screenshot back as a full-resolution data URL for the annotation editor. */
     readImage: (path: string) => Promise<{ dataUrl: string } | { error: string }>;
+  };
+  prBrowser: {
+    show: (sessionId: string, mountId: string, url: string, bounds: PrBrowserBounds) => Promise<PrBrowserState>;
+    layout: (sessionId: string, mountId: string, bounds: PrBrowserBounds | null) => Promise<void>;
+    command: (sessionId: string, command: PrBrowserCommand) => Promise<PrBrowserState>;
+    destroy: (sessionId: string) => Promise<void>;
+    onState: (cb: (state: PrBrowserState) => void) => () => void;
+    onIntent: (cb: (intent: PrBrowserIntent) => void) => () => void;
   };
   pickImage: () => Promise<
     | { sourcePath: string; extension: string; previewDataUrl: string }

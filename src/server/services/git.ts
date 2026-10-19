@@ -9,6 +9,7 @@ import {
 import { COMMIT_CLI_LABEL, type CommitCli } from "~/shared/commit-cli";
 import { DEFAULT_BRANCH } from "~/shared/domain";
 import { buildGithubCompareUrl } from "~/shared/github-pr";
+import { isPullRequestUrl, type BranchPullRequestResult } from "~/shared/pr-browser";
 import { detectGithubUrl } from "./projects";
 import { canonicalPath, gitWorktreeList, resolveProjectWorktreeCwd } from "./worktrees";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
@@ -661,6 +662,35 @@ async function existingPullRequestUrl(cwd: string, branch: string): Promise<stri
   if (r.code !== 0) return null;
   const url = r.stdout.trim();
   return url.startsWith("https://") ? url : null;
+}
+
+export async function getBranchPullRequest(
+  projectId: string,
+  worktreeId?: string | null,
+): Promise<BranchPullRequestResult> {
+  const cwd = projectCwd(projectId, worktreeId);
+  const branch = (await gitOk(cwd, ["rev-parse", "--abbrev-ref", "HEAD"])).trim();
+  if (!branch || branch === "HEAD") return { branch: null, pullRequest: null };
+  const repo = detectGithubUrl(cwd);
+  if (!repo) return { branch, pullRequest: null };
+  const result = await runGh(cwd, [
+    "pr", "list", "--repo", repo, "--head", branch, "--state", "open", "--limit", "1",
+    "--json", "number,url,title,isDraft",
+  ]);
+  if (result.code !== 0) {
+    throw new GitError(result.code === 127
+      ? "Install GitHub CLI to find this branch's PR"
+      : "Could not look up this branch's PR. Check GitHub CLI authentication and retry.");
+  }
+  const rows: unknown = JSON.parse(result.stdout);
+  if (!Array.isArray(rows)) throw new GitError("GitHub returned an invalid PR response");
+  const pr = rows[0];
+  if (!pr) return { branch, pullRequest: null };
+  if (!Number.isInteger(pr.number) || pr.number < 1 || typeof pr.url !== "string" ||
+      !isPullRequestUrl(pr.url) || typeof pr.title !== "string" || typeof pr.isDraft !== "boolean") {
+    throw new GitError("GitHub returned an invalid PR response");
+  }
+  return { branch, pullRequest: { number: pr.number, url: pr.url, title: pr.title, isDraft: pr.isDraft } };
 }
 
 export async function createPullRequest(

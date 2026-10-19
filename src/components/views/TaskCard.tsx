@@ -53,6 +53,8 @@ function TaskCardImpl({
   // card is still openable: clicking it reloads/resumes the session terminal.
   // Archived cards offer restore; active cards offer archive.
   const archived = task.archived;
+  const actionCount = Number(!archived && !!onTogglePinned) + Number(!archived && !!onArchive) +
+    Number(archived && !!onRestore) + Number(!!onDelete);
 
   const sentinel = isSentinelTitle(task.title);
   const sessionIcon = isSessionIcon(task.icon) ? task.icon : DEFAULT_SESSION_ICON;
@@ -196,7 +198,7 @@ function TaskCardImpl({
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              paddingRight: !archived && onTogglePinned ? 110 : 74,
+              paddingRight: actionCount * 36,
             }}
           >
             {task.title}
@@ -313,18 +315,24 @@ function TaskCardImpl({
               </HotkeyTooltip>
             )}
             {onDelete && (
-              <Btn
-                variant="ghost"
-                size="sm"
-                icon="trash"
-                aria-label={`Delete ${task.title}`}
-                title="Delete session"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setConfirmOpen(true);
-                }}
-                style={{ width: 30, height: 30, padding: 0 }}
-              />
+              <HotkeyTooltip
+                action="session.closeWindow"
+                label="Delete session"
+                disabled={!selected || !archived}
+              >
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  icon="trash"
+                  aria-label={`Delete ${task.title}`}
+                  title={selected && archived ? undefined : "Delete session"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmOpen(true);
+                  }}
+                  style={{ width: 30, height: 30, padding: 0 }}
+                />
+              </HotkeyTooltip>
             )}
           </div>
         )}

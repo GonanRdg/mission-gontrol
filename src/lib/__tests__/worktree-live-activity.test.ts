@@ -32,6 +32,7 @@ function makeScopedProject(
     savedAgent: null,
     savedSkipPermissions: false,
     savedBareSession: false,
+    savedClaudeChrome: null,
     defaultGridView: false,
     createdAt: 1_000,
     updatedAt: 1_000,
