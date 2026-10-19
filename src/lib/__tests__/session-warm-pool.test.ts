@@ -1,11 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { defaultSessionPayload, prepareSessionWarmSlot } from "../session-warm-pool";
+import { defaultSessionPayload, prepareSessionWarmSlot, sessionCreateSignature } from "../session-warm-pool";
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("session-warm-pool", () => {
+  it("separates warm sessions with different Chrome options", () => {
+    const payload = { agent: "claude-code" as const, branch: "main", skipPermissions: true, bareSession: false };
+    const signatures = [undefined, null, true, false].map((chrome) => sessionCreateSignature({ ...payload, chrome }, "/tmp/project"));
+    expect(signatures[0]).toBe(signatures[1]);
+    expect(new Set(signatures).size).toBe(3);
+  });
+
+  it("uses the explicitly selected agent's defaults for voice and action launches", () => {
+    expect(defaultSessionPayload({ branch: "main", savedAgent: "claude-code", savedSkipPermissions: false },
+      { codex: { skipPermissions: true, chrome: null } }, "codex"))
+      .toEqual({ agent: "codex", branch: "main", skipPermissions: true, chrome: null, bareSession: false });
+  });
+
   it("builds default payload from saved agent settings", () => {
     expect(
       defaultSessionPayload({
@@ -18,6 +31,7 @@ describe("session-warm-pool", () => {
       agent: "codex",
       branch: "main",
       skipPermissions: true,
+      chrome: null,
       bareSession: false,
     });
   });
@@ -32,6 +46,7 @@ describe("session-warm-pool", () => {
       agent: "claude-code",
       branch: "dev",
       skipPermissions: false,
+      chrome: null,
       bareSession: false,
     });
   });
@@ -47,6 +62,7 @@ describe("session-warm-pool", () => {
       agent: "claude-code",
       branch: "dev",
       skipPermissions: true,
+      chrome: null,
       bareSession: false,
     });
   });
@@ -63,6 +79,7 @@ describe("session-warm-pool", () => {
       agent: "cursor-cli",
       branch: "dev",
       skipPermissions: true,
+      chrome: null,
       bareSession: false,
     });
   });

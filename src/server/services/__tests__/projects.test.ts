@@ -315,4 +315,45 @@ describe("projects service", () => {
     expect(detectGithubUrl(dir)).toBe("https://github.com/acme/later");
   });
 
+  it("resolves relative worktree pointers and refreshes the shared config cache", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mc-gh-worktree-"));
+    const repo = path.join(root, "repo");
+    const linked = path.join(root, "linked");
+    const gitDir = path.join(repo, ".git", "worktrees", "linked");
+    const config = path.join(repo, ".git", "config");
+    fs.mkdirSync(gitDir, { recursive: true });
+    fs.mkdirSync(linked);
+    fs.writeFileSync(path.join(linked, ".git"), `gitdir: ${path.relative(linked, gitDir)}\n`);
+    fs.writeFileSync(path.join(gitDir, "commondir"), "../..\n");
+    const initialTime = new Date(Math.floor(Date.now() / 1000) * 1000);
+    try {
+      fs.writeFileSync(config, '[remote "origin"]\n\turl = git@github.com:acme/widgets.git\n');
+      fs.utimesSync(config, initialTime, initialTime);
+      _resetGithubUrlCache();
+      expect(detectGithubUrl(linked)).toBe("https://github.com/acme/widgets");
+      expect(detectGithubUrl(repo)).toBe("https://github.com/acme/widgets");
+
+      fs.writeFileSync(config, '[remote "origin"]\n\turl = https://github.com/acme/renamed.git\n');
+      const nextTime = new Date(initialTime.getTime() + 5000);
+      fs.utimesSync(config, nextTime, nextTime);
+      expect(detectGithubUrl(linked)).toBe("https://github.com/acme/renamed");
+      expect(detectGithubUrl(repo)).toBe("https://github.com/acme/renamed");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("supports a gitdir file without commondir for a separate Git directory", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mc-gh-gitdir-"));
+    const metadata = path.join(root, "metadata");
+    fs.mkdirSync(metadata);
+    fs.writeFileSync(path.join(root, ".git"), "gitdir: metadata\n");
+    fs.writeFileSync(path.join(metadata, "config"), '[remote "origin"]\n\turl = git@github.com:acme/separate.git\n');
+    try {
+      expect(detectGithubUrl(root)).toBe("https://github.com/acme/separate");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
 });

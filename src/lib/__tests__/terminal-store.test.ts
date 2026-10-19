@@ -31,6 +31,7 @@ const baseTask = {
   claudeSessionId: null,
   claudeSkipPermissions: false,
   claudeBareSession: false,
+  claudeChrome: null,
   createdAt: 1,
   updatedAt: 1,
 } satisfies Omit<Task, "agent">;

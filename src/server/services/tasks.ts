@@ -84,6 +84,7 @@ export function createTask(input: {
   claudeSessionId?: string | null;
   claudeSkipPermissions?: boolean;
   claudeBareSession?: boolean;
+  claudeChrome?: boolean | null;
 }): Task {
   if (!input.projectId) throw new Error("projectId required");
   if (!input.title?.trim()) throw new Error("title required");
@@ -112,6 +113,7 @@ export function createTask(input: {
     claudeSessionId: input.claudeSessionId ?? null,
     claudeSkipPermissions: input.claudeSkipPermissions ?? false,
     claudeBareSession: input.claudeBareSession ?? false,
+    claudeChrome: input.agent === "claude-code" ? input.claudeChrome ?? null : null,
     createdAt: now,
     updatedAt: now,
   };
