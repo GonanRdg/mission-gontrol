@@ -9,6 +9,7 @@ import {
   getGitDiff,
   getGitStatus,
   getBranchPullRequest,
+  getRepositoryPullRequests,
   gitErrorPayload,
   listGitBranches,
   listGitHistory,
@@ -82,6 +83,16 @@ export async function branches(rawId: string, url: URL): Promise<Response> {
   if (!parsed.success) return notFound();
   try {
     return json(await listGitBranches(parsed.data, queryWorktreeId(url)));
+  } catch (e) {
+    return handleDomainError(e) ?? asGitErrorResponse(e);
+  }
+}
+
+export async function pullRequests(rawId: string, url: URL): Promise<Response> {
+  const parsed = idParam.safeParse(rawId);
+  if (!parsed.success) return notFound();
+  try {
+    return json(await getRepositoryPullRequests(parsed.data, queryWorktreeId(url)));
   } catch (e) {
     return handleDomainError(e) ?? asGitErrorResponse(e);
   }

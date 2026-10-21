@@ -28,6 +28,8 @@ const GIT_UPSTREAM_FETCH_INTERVAL_MS = 60_000;
 const GIT_UPSTREAM_FETCH_POWER_SAVE_INTERVAL_MS = 180_000;
 
 export const gitKeys = {
+  pullRequests: (projectId: string, worktreeId?: string | null) =>
+    [...gitKeys.all(projectId, worktreeId), "pull-requests"] as const,
   pullRequest: (projectId: string, worktreeId: string | null | undefined, branch: string | null) =>
     [...gitKeys.all(projectId, worktreeId), "pull-request", branch] as const,
   all: (projectId: string, worktreeId?: string | null) =>
@@ -206,6 +208,18 @@ export function useBranchPullRequest(projectId: string, worktreeId: string | nul
     queryKey: gitKeys.pullRequest(projectId, worktreeId, branch),
     queryFn: () => api.getBranchPullRequest(projectId, worktreeId),
     enabled: enabled && !!branch,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    retry: false,
+  });
+}
+
+export function useRepositoryPullRequests(projectId: string, worktreeId: string | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: gitKeys.pullRequests(projectId, worktreeId),
+    queryFn: () => api.getRepositoryPullRequests(projectId, worktreeId),
+    enabled: enabled && !!projectId,
     staleTime: 60_000,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,

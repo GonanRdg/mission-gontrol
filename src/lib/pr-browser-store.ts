@@ -1,6 +1,7 @@
 import { getElectron } from "./electron";
 import { LOCAL_SCOPE_ID } from "~/shared/sandbox";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
+import { isRepositoryPullRequest, type RepositoryPullRequest, type RepositoryPullRequestsResult } from "~/shared/pr-browser";
 
 export type PrBrowserLayout = {
   open: boolean;
@@ -8,10 +9,11 @@ export type PrBrowserLayout = {
   full: boolean;
   expandedByBrowser: boolean;
   splitNeedsExpanded: boolean;
+  selectedPullRequest: RepositoryPullRequest | null;
 };
 
 const defaults: PrBrowserLayout = {
-  open: false, ratio: 0.5, full: false, expandedByBrowser: false, splitNeedsExpanded: false,
+  open: false, ratio: 0.5, full: false, expandedByBrowser: false, splitNeedsExpanded: false, selectedPullRequest: null,
 };
 const layouts = new Map<string, PrBrowserLayout>();
 const listeners = new Set<() => void>();
@@ -34,6 +36,7 @@ export function getPrBrowserLayout(id: string): PrBrowserLayout {
       const saved = JSON.parse(window.localStorage.getItem(storageKey(id)) ?? "null");
       if (saved && typeof saved.open === "boolean") layout.open = saved.open;
       if (saved && Number.isFinite(saved.ratio)) layout.ratio = Math.max(0.15, Math.min(0.85, saved.ratio));
+      if (isRepositoryPullRequest(saved?.selectedPullRequest)) layout.selectedPullRequest = saved.selectedPullRequest;
     } catch { /* Storage may be unavailable. */ }
   }
   layouts.set(id, layout);
@@ -43,9 +46,22 @@ export function getPrBrowserLayout(id: string): PrBrowserLayout {
 export function setPrBrowserLayout(id: string, patch: Partial<PrBrowserLayout>) {
   const layout = { ...getPrBrowserLayout(id), ...patch };
   layouts.set(id, layout);
-  try { window.localStorage.setItem(storageKey(id), JSON.stringify({ open: layout.open, ratio: layout.ratio })); }
+  try { window.localStorage.setItem(storageKey(id), JSON.stringify({
+    open: layout.open, ratio: layout.ratio, selectedPullRequest: layout.selectedPullRequest,
+  })); }
   catch { /* Storage may be unavailable. */ }
   for (const listener of listeners) listener();
+}
+
+export function resolvePrBrowserPullRequest(
+  result: RepositoryPullRequestsResult | undefined,
+  selected: RepositoryPullRequest | null,
+  branch: string | null,
+): RepositoryPullRequest | null {
+  if (selected && (!result || (result.repository && selected.url.startsWith(`${result.repository}/pull/`)))) {
+    return result?.pullRequests.find((pr) => pr.url === selected.url) ?? selected;
+  }
+  return result?.pullRequests.find((pr) => pr.headRefName === branch) ?? null;
 }
 
 export function subscribePrBrowserLayout(listener: () => void) {

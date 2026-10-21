@@ -291,6 +291,7 @@ async function dispatch(
     const action = m[2]!;
     if (action === "status" && method === "GET") return gitController.status(id, url);
     if (action === "pull-request" && method === "GET") return gitController.pullRequest(id, url);
+    if (action === "pull-requests" && method === "GET") return gitController.pullRequests(id, url);
     if (action === "branches" && method === "GET") return gitController.branches(id, url);
     if (action === "history" && method === "GET") return gitController.history(id, url);
     if (action === "commit-files" && method === "GET") return gitController.commitFiles(id, url);

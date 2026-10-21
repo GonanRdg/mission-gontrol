@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Btn } from "~/components/ui/Btn";
 import { Tooltip } from "~/components/ui/Tooltip";
+import { Icon } from "~/components/ui/Icon";
+import { ContextMenuPopover } from "~/components/ui/ContextMenuPopover";
+import { DropdownMenuItem, DropdownMenuSeparator } from "~/components/ui/DropdownMenuItem";
 import { getElectron } from "~/lib/electron";
 import { openExternal } from "~/lib/open-external";
 import { isSettingsOverlayOpen } from "~/lib/settings-navigation";
 import {
   clampPrBrowserRatio, getPrBrowserLayout, MIN_PR_SPLIT_WIDTH, prBrowserSessionId,
-  setPrBrowserLayout, subscribePrBrowserLayout,
+  resolvePrBrowserPullRequest, setPrBrowserLayout, subscribePrBrowserLayout,
 } from "~/lib/pr-browser-store";
-import { useBranchPullRequest, useGitStatus } from "~/queries/git";
+import { useRepositoryPullRequests, useGitStatus } from "~/queries/git";
 import { LOCAL_SCOPE_ID } from "~/shared/sandbox";
-import type { PrBrowserBounds, PrBrowserCommand, PrBrowserState } from "~/shared/pr-browser";
+import type { PrBrowserBounds, PrBrowserCommand, PrBrowserState, RepositoryPullRequest } from "~/shared/pr-browser";
 import "./session-pr-browser.css";
 
 export function useSessionPrBrowser({ project, taskId, paneRef, expanded, onToggleExpanded, focusTerminal, enabled }: {
@@ -29,8 +32,8 @@ export function useSessionPrBrowser({ project, taskId, paneRef, expanded, onTogg
   const local = enabled && (project.activeRuntimeScopeId ?? LOCAL_SCOPE_ID) === LOCAL_SCOPE_ID;
   const git = useGitStatus(project.id, project.activeWorktreeId, { enabled: local });
   const branch = git.data?.branch ?? null;
-  const lookup = useBranchPullRequest(project.id, project.activeWorktreeId, branch, local);
-  const pr = lookup.data?.branch === branch ? lookup.data.pullRequest : null;
+  const lookup = useRepositoryPullRequests(project.id, project.activeWorktreeId, local);
+  const pr = resolvePrBrowserPullRequest(lookup.data, layout.selectedPullRequest, branch);
   const [width, setWidth] = useState(0);
   useEffect(() => {
     const pane = paneRef.current;
@@ -63,19 +66,24 @@ export function useSessionPrBrowser({ project, taskId, paneRef, expanded, onTogg
     }
   }, [sessionId]);
 
-  const toggle = useCallback(() => {
-    if (current.current.layout.open) { hide(); return; }
-    if (!pr) return;
-    if (!getElectron()?.prBrowser) { void openExternal(pr.url); return; }
+  const show = useCallback((target: RepositoryPullRequest) => {
+    setPrBrowserLayout(sessionId, { selectedPullRequest: target });
+    if (!getElectron()?.prBrowser) { void openExternal(target.url); return; }
+    if (current.current.layout.open) return;
     const narrow = (paneRef.current?.getBoundingClientRect().width ?? 0) < MIN_PR_SPLIT_WIDTH;
     const expandSession = narrow && !current.current.expanded && !!current.current.onToggleExpanded;
     setPrBrowserLayout(sessionId, { open: true, full: narrow, expandedByBrowser: expandSession, splitNeedsExpanded: expandSession });
     if (expandSession) current.current.onToggleExpanded?.();
-  }, [hide, paneRef, pr, sessionId]);
+  }, [paneRef, sessionId]);
+
+  const toggle = useCallback(() => {
+    if (current.current.layout.open) hide();
+    else if (pr) show(pr);
+  }, [hide, pr, show]);
 
   useEffect(() => {
-    if (layout.open && lookup.isSuccess && lookup.data.branch === branch && !pr) hide();
-  }, [branch, hide, layout.open, lookup.data, lookup.isSuccess, pr]);
+    if (layout.open && lookup.isSuccess && !pr) hide();
+  }, [hide, layout.open, lookup.isSuccess, pr]);
 
   useEffect(() => getElectron()?.prBrowser?.onIntent((intent) => {
     if (intent.sessionId !== sessionId) return;
@@ -91,26 +99,105 @@ export function useSessionPrBrowser({ project, taskId, paneRef, expanded, onTogg
   const resize = useCallback((next: number) => {
     setPrBrowserLayout(sessionId, { ratio: clampPrBrowserRatio(next, paneRef.current?.getBoundingClientRect().width ?? 0) });
   }, [paneRef, sessionId]);
-  return { sessionId, pr, open, full, ratio, toggle, hide, toggleExpanded, resize,
+  return { sessionId, pr, branch, available: local, pullRequests: lookup.data?.pullRequests ?? [],
+    repository: lookup.data?.repository, open, full, ratio, toggle, show, hide, toggleExpanded, resize,
     error: lookup.error, checking: lookup.isFetching, retry: () => void lookup.refetch() };
 }
 
 export function PrBrowserButton({ browser, compact = false }: {
   browser: ReturnType<typeof useSessionPrBrowser>; compact?: boolean;
 }) {
-  if (!browser.pr && !browser.error) return null;
-  const label = browser.error ? "Retry PR lookup" : browser.open ? "Hide PR browser" : "Open PR browser";
+  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setAnchor(null), []);
+  if (!browser.available) return null;
   return (
-    <Tooltip content={browser.error instanceof Error ? `${browser.error.message} Click to retry.` :
-      `${label}${browser.pr?.isDraft ? " · Draft" : ""}${browser.pr ? ` · ${browser.pr.title}` : ""}`}>
-      <Btn variant="ghost" size="sm" icon="github" aria-label={label} aria-pressed={browser.open}
-        aria-busy={browser.checking} disabled={!!browser.error && browser.checking}
-        onClick={browser.error ? browser.retry : browser.toggle}
+    <>
+    <Tooltip content={browser.pr ? `Choose repository PR · #${browser.pr.number} ${browser.pr.title}` : "Choose a repository PR"}>
+      <Btn ref={triggerRef} variant="ghost" size="sm" icon="github" aria-label="Choose repository PR"
+        aria-haspopup="menu" aria-expanded={!!anchor}
+        onClick={() => {
+          if (anchor) { close(); return; }
+          const rect = triggerRef.current?.getBoundingClientRect();
+          if (rect) setAnchor({ x: rect.right - 360, y: rect.bottom + 6 });
+          browser.retry();
+        }}
         style={{ flexShrink: 0, color: browser.error ? "var(--status-failed)" : browser.open ? "var(--accent)" : undefined,
-          ...(compact ? { width: 34, padding: 0 } : {}) }}>
-        {!compact && (browser.pr ? `PR #${browser.pr.number}` : "PR")}
+          ...(compact ? { padding: "0 6px" } : {}) }}>
+        {!compact && (browser.pr ? `PR #${browser.pr.number}` : "PRs")}
+        <Icon name="chevron-down" size={10} />
       </Btn>
     </Tooltip>
+    {anchor && <PrPickerMenu key={browser.sessionId} browser={browser} anchor={anchor} onClose={close}
+      onEscape={() => { close(); triggerRef.current?.focus(); }} />}
+    </>
+  );
+}
+
+function PrPickerMenu({ browser, anchor, onClose, onEscape }: {
+  browser: ReturnType<typeof useSessionPrBrowser>;
+  anchor: { x: number; y: number };
+  onClose: () => void;
+  onEscape: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  const needle = query.trim().toLowerCase().replace(/^#/, "");
+  const items = browser.pullRequests.filter((pr) =>
+    `${pr.number} ${pr.title} ${pr.headRefName}`.toLowerCase().includes(needle))
+    .sort((a, b) => Number(b.headRefName === browser.branch) - Number(a.headRefName === browser.branch));
+  const select = (pr: RepositoryPullRequest) => { onClose(); browser.show(pr); };
+  const missingSelection = browser.pr && !browser.pullRequests.some((pr) => pr.url === browser.pr?.url);
+  return (
+    <ContextMenuPopover anchor={anchor} label="Repository pull requests" minWidth={0} onClose={onClose}>
+      <div ref={menuRef} className="mc-pr-picker" onKeyDown={(event) => {
+        if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onEscape(); return; }
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+        if (event.target === inputRef.current && (event.key === "Home" || event.key === "End")) return;
+        const buttons = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("[role=menuitemradio]") ?? []);
+        if (!buttons.length) return;
+        event.preventDefault();
+        const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 :
+          (index + (event.key === "ArrowUp" ? -1 : 1) + buttons.length) % buttons.length;
+        buttons[next].focus();
+      }}>
+        <div className="mc-pr-picker-heading">
+          <span>Open pull requests</span>
+          <Btn variant="ghost" size="sm" icon="refresh" aria-label="Refresh pull requests"
+            disabled={browser.checking} onClick={browser.retry} />
+        </div>
+        <input ref={inputRef} className="mc-pr-picker-search" aria-label="Search pull requests"
+          placeholder="Search by number, title, or branch" value={query} onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && items.length) { event.preventDefault(); select(items[0]); }
+          }} />
+        <div className="mc-pr-picker-list" aria-busy={browser.checking}>
+          {browser.checking && !browser.pullRequests.length && <p role="status">Loading pull requests…</p>}
+          {browser.error && <p role="alert">Could not load PRs. Check GitHub CLI access and refresh.</p>}
+          {!browser.checking && !browser.error && !items.length && <p role="status">
+            {browser.repository === null ? "PRs are available for GitHub repositories." :
+              browser.pullRequests.length ? "No matching pull requests." : "No open pull requests in this repository."}
+          </p>}
+          {items.map((pr) => <DropdownMenuItem key={pr.url} role="menuitemradio" aria-checked={pr.url === browser.pr?.url}
+            className="mc-pr-picker-item" onClick={() => select(pr)}>
+            <span className="mc-pr-picker-title"><strong>#{pr.number}</strong> {pr.title}</span>
+            <span className="mc-pr-picker-meta"><span>{pr.headRefName}</span>
+              {pr.headRefName === browser.branch && <span>Current branch</span>}{pr.isDraft && <span>Draft</span>}
+            </span>
+          </DropdownMenuItem>)}
+        </div>
+        {browser.pr && <>
+          <DropdownMenuSeparator />
+          {missingSelection && !browser.checking && !browser.error &&
+            <p className="mc-pr-picker-note">Selected PR is no longer in the open list.</p>}
+          <DropdownMenuItem icon="github" onClick={() => select(browser.pr!)}>Open PR #{browser.pr.number}</DropdownMenuItem>
+          {browser.open && <DropdownMenuItem icon="x" onClick={() => { onClose(); browser.hide(); }}>Hide PR browser</DropdownMenuItem>}
+        </>}
+      </div>
+    </ContextMenuPopover>
   );
 }
 

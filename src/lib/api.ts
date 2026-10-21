@@ -1,7 +1,7 @@
 import type { Group, Project, Task, UserTerminal } from "~/db/schema";
 import type { TaskAgent, TaskStatus } from "~/shared/domain";
 import type { ActiveSessions } from "~/shared/active-sessions";
-import type { BranchPullRequestResult } from "~/shared/pr-browser";
+import type { BranchPullRequestResult, RepositoryPullRequestsResult } from "~/shared/pr-browser";
 import type { ProjectPathStatus, ProjectWithCounts } from "~/shared/projects";
 import { DEV_SERVER_ORIGIN } from "~/shared/dev-server";
 import type {
@@ -835,6 +835,8 @@ export const api = {
     req<GitStatus>(`/api/projects/${projectId}/git/status${worktreeQuery(worktreeId)}`),
   getBranchPullRequest: (projectId: string, worktreeId?: string | null) =>
     req<BranchPullRequestResult>(`/api/projects/${projectId}/git/pull-request${worktreeQuery(worktreeId)}`),
+  getRepositoryPullRequests: (projectId: string, worktreeId?: string | null) =>
+    req<RepositoryPullRequestsResult>(`/api/projects/${projectId}/git/pull-requests${worktreeQuery(worktreeId)}`),
   getGitBranches: (projectId: string, worktreeId?: string | null) =>
     req<GitBranchesResult>(`/api/projects/${projectId}/git/branches${worktreeQuery(worktreeId)}`),
   getGitHistory: (projectId: string, worktreeId?: string | null, branch?: string | null) =>
