@@ -13,6 +13,7 @@ Cursor and Codex bury your projects in a collapsable left rail. Mission Gontrol 
 - Project grouping with colored dots
 - Project detail view: tasks split into Needs-input / Running / Done columns
 - Multi-select tasks → split-pane terminals (cap of 4)
+- Session PR browser with a searchable picker for all open repository PRs; selecting a PR changes only the browser URL
 - New-agent launcher for Claude Code / Codex / Cursor CLI / plain shell
 - External REST API + Server-Sent Events for live UI updates
 - Bearer-token auth for the writable endpoints

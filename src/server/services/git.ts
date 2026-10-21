@@ -9,7 +9,8 @@ import {
 import { COMMIT_CLI_LABEL, type CommitCli } from "~/shared/commit-cli";
 import { DEFAULT_BRANCH } from "~/shared/domain";
 import { buildGithubCompareUrl } from "~/shared/github-pr";
-import { isPullRequestUrl, type BranchPullRequestResult } from "~/shared/pr-browser";
+import { isPullRequestUrl, isRepositoryPullRequest, type BranchPullRequestResult,
+  type RepositoryPullRequestsResult } from "~/shared/pr-browser";
 import { detectGithubUrl } from "./projects";
 import { canonicalPath, gitWorktreeList, resolveProjectWorktreeCwd } from "./worktrees";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
@@ -691,6 +692,38 @@ export async function getBranchPullRequest(
     throw new GitError("GitHub returned an invalid PR response");
   }
   return { branch, pullRequest: { number: pr.number, url: pr.url, title: pr.title, isDraft: pr.isDraft } };
+}
+
+export async function getRepositoryPullRequests(
+  projectId: string,
+  worktreeId?: string | null,
+): Promise<RepositoryPullRequestsResult> {
+  const cwd = projectCwd(projectId, worktreeId);
+  const repository = detectGithubUrl(cwd);
+  if (!repository) return { repository: null, pullRequests: [] };
+  const repoPath = new URL(repository).pathname.replace(/^\//, "");
+  const result = await runGh(cwd, [
+    "api", "--paginate", "--slurp", `repos/${repoPath}/pulls?state=open&per_page=100`,
+  ]);
+  if (result.code !== 0) {
+    throw new GitError(result.code === 127
+      ? "Install GitHub CLI to find this repository's PRs"
+      : "Could not load repository PRs. Check GitHub CLI authentication and retry.");
+  }
+  const invalidResponse = () => new GitError("GitHub returned an invalid PR response");
+  let pages: unknown;
+  try { pages = JSON.parse(result.stdout); } catch { throw invalidResponse(); }
+  if (!Array.isArray(pages) || pages.some((page) => !Array.isArray(page))) throw invalidResponse();
+  const pullRequests = pages.flat().map((row) => {
+    if (!row || typeof row !== "object") throw invalidResponse();
+    const pr = {
+      number: row.number, url: row.html_url, title: row.title,
+      isDraft: row.draft, headRefName: row.head?.ref,
+    };
+    if (!isRepositoryPullRequest(pr) || !pr.url.startsWith(`${repository}/pull/`)) throw invalidResponse();
+    return pr;
+  });
+  return { repository, pullRequests };
 }
 
 export async function createPullRequest(

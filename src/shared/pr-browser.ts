@@ -10,6 +10,20 @@ export type BranchPullRequestResult = {
   pullRequest: BranchPullRequest | null;
 };
 
+export type RepositoryPullRequest = BranchPullRequest & { headRefName: string };
+export type RepositoryPullRequestsResult = {
+  repository: string | null;
+  pullRequests: RepositoryPullRequest[];
+};
+
+export function isRepositoryPullRequest(value: unknown): value is RepositoryPullRequest {
+  if (!value || typeof value !== "object") return false;
+  const pr = value as RepositoryPullRequest;
+  return Number.isInteger(pr.number) && pr.number > 0 && typeof pr.url === "string" &&
+    isPullRequestUrl(pr.url) && typeof pr.title === "string" && typeof pr.isDraft === "boolean" &&
+    typeof pr.headRefName === "string" && pr.headRefName.length > 0;
+}
+
 export type PrBrowserBounds = { x: number; y: number; width: number; height: number };
 export type PrBrowserState = {
   sessionId: string;
