@@ -48,6 +48,12 @@ describe("repository PR lookup", () => {
     expect((await getRepositoryPullRequests("project")).pullRequests).toEqual([]);
   });
 
+  it("accepts canonical API URLs when the configured remote has different casing", async () => {
+    mocks.repo.mockReturnValue("https://github.com/Fixture/REPO");
+    mocks.spawn.mockResolvedValue({ code: 0, stdout: JSON.stringify([[row(211, "HOPS-3203", true)]]), stderr: "" });
+    expect((await getRepositoryPullRequests("project")).pullRequests).toMatchObject([{ number: 211 }]);
+  });
+
   it("skips GitHub for a non-GitHub origin", async () => {
     mocks.repo.mockReturnValue(null);
     expect(await getRepositoryPullRequests("project")).toEqual({ repository: null, pullRequests: [] });

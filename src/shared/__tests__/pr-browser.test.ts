@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { isBrowserNavigationUrl, isPullRequestUrl, validPrBrowserBounds } from "../pr-browser";
+import { isBrowserNavigationUrl, isPullRequestUrl, isRepositoryPullRequestUrl, validPrBrowserBounds } from "../pr-browser";
 
 describe("PR browser input boundaries", () => {
+  it("matches GitHub repository names without case sensitivity", () => {
+    expect(isRepositoryPullRequestUrl("https://github.com/owner/repo/pull/42", "https://github.com/Owner/REPO")).toBe(true);
+    expect(isRepositoryPullRequestUrl("https://github.com/owner/repo/pull/42", "https://github.com/owner/repo/")).toBe(true);
+  });
+  it.each(["https://github.com/other/repo", "https://github.com/owner/repo-extra", "https://github.com.evil.test/owner/repo", "invalid"])(
+    "rejects a PR from a different or invalid repository: %s", (repository) => {
+      expect(isRepositoryPullRequestUrl("https://github.com/owner/repo/pull/42", repository)).toBe(false);
+    },
+  );
   it("accepts GitHub PR pages and anchors", () => {
     expect(isPullRequestUrl("https://github.com/owner/repo/pull/42/files#diff-example")).toBe(true);
   });
