@@ -54,6 +54,10 @@ describe("session PR selection", () => {
     expect(resolvePrBrowserPullRequest({ repository: null, pullRequests: [] }, otherPr, "master")).toBeNull();
   });
 
+  it("retains a saved selection when only repository casing changes", () => {
+    expect(resolvePrBrowserPullRequest({ ...result, repository: "https://github.com/Fixture/REPO" }, otherPr, "feature")).toEqual(otherPr);
+  });
+
   it("isolates an explicit selection between sessions of the same repository", () => {
     const first = prBrowserSessionId({ id: "picker" }, "first");
     const second = prBrowserSessionId({ id: "picker" }, "second");

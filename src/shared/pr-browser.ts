@@ -49,6 +49,19 @@ export function isPullRequestUrl(raw: string): boolean {
   }
 }
 
+export function isRepositoryPullRequestUrl(raw: string, repository: string): boolean {
+  if (!isPullRequestUrl(raw)) return false;
+  try {
+    const pr = new URL(raw);
+    const repo = new URL(repository);
+    return pr.origin === repo.origin &&
+      pr.pathname.split("/").slice(1, 3).join("/").toLowerCase() ===
+      repo.pathname.replace(/^\//, "").replace(/\/$/, "").toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 export function isBrowserNavigationUrl(raw: string): boolean {
   try {
     const url = new URL(raw);

@@ -9,7 +9,7 @@ import {
 import { COMMIT_CLI_LABEL, type CommitCli } from "~/shared/commit-cli";
 import { DEFAULT_BRANCH } from "~/shared/domain";
 import { buildGithubCompareUrl } from "~/shared/github-pr";
-import { isPullRequestUrl, isRepositoryPullRequest, type BranchPullRequestResult,
+import { isPullRequestUrl, isRepositoryPullRequest, isRepositoryPullRequestUrl, type BranchPullRequestResult,
   type RepositoryPullRequestsResult } from "~/shared/pr-browser";
 import { detectGithubUrl } from "./projects";
 import { canonicalPath, gitWorktreeList, resolveProjectWorktreeCwd } from "./worktrees";
@@ -720,7 +720,7 @@ export async function getRepositoryPullRequests(
       number: row.number, url: row.html_url, title: row.title,
       isDraft: row.draft, headRefName: row.head?.ref,
     };
-    if (!isRepositoryPullRequest(pr) || !pr.url.startsWith(`${repository}/pull/`)) throw invalidResponse();
+    if (!isRepositoryPullRequest(pr) || !isRepositoryPullRequestUrl(pr.url, repository)) throw invalidResponse();
     return pr;
   });
   return { repository, pullRequests };
