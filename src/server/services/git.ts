@@ -719,6 +719,7 @@ export async function getRepositoryPullRequests(
     const pr = {
       number: row.number, url: row.html_url, title: row.title,
       isDraft: row.draft, headRefName: row.head?.ref,
+      headRepositoryUrl: row.head?.repo?.html_url ?? null,
     };
     if (!isRepositoryPullRequest(pr) || !isRepositoryPullRequestUrl(pr.url, repository)) throw invalidResponse();
     return pr;

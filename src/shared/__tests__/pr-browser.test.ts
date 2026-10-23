@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { isBrowserNavigationUrl, isPullRequestUrl, isRepositoryPullRequestUrl, validPrBrowserBounds } from "../pr-browser";
+import { isBrowserNavigationUrl, isCurrentBranchPullRequest, isPullRequestUrl, isRepositoryPullRequestUrl, validPrBrowserBounds } from "../pr-browser";
 
 describe("PR browser input boundaries", () => {
+  it("marks a PR as current only when its source repository and branch both match", () => {
+    const pr = { number: 42, url: "https://github.com/owner/repo/pull/42", title: "Change", isDraft: false,
+      headRefName: "feature", headRepositoryUrl: "https://github.com/Owner/REPO" };
+    expect(isCurrentBranchPullRequest(pr, "https://github.com/owner/repo", "feature")).toBe(true);
+    expect(isCurrentBranchPullRequest({ ...pr, headRepositoryUrl: "https://github.com/fork/repo" }, "https://github.com/owner/repo", "feature")).toBe(false);
+    expect(isCurrentBranchPullRequest(pr, "https://github.com/owner/repo", "Feature")).toBe(false);
+    expect(isCurrentBranchPullRequest(pr, null, "feature")).toBe(false);
+    expect(isCurrentBranchPullRequest(pr, "https://github.com/owner/repo", null)).toBe(false);
+  });
   it("matches GitHub repository names without case sensitivity", () => {
     expect(isRepositoryPullRequestUrl("https://github.com/owner/repo/pull/42", "https://github.com/Owner/REPO")).toBe(true);
     expect(isRepositoryPullRequestUrl("https://github.com/owner/repo/pull/42", "https://github.com/owner/repo/")).toBe(true);
