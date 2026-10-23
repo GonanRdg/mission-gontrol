@@ -10,7 +10,10 @@ export type BranchPullRequestResult = {
   pullRequest: BranchPullRequest | null;
 };
 
-export type RepositoryPullRequest = BranchPullRequest & { headRefName: string };
+export type RepositoryPullRequest = BranchPullRequest & {
+  headRefName: string;
+  headRepositoryUrl?: string | null;
+};
 export type RepositoryPullRequestsResult = {
   repository: string | null;
   pullRequests: RepositoryPullRequest[];
@@ -21,7 +24,8 @@ export function isRepositoryPullRequest(value: unknown): value is RepositoryPull
   const pr = value as RepositoryPullRequest;
   return Number.isInteger(pr.number) && pr.number > 0 && typeof pr.url === "string" &&
     isPullRequestUrl(pr.url) && typeof pr.title === "string" && typeof pr.isDraft === "boolean" &&
-    typeof pr.headRefName === "string" && pr.headRefName.length > 0;
+    typeof pr.headRefName === "string" && pr.headRefName.length > 0 &&
+    (pr.headRepositoryUrl == null || (typeof pr.headRepositoryUrl === "string" && githubRepositoryKey(pr.headRepositoryUrl) !== null));
 }
 
 export type PrBrowserBounds = { x: number; y: number; width: number; height: number };
@@ -51,15 +55,29 @@ export function isPullRequestUrl(raw: string): boolean {
 
 export function isRepositoryPullRequestUrl(raw: string, repository: string): boolean {
   if (!isPullRequestUrl(raw)) return false;
+  const pr = new URL(raw);
+  return isSameGithubRepository(`${pr.origin}/${pr.pathname.split("/").slice(1, 3).join("/")}`, repository);
+}
+
+function githubRepositoryKey(raw: string): string | null {
   try {
-    const pr = new URL(raw);
-    const repo = new URL(repository);
-    return pr.origin === repo.origin &&
-      pr.pathname.split("/").slice(1, 3).join("/").toLowerCase() ===
-      repo.pathname.replace(/^\//, "").replace(/\/$/, "").toLowerCase();
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || url.hostname !== "github.com" || url.port || url.username || url.password ||
+        !/^\/[^/]+\/[^/]+\/?$/.test(url.pathname)) return null;
+    return url.pathname.replace(/\/$/, "").toLowerCase();
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function isSameGithubRepository(first: string, second: string): boolean {
+  const key = githubRepositoryKey(first);
+  return key !== null && key === githubRepositoryKey(second);
+}
+
+export function isCurrentBranchPullRequest(pr: RepositoryPullRequest, repository: string | null | undefined, branch: string | null): boolean {
+  return branch !== null && pr.headRefName === branch && !!pr.headRepositoryUrl && !!repository &&
+    isSameGithubRepository(pr.headRepositoryUrl, repository);
 }
 
 export function isBrowserNavigationUrl(raw: string): boolean {

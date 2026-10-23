@@ -16,7 +16,7 @@ import { getRepositoryPullRequests } from "../git";
 
 const row = (number: number, branch: string, draft = false) => ({
   number, html_url: `https://github.com/fixture/repo/pull/${number}`, title: `Change ${number}`,
-  draft, head: { ref: branch },
+  draft, head: { ref: branch, repo: { html_url: "https://github.com/fixture/repo" } },
 });
 
 beforeEach(() => {
@@ -33,8 +33,8 @@ describe("repository PR lookup", () => {
     expect(await getRepositoryPullRequests("project", "worktree")).toEqual({
       repository: "https://github.com/fixture/repo",
       pullRequests: [
-        { number: 211, url: "https://github.com/fixture/repo/pull/211", title: "Change 211", isDraft: true, headRefName: "HOPS-3203" },
-        { number: 212, url: "https://github.com/fixture/repo/pull/212", title: "Change 212", isDraft: false, headRefName: "other-worktree" },
+        { number: 211, url: "https://github.com/fixture/repo/pull/211", title: "Change 211", isDraft: true, headRefName: "HOPS-3203", headRepositoryUrl: "https://github.com/fixture/repo" },
+        { number: 212, url: "https://github.com/fixture/repo/pull/212", title: "Change 212", isDraft: false, headRefName: "other-worktree", headRepositoryUrl: "https://github.com/fixture/repo" },
       ],
     });
     expect(mocks.cwd).toHaveBeenCalledWith("project", "worktree");
@@ -52,6 +52,17 @@ describe("repository PR lookup", () => {
     mocks.repo.mockReturnValue("https://github.com/Fixture/REPO");
     mocks.spawn.mockResolvedValue({ code: 0, stdout: JSON.stringify([[row(211, "HOPS-3203", true)]]), stderr: "" });
     expect((await getRepositoryPullRequests("project")).pullRequests).toMatchObject([{ number: 211 }]);
+  });
+
+  it("retains fork PRs and PRs whose source repository is deleted", async () => {
+    mocks.spawn.mockResolvedValue({ code: 0, stdout: JSON.stringify([[
+      { ...row(211, "master"), head: { ref: "master", repo: { html_url: "https://github.com/contributor/repo" } } },
+      { ...row(212, "master"), head: { ref: "master", repo: null } },
+    ]]), stderr: "" });
+    expect((await getRepositoryPullRequests("project")).pullRequests).toMatchObject([
+      { number: 211, headRefName: "master", headRepositoryUrl: "https://github.com/contributor/repo" },
+      { number: 212, headRefName: "master", headRepositoryUrl: null },
+    ]);
   });
 
   it("skips GitHub for a non-GitHub origin", async () => {

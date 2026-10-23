@@ -1,7 +1,7 @@
 import { getElectron } from "./electron";
 import { LOCAL_SCOPE_ID } from "~/shared/sandbox";
 import { MAIN_WORKTREE_ID } from "~/shared/worktrees";
-import { isRepositoryPullRequest, isRepositoryPullRequestUrl, type RepositoryPullRequest, type RepositoryPullRequestsResult } from "~/shared/pr-browser";
+import { isCurrentBranchPullRequest, isRepositoryPullRequest, isRepositoryPullRequestUrl, type RepositoryPullRequest, type RepositoryPullRequestsResult } from "~/shared/pr-browser";
 
 export type PrBrowserLayout = {
   open: boolean;
@@ -61,7 +61,7 @@ export function resolvePrBrowserPullRequest(
   if (selected && (!result || (result.repository && isRepositoryPullRequestUrl(selected.url, result.repository)))) {
     return result?.pullRequests.find((pr) => pr.url === selected.url) ?? selected;
   }
-  return result?.pullRequests.find((pr) => pr.headRefName === branch) ?? null;
+  return result?.pullRequests.find((pr) => isCurrentBranchPullRequest(pr, result.repository, branch)) ?? null;
 }
 
 export function subscribePrBrowserLayout(listener: () => void) {

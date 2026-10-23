@@ -14,6 +14,7 @@ import {
 import { useRepositoryPullRequests, useGitStatus } from "~/queries/git";
 import { LOCAL_SCOPE_ID } from "~/shared/sandbox";
 import type { PrBrowserBounds, PrBrowserCommand, PrBrowserState, RepositoryPullRequest } from "~/shared/pr-browser";
+import { isCurrentBranchPullRequest } from "~/shared/pr-browser";
 import "./session-pr-browser.css";
 
 export function useSessionPrBrowser({ project, taskId, paneRef, expanded, onToggleExpanded, focusTerminal, enabled }: {
@@ -147,7 +148,8 @@ function PrPickerMenu({ browser, anchor, onClose, onEscape }: {
   const needle = query.trim().toLowerCase().replace(/^#/, "");
   const items = browser.pullRequests.filter((pr) =>
     `${pr.number} ${pr.title} ${pr.headRefName}`.toLowerCase().includes(needle))
-    .sort((a, b) => Number(b.headRefName === browser.branch) - Number(a.headRefName === browser.branch));
+    .sort((a, b) => Number(isCurrentBranchPullRequest(b, browser.repository, browser.branch)) -
+      Number(isCurrentBranchPullRequest(a, browser.repository, browser.branch)));
   const select = (pr: RepositoryPullRequest) => { onClose(); browser.show(pr); };
   const missingSelection = browser.pr && !browser.pullRequests.some((pr) => pr.url === browser.pr?.url);
   return (
@@ -185,7 +187,7 @@ function PrPickerMenu({ browser, anchor, onClose, onEscape }: {
             className="mc-pr-picker-item" onClick={() => select(pr)}>
             <span className="mc-pr-picker-title"><strong>#{pr.number}</strong> {pr.title}</span>
             <span className="mc-pr-picker-meta"><span>{pr.headRefName}</span>
-              {pr.headRefName === browser.branch && <span>Current branch</span>}{pr.isDraft && <span>Draft</span>}
+              {isCurrentBranchPullRequest(pr, browser.repository, browser.branch) && <span>Current branch</span>}{pr.isDraft && <span>Draft</span>}
             </span>
           </DropdownMenuItem>)}
         </div>

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { clampPrBrowserRatio, getPrBrowserLayout, prBrowserSessionId,
   resolvePrBrowserPullRequest, setPrBrowserLayout } from "../pr-browser-store";
 
-const currentPr = { number: 212, url: "https://github.com/fixture/repo/pull/212", title: "Current branch", headRefName: "feature", isDraft: false };
+const currentPr = { number: 212, url: "https://github.com/fixture/repo/pull/212", title: "Current branch", headRefName: "feature", headRepositoryUrl: "https://github.com/fixture/repo", isDraft: false };
 const otherPr = { number: 211, url: "https://github.com/fixture/repo/pull/211", title: "Other worktree", headRefName: "HOPS-3203", isDraft: true };
 const result = { repository: "https://github.com/fixture/repo", pullRequests: [otherPr, currentPr] };
 
@@ -47,6 +47,19 @@ describe("session PR selection", () => {
     expect(resolvePrBrowserPullRequest({ ...result, pullRequests: [] }, otherPr, "feature")).toEqual(otherPr);
     const refreshed = { ...otherPr, title: "Updated title" };
     expect(resolvePrBrowserPullRequest({ ...result, pullRequests: [refreshed] }, otherPr, "master")).toEqual(refreshed);
+  });
+
+  it("does not suggest a fork PR whose head name matches the local branch", () => {
+    const forkPr = { ...currentPr, headRepositoryUrl: "https://github.com/contributor/repo" };
+    expect(resolvePrBrowserPullRequest({ ...result, pullRequests: [forkPr] }, null, "feature")).toBeNull();
+    expect(resolvePrBrowserPullRequest({ ...result, pullRequests: [forkPr, currentPr] }, null, "feature")).toEqual(currentPr);
+    expect(resolvePrBrowserPullRequest({ ...result, pullRequests: [forkPr] }, forkPr, "feature")).toEqual(forkPr);
+  });
+
+  it("does not suggest a PR with unknown source repository", () => {
+    for (const headRepositoryUrl of [null, undefined]) {
+      expect(resolvePrBrowserPullRequest({ ...result, pullRequests: [{ ...currentPr, headRepositoryUrl }] }, null, "feature")).toBeNull();
+    }
   });
 
   it("ignores a saved selection when the repository origin changes", () => {
