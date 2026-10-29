@@ -139,6 +139,7 @@ const AGENT_ARG_RULES: Readonly<Record<TaskAgentSpawn, Readonly<Record<string, A
     },
   },
   codex: {
+    "--no-alt-screen": { value: false },
     "--model": { value: {} },
     "--enable": { value: { allowed: ["hooks"] } },
     "--yolo": { value: false, requiresDangerouslySkipPermissions: true },

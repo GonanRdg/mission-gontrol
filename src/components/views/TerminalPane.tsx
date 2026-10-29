@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { attachTerminalScrollbar } from "~/lib/terminal-scrollbar";
 import type { FitAddon as XFitAddon } from "@xterm/addon-fit";
 import { useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -434,6 +435,7 @@ export function TerminalPane({
   onHeaderPointerDown,
   headerGrabbing = false,
   hideHeader = false,
+  headerActionsTarget,
   onTogglePin,
   pinBusy = false,
 }: {
@@ -450,6 +452,7 @@ export function TerminalPane({
   headerGrabbing?: boolean;
   /** Focused Session Mode renders its own window chrome instead. */
   hideHeader?: boolean;
+  headerActionsTarget?: HTMLElement | null;
   /** Pin/unpin this session (session grid only). Pinned state is read live from
    *  the task, so no separate flag is needed. Omit to hide the control. */
   onTogglePin?: () => void;
@@ -857,6 +860,7 @@ export function TerminalPane({
 
       const host = el;
       const subscriptions: Array<() => void> = [];
+      subscriptions.push(attachTerminalScrollbar(term));
       let rafHandle = 0;
       let activePtyId: string | null = null;
       // One shared listener per transport, routed by ptyId (see
@@ -1561,6 +1565,10 @@ export function TerminalPane({
           onConfirm={() => void confirmClone()}
         />
       )}
+      {hideHeader && headerActionsTarget && createPortal(
+        <PrBrowserButton browser={prBrowser} compact />,
+        headerActionsTarget,
+      )}
       {!hideHeader && (
       <div
         ref={headerRef}
@@ -1746,7 +1754,7 @@ export function TerminalPane({
           {/* Portals to document.body; kept outside the compact-header ternary
               so collapsing the pane mid-open can't strand the menu's state. */}
           {hideableMenu}
-          {!microHeader && <PrBrowserButton browser={prBrowser} compact={compactHeader} />}
+          <PrBrowserButton browser={prBrowser} compact={compactHeader} />
           {onTogglePin && !microHeader && (
             <Tooltip content={liveTask.pinned ? "Unpin session" : "Pin session"}>
               <Btn

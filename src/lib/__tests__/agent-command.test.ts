@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Task } from "~/db/schema";
+import { resolveSpawnPlan, type SpawnPolicyDeps } from "~/shared/pty-spawn-policy";
 import {
   agentLaunchMode,
   buildAgentLaunchCommand,
@@ -120,13 +121,38 @@ describe("buildOpencodeCommand", () => {
 });
 
 describe("buildCodexCommand", () => {
+  it.each([
+    { mode: "new" as const, skipPermissions: false },
+    { mode: "new" as const, skipPermissions: true },
+    { mode: "resume" as const, skipPermissions: false },
+    { mode: "resume" as const, skipPermissions: true },
+  ])("passes PTY validation for $mode with skipPermissions=$skipPermissions", (opts) => {
+    const cwd = "/workspace/project";
+    const command = buildCodexCommand({
+      ...opts, sessionId: "019d7a0f-432a-7fa1-a821-b7841f983967", model: "gpt-5.3-codex",
+    });
+    const deps: SpawnPolicyDeps = {
+      cwdExists: () => true,
+      realpath: (value) => value,
+      projectRoots: () => [cwd],
+      resolveCommand: () => "/usr/local/bin/codex",
+      resolveShell: () => ({ shell: "/bin/zsh", shellArgs: () => ["-l"] }),
+    };
+    const plan = resolveSpawnPlan({
+      taskId: "task-1", cwd, agent: "codex", command, dangerouslySkipPermissions: opts.skipPermissions,
+    }, deps);
+    if (plan.mode !== "agent") throw new Error("wrong mode");
+    expect(plan.argv).toContain("--no-alt-screen");
+    expect(plan.spawnArgs).toEqual(command.split(" ").slice(1));
+  });
+
   it("starts a new Codex session with hooks enabled", () => {
     expect(
       buildCodexCommand({
         mode: "new",
         skipPermissions: false,
       }),
-    ).toBe("codex --enable hooks");
+    ).toBe("codex --no-alt-screen --enable hooks");
   });
 
   it("passes a configured model before hook flags", () => {
@@ -136,7 +162,7 @@ describe("buildCodexCommand", () => {
         skipPermissions: false,
         model: "gpt-5.3-codex",
       }),
-    ).toBe("codex --model gpt-5.3-codex --enable hooks");
+    ).toBe("codex --no-alt-screen --model gpt-5.3-codex --enable hooks");
   });
 
   it("resumes a persisted Codex session with hooks enabled", () => {
@@ -146,7 +172,7 @@ describe("buildCodexCommand", () => {
         sessionId: "019d7a0f-432a-7fa1-a821-b7841f983967",
         skipPermissions: true,
       }),
-    ).toBe("codex resume 019d7a0f-432a-7fa1-a821-b7841f983967 --enable hooks --yolo");
+    ).toBe("codex resume 019d7a0f-432a-7fa1-a821-b7841f983967 --no-alt-screen --enable hooks --yolo");
   });
 });
 
@@ -292,7 +318,7 @@ describe("buildFreshAgentLaunchCommand", () => {
       agent: "codex",
       status: "running",
     } satisfies Task;
-    expect(buildFreshAgentLaunchCommand(task, "fresh-id")).toBe("codex --enable hooks");
+    expect(buildFreshAgentLaunchCommand(task, "fresh-id")).toBe("codex --no-alt-screen --enable hooks");
   });
 
   it("falls back to a fresh OpenCode session without session flags", () => {
