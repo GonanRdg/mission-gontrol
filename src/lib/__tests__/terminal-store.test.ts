@@ -116,7 +116,7 @@ describe("commandForTask", () => {
       status: "ready",
     } satisfies Task;
 
-    expect(commandForTask(task)).toBe("codex --enable hooks");
+    expect(commandForTask(task)).toBe("codex --no-alt-screen --enable hooks");
   });
 
   it("resumes Codex after the first prompt captured a session id", () => {
@@ -128,7 +128,7 @@ describe("commandForTask", () => {
     } satisfies Task;
 
     expect(commandForTask(task)).toBe(
-      "codex resume 019d7a0f-432a-7fa1-a821-b7841f983967 --enable hooks",
+      "codex resume 019d7a0f-432a-7fa1-a821-b7841f983967 --no-alt-screen --enable hooks",
     );
   });
 });
