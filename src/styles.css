@@ -3765,6 +3765,28 @@ body[data-card-glow] .cursor-glow {
   background-color: var(--terminal-bg);
 }
 
+/* Keep the terminal's scrollbar visible only while its buffer has history. */
+.xterm[data-terminal-scrollback] .xterm-scrollable-element > .scrollbar.vertical {
+  visibility: inherit;
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 11;
+  transition: none;
+}
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
+  background: var(--text-faint);
+  border: 3px solid transparent;
+  border-radius: 7px;
+  background-clip: padding-box;
+  box-sizing: border-box;
+}
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider:hover {
+  background-color: var(--text-dim);
+}
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider.active {
+  background-color: var(--accent);
+}
+
 /* =====================================================================
    FLAT theme – warm sepia near-black, flush + square, bundled mono.
    The app's one clean-chrome theme (the former minimal / noir / ember styles

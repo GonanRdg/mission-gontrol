@@ -95,6 +95,13 @@ describe("resolveSpawnPlan — agent allow-list", () => {
     expect(plan.spawnArgs).toEqual(["--enable", "hooks"]);
   });
 
+  it("keeps permission bypass gated when Codex inline mode is requested", () => {
+    expectRejected(
+      spawnReq({ agent: "codex", command: "codex --no-alt-screen --yolo" }),
+      depsFor(), "agent-arg-not-allowed",
+    );
+  });
+
   it("wraps Windows command shims through cmd.exe after argv validation", () => {
     const plan = resolveSpawnPlan(
       spawnReq({ agent: "codex", command: "codex --enable hooks" }),

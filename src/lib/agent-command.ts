@@ -99,6 +99,7 @@ export function buildCodexCommand(opts: {
   if (opts.mode === "resume" && opts.sessionId) {
     parts.push("resume", opts.sessionId);
   }
+  parts.push("--no-alt-screen");
   if (opts.model) parts.push("--model", opts.model);
   parts.push("--enable", "hooks");
   if (opts.skipPermissions) parts.push("--yolo");

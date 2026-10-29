@@ -75,6 +75,7 @@ function FocusSessionPage() {
   const terminals = useTerminals();
   const queryClient = useQueryClient();
   const syncTask = terminals.syncTask;
+  const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLDivElement | null>(null);
 
   const session = terminals.sessions.find((s) => s.taskId === taskId) ?? null;
   const hasSession = !!session;
@@ -353,6 +354,7 @@ function FocusSessionPage() {
         onToggleBar={toggleBar}
         showScreenshot={screenshotSupported}
         onCaptureScreenshot={() => void captureScreenshot()}
+        actionsRef={setHeaderActionsTarget}
       />
       {showBar && (
         <FocusSessionBar
@@ -388,6 +390,7 @@ function FocusSessionPage() {
           descriptor={session}
           isLast
           hideHeader
+          headerActionsTarget={headerActionsTarget}
           onPtyReady={(ptyId) => terminals.setPtyId(session.taskId, ptyId, scopeKey)}
         />
         {/* Compact capture stack pinned top-right, over old scrollback rather
@@ -477,6 +480,7 @@ function FocusSessionHeader({
   onToggleBar,
   showScreenshot,
   onCaptureScreenshot,
+  actionsRef,
 }: {
   session: OpenTerminal;
   alwaysOnTop: boolean;
@@ -487,6 +491,7 @@ function FocusSessionHeader({
   onToggleBar: () => void;
   showScreenshot: boolean;
   onCaptureScreenshot: () => void;
+  actionsRef: (element: HTMLDivElement | null) => void;
 }) {
   // session.task is kept live by the ScopeTaskSync subscriptions above.
   const task = session.task;
@@ -552,6 +557,7 @@ function FocusSessionHeader({
       >
         {statusMeta.label}
       </span>
+      <div ref={actionsRef} style={{ display: "contents" }} />
       {showScreenshot && (
         <HotkeyTooltip action="screenshot.capture" label="Screenshot">
           <Btn
