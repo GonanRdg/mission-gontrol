@@ -2,6 +2,7 @@ import type { Group, Project, Task, UserTerminal } from "~/db/schema";
 import type { TaskAgent, TaskStatus } from "~/shared/domain";
 import type { ActiveSessions } from "~/shared/active-sessions";
 import type { BranchPullRequestResult, RepositoryPullRequestsResult } from "~/shared/pr-browser";
+import type { TicketConnection, TicketDetail, TicketFilters, TicketOption, TicketPage, TicketPatch, TicketProvider } from "~/shared/tickets";
 import type { ProjectPathStatus, ProjectWithCounts } from "~/shared/projects";
 import { DEV_SERVER_ORIGIN } from "~/shared/dev-server";
 import type {
@@ -388,6 +389,19 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  ticketConnection: () => req<TicketConnection>("/api/tickets/connection"),
+  saveTicketConnection: (body: { provider: TicketProvider; workspaceUrl: string }) => req<TicketConnection>("/api/tickets/connection", { method: "PUT", body: JSON.stringify(body) }),
+  connectTickets: () => req<{ url: string; code?: string }>("/api/tickets/connect", { method: "POST" }),
+  disconnectTickets: () => req<void>("/api/tickets/disconnect", { method: "POST" }),
+  ticketProjects: (query = "") => req<TicketOption[]>(`/api/tickets/projects?q=${encodeURIComponent(query)}`),
+  ticketFields: (projectId: string, project = "") => req<TicketOption[]>(`/api/projects/${encodeURIComponent(projectId)}/tickets/fields?project=${encodeURIComponent(project)}`),
+  ticketFilters: (projectId: string) => req<TicketFilters>(`/api/projects/${encodeURIComponent(projectId)}/tickets/filters`),
+  saveTicketFilters: (projectId: string, body: TicketFilters) => req<TicketFilters>(`/api/projects/${encodeURIComponent(projectId)}/tickets/filters`, { method: "PUT", body: JSON.stringify(body) }),
+  tickets: (projectId: string, cursor?: string) => req<TicketPage>(`/api/projects/${encodeURIComponent(projectId)}/tickets${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
+  previewTickets: (projectId: string, filters: TicketFilters) => req<TicketPage>(`/api/projects/${encodeURIComponent(projectId)}/tickets/preview`, { method: "POST", body: JSON.stringify(filters) }),
+  ticket: (projectId: string, id: string, context: string) => req<TicketDetail>(`/api/projects/${encodeURIComponent(projectId)}/tickets/${encodeURIComponent(id)}?context=${encodeURIComponent(context)}`),
+  updateTicket: (projectId: string, id: string, patch: TicketPatch, context: string) => req<void>(`/api/projects/${encodeURIComponent(projectId)}/tickets/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ ...patch, context }) }),
+  saveTicketComment: (projectId: string, id: string, body: string, context: string, commentId?: string) => req<void>(`/api/projects/${encodeURIComponent(projectId)}/tickets/${encodeURIComponent(id)}/comments`, { method: "POST", body: JSON.stringify({ body, commentId, context }) }),
   listProjects: () => req<{ projects: ProjectWithCounts[] }>("/api/projects"),
   getProject: (id: string) => req<{ project: ProjectWithCounts }>(`/api/projects/${id}`),
   getProjectPathStatus: (id: string, worktreeId?: string | null) =>

@@ -43,6 +43,7 @@ export interface TerminalSurface {
 /** Imperative handle a pane keeps on its surface's `Terminal` (focus, font, clear). */
 export interface CachedTerminalControls {
   focus(): void;
+  pasteText?(text: string): boolean;
   setFontSize(fontSize: number): void;
   clear(): void;
   /** Write raw bytes to the surface's live PTY (tracks respawns). */

@@ -17,6 +17,7 @@ import { ThemeSettingsPage } from "./ThemeSettingsPage";
 import { TermsSettingsPage } from "./TermsSettingsPage";
 import { UsageSettingsPage } from "./UsageSettingsPage";
 import { VoiceCommandsPage } from "./VoiceCommandsPage";
+import { TicketSettingsPage } from "./TicketSettingsPage";
 
 // Single source of truth for settings panel ids lives in ./settings-panel-ids
 // (a dependency-free module) so eager importers don't pin this whole panel into
@@ -87,6 +88,7 @@ export function SettingsPanel({
     { id: "general", label: "General", icon: "settings" },
     { id: "defaults", label: "Defaults", icon: "terminal" },
     { id: "providers", label: "Providers", icon: "grid" },
+    { id: "tickets", label: "Tickets", icon: "list" },
     { id: "usage", label: "Usage", icon: "chart" },
     { id: "terminal", label: "Terminal", icon: "terminal" },
     { id: "interface", label: "Interface", icon: "eye" },
@@ -290,6 +292,8 @@ export function SettingsPanel({
             <DefaultsSettingsPage />
           ) : activePanel === "providers" ? (
             <ProvidersSettingsPage />
+          ) : activePanel === "tickets" ? (
+            <TicketSettingsPage />
           ) : activePanel === "usage" ? (
             <UsageSettingsPage />
           ) : activePanel === "terminal" ? (

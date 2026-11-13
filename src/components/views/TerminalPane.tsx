@@ -62,6 +62,7 @@ import { useHotkey } from "~/lib/use-hotkey";
 import { SandboxCloneOfferBanner } from "~/components/views/SandboxCloneOfferBanner";
 import { TerminalZoomControls } from "~/components/views/TerminalZoomControls";
 import { PrBrowserButton, SessionPrBrowser, useSessionPrBrowser } from "./SessionPrBrowser";
+import { SessionTickets, TicketPaneButton, useSessionTickets } from "./SessionTickets";
 import { api, resolveApiToken } from "~/lib/api";
 import { remoteStartErrorMessage } from "~/lib/remote-runtime-errors";
 import { useSandboxCloneConfirm } from "~/lib/use-sandbox-clone-confirm";
@@ -469,6 +470,12 @@ export function TerminalPane({
     focusTerminal: () => termSurfaceRef.current?.focus(),
     enabled: !descriptor.awaitingCreate && !descriptor.pendingValidation,
   });
+  const ticketPane = useSessionTickets(prBrowser.sessionId);
+  useEffect(() => { if (prBrowser.open) ticketPane.update({ open: false }); }, [prBrowser.open]);
+  const toggleTickets = () => {
+    if (!ticketPane.open) prBrowser.hide();
+    ticketPane.update({ open: !ticketPane.open });
+  };
   const renameFormId = useId();
   const queryClient = useQueryClient();
   const terminals = useTerminalActions();
@@ -846,6 +853,7 @@ export function TerminalPane({
         gpu,
         controls: {
           focus: () => term.focus(),
+          pasteText: (text) => { if (!surface.ptyId) return false; term.paste(text); term.focus(); return true; },
           clear: () => term.clear(),
           setFontSize: () => undefined,
           writeToPty: (data) => {
@@ -1173,6 +1181,7 @@ export function TerminalPane({
 
       surface.controls = {
         focus: () => term.focus(),
+        pasteText: (text) => { if (!surface.ptyId) return false; term.paste(text); term.focus(); return true; },
         clear: () => term.clear(),
         setFontSize: (nextFontSize) => {
           // Wheel-zoom fires this per tick; the refit's onResize event lands in
@@ -1566,7 +1575,7 @@ export function TerminalPane({
         />
       )}
       {hideHeader && headerActionsTarget && createPortal(
-        <PrBrowserButton browser={prBrowser} compact />,
+        <><PrBrowserButton browser={prBrowser} compact /><TicketPaneButton open={ticketPane.open} onToggle={toggleTickets} /></>,
         headerActionsTarget,
       )}
       {!hideHeader && (
@@ -1755,6 +1764,7 @@ export function TerminalPane({
               so collapsing the pane mid-open can't strand the menu's state. */}
           {hideableMenu}
           <PrBrowserButton browser={prBrowser} compact={compactHeader} />
+          <TicketPaneButton open={ticketPane.open} onToggle={toggleTickets} />
           {onTogglePin && !microHeader && (
             <Tooltip content={liveTask.pinned ? "Unpin session" : "Pin session"}>
               <Btn
@@ -1806,7 +1816,7 @@ export function TerminalPane({
         </div>
       </div>
       )}
-      <div className="mc-session-content" data-pr-open={prBrowser.open || undefined}>
+      <div className="mc-session-content" data-pr-open={prBrowser.open || undefined} data-tickets-open={ticketPane.open || undefined}>
       <div
         data-terminal-body
         style={{
@@ -1838,6 +1848,8 @@ export function TerminalPane({
         )}
       </div>
       {prBrowser.open && <SessionPrBrowser browser={prBrowser} />}
+      {ticketPane.open && <SessionTickets projectId={project.id} repoName={project.name} state={ticketPane} onClose={() => ticketPane.update({ open: false })}
+        onPaste={text => { if (!termSurfaceRef.current?.pasteText?.(text)) throw new Error("The terminal is not ready for input."); }} />}
       </div>
       </div>
       <Modal

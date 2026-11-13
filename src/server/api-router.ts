@@ -36,6 +36,7 @@ import * as healthController from "./controllers/health.controller";
 import * as diagramsController from "./controllers/diagrams.controller";
 import * as markdownController from "./controllers/markdown.controller";
 import * as aiRuntimeModelsController from "./controllers/ai-runtime-models.controller";
+import * as ticketsController from "./controllers/tickets.controller";
 
 const AGENT_HOOK_PATH = /^\/api\/hooks\/([a-z0-9-]+)$/;
 const PROJECT_PATH = /^\/api\/projects\/([^/]+)$/;
@@ -217,6 +218,20 @@ async function dispatch(
   method: string,
   pathname: string,
 ): Promise<Response> {
+  if (pathname === "/api/tickets/connection" && ["GET", "PUT"].includes(method)) return ticketsController.connection(request);
+  if (pathname === "/api/tickets/connect" && method === "POST") return ticketsController.connect();
+  if (pathname === "/api/tickets/disconnect" && method === "POST") return ticketsController.disconnect();
+  if (pathname === "/api/tickets/projects" && method === "GET") return ticketsController.projects(request);
+  const ticketRoute = pathname.match(/^\/api\/projects\/([^/]+)\/tickets(?:\/(filters|fields|preview|([^/]+)(\/comments)?))?$/);
+  if (ticketRoute) {
+    const projectId = decode(ticketRoute[1]);
+    if (ticketRoute[2] === "filters" && ["GET", "PUT"].includes(method)) return ticketsController.filters(projectId, request);
+    if (ticketRoute[2] === "fields" && method === "GET") return ticketsController.fields(projectId, request);
+    if (ticketRoute[2] === "preview" && method === "POST") return ticketsController.preview(projectId, request);
+    if (!ticketRoute[2] && method === "GET") return ticketsController.list(projectId, request);
+    if (ticketRoute[3] && ticketRoute[4] && method === "POST") return ticketsController.comments(projectId, decode(ticketRoute[3]), request);
+    if (ticketRoute[3] && !ticketRoute[4] && ["GET", "PATCH"].includes(method)) return ticketsController.detail(projectId, decode(ticketRoute[3]), request);
+  }
   // Projects
   if (pathname === "/api/projects") {
     if (method === "GET") return projectsController.list(request);

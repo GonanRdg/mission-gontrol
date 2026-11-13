@@ -7,6 +7,7 @@ export const SETTINGS_PANEL_IDS = [
   "general",
   "defaults",
   "providers",
+  "tickets",
   "usage",
   "terminal",
   "interface",
