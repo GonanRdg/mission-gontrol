@@ -1,4 +1,5 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { resolveUserDataDir } from "~/db/client";
@@ -11,13 +12,34 @@ function paths() {
   return { key: join(root, "key"), token: join(root, "jira.enc") };
 }
 function key(): Buffer {
-  const path = paths().key;
-  if (!existsSync(path)) {
-    try { writeFileSync(path, randomBytes(32), { flag: "wx", mode: 0o600 }); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+  if (process.platform !== "darwin") throw new Error("Jira credential storage requires macOS Keychain.");
+  const service = "com.missiongontrol.ticket-encryption";
+  const account = createHash("sha256").update(resolveUserDataDir()).digest("hex");
+  const read = () => {
+    try {
+      const value = execFileSync("/usr/bin/security", ["find-generic-password", "-s", service, "-a", account, "-w"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+      if (!/^[a-f0-9]{64}$/.test(value)) throw new Error("invalid key");
+      return Buffer.from(value, "hex");
+    } catch (error) {
+      if ((error as { status?: number }).status === 44) return null;
+      throw new Error("Cannot access Jira credentials in macOS Keychain. Unlock Keychain and retry.");
+    }
+  };
+  const stored = read();
+  if (stored) return stored;
+  const legacyPath = paths().key;
+  const value = existsSync(legacyPath) ? readFileSync(legacyPath) : randomBytes(32);
+  if (value.length !== 32) throw new Error("Invalid legacy Jira encryption key.");
+  try {
+    // Interactive input keeps the key out of process arguments and error messages.
+    execFileSync("/usr/bin/security", ["-i"], { input: `add-generic-password -s ${service} -a ${account} -w ${value.toString("hex")}\n`, stdio: ["pipe", "pipe", "pipe"] });
+  } catch {
+    throw new Error("Cannot save Jira credentials in macOS Keychain. Unlock Keychain and retry.");
   }
-  chmodSync(path, 0o600);
-  return readFileSync(path);
+  const saved = read();
+  if (!saved?.equals(value)) throw new Error("Could not verify Jira encryption key in macOS Keychain.");
+  if (existsSync(legacyPath)) unlinkSync(legacyPath);
+  return saved;
 }
 export function readTicketCredentials(): Credentials | null {
   const path = paths().token;

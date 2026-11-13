@@ -32,7 +32,7 @@ http://127.0.0.1:53683/callback
 
 The integration requests `read:jira-work`, `read:jira-user`, `write:jira-work`, and `offline_access`. It selects the authorized site whose root matches Workspace URL. The loopback listener binds only to `127.0.0.1`, expires after ten minutes, and consumes a random one-use state before exchanging the authorization code.
 
-Tokens remain server-side, encrypted with AES-GCM in the user-data directory. The key and encrypted token files have owner-only permissions on POSIX systems. Refresh-token rotation is serialized. Disconnecting cancels an outstanding authorization and clears the local tokens. Tokens and client secrets are never returned by the settings API.
+Tokens remain server-side, encrypted with AES-GCM in an owner-only file in the user-data directory. The encryption key lives in macOS Keychain, scoped to the application data directory; there is no file-key fallback when Keychain is unavailable. Existing file keys migrate into Keychain before removal. Jira credential persistence currently requires macOS. Refresh-token rotation is serialized. Disconnecting cancels an outstanding authorization and clears the local tokens. Tokens and client secrets are never returned by the settings API.
 
 A build without the OAuth app configuration presents the integration as unavailable for sign-in. The client secret is a maintainer-provisioned server credential; it does not belong in repository files, renderer bundles, or published desktop JavaScript. A broadly distributed deployment needs secure credential provisioning or a server-mediated token exchange. End users should not be instructed to create individual 3LO applications.
 
