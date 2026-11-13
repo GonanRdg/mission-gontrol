@@ -13,17 +13,17 @@ const message = (error: unknown) => error instanceof Error ? error.message : "Ti
 function Field({ label, hint, children, id }: { label: string; hint: string; children: ReactNode; id: string }) {
   return <div className="mc-ticket-setting-field"><label htmlFor={id}>{label}</label>{children}<p className="mc-ticket-hint" id={`${id}-hint`}>{hint}</p></div>;
 }
-export function TicketSettingsPage() {
+export function TicketSettingsPage({ activeProjectId }: { activeProjectId?: string | null }) {
   const connection = useTicketConnection();
   const { data: projects = [] } = useScopedProjects();
-  const [projectId, setProjectId] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem("mc-ticket-settings-project") ?? "");
+  const [projectId, setProjectId] = useState(() => activeProjectId ?? (typeof window === "undefined" ? "" : window.localStorage.getItem("mc-ticket-settings-project") ?? ""));
   const selectedProject = projects.find(project => project.id === projectId) ?? projects[0];
   useEffect(() => { if (selectedProject) window.localStorage.setItem("mc-ticket-settings-project", selectedProject.id); }, [selectedProject?.id]);
-  return <section className="mc-ticket-settings"><h2>Tickets</h2><p>Connect your ticket app once. Choose the project and keyword filters separately for each repo.</p>
+  return <section className="mc-ticket-settings"><h2>Tickets</h2><p>Share an account connection. Each Mission Gontrol project keeps its own ticket source and filters.</p>
     {connection.isPending ? <p role="status">Loading ticket settings…</p> : connection.error ? <p role="alert">{message(connection.error)} <Btn variant="ghost" size="sm" onClick={() => void connection.refetch()}>Retry</Btn></p> : connection.data && <>
       <TicketAccount connection={connection.data} />
-      <fieldset><legend>Repo filters <small>Only the selected repo</small></legend>
-        <Field id="ticket-local-project" label="Local repo" hint="These filters belong to this local repo. Switching repos keeps their filters separate."><select id="ticket-local-project" aria-describedby="ticket-local-project-hint" value={selectedProject?.id ?? ""} onChange={event => setProjectId(event.target.value)}>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></Field>
+      <fieldset><legend>Project filters <small>{selectedProject?.name ?? "Choose a project"}</small></legend>
+        <Field id="ticket-local-project" label="Mission Gontrol project" hint="Starts with your open project. The Jira project or GitHub repository, keywords, and matching rules below are saved only for this selection. Switching projects in the app loads that project’s filters."><select id="ticket-local-project" name="localProject" aria-describedby="ticket-local-project-hint" value={selectedProject?.id ?? ""} onChange={event => setProjectId(event.target.value)}>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></Field>
         {selectedProject ? <TicketRepoSettings key={`${selectedProject.id}:${connection.data.provider}`} projectId={selectedProject.id} connection={connection.data} /> : <p className="mc-ticket-hint">Add a repository to configure ticket filters.</p>}
       </fieldset>
     </>}

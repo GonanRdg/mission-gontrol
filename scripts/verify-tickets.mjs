@@ -27,6 +27,7 @@ function Harness(){
   const state=useSessionTickets('ticket-ui-fixture');
   const host=useRef(null), terminal=useRef(null);
   const [settings,setSettings]=useState(false);
+  const [activeProject,setActiveProject]=useState('fixture');
   useEffect(()=>{const fn=()=>setSettings(true);window.addEventListener('mc:open-settings',fn);return()=>window.removeEventListener('mc:open-settings',fn)},[]);
   useEffect(()=>{
     const term=new Terminal({fontSize:13,fontFamily:'Geist Mono',theme:{background:'#050607',foreground:'#e8e6df'}});
@@ -42,7 +43,7 @@ function Harness(){
       <div data-terminal-body style={{position:'relative',flex:1,minWidth:0,minHeight:0}}><div ref={host} style={{position:'absolute',inset:0}}/></div>
       {state.open&&<SessionTickets projectId='fixture' repoName='mission-control' state={state} onClose={()=>state.update({open:false})} onPaste={text=>{terminal.current.paste(text);terminal.current.focus()}}/>}
     </div>
-    {settings&&<div style={{position:'absolute',inset:0,zIndex:10,background:'var(--surface-0)',overflow:'auto',padding:24}}><button id='close-settings' onClick={()=>setSettings(false)} style={{float:'right'}}>Back to session</button><TicketSettingsPage/></div>}
+    {settings&&<div style={{position:'absolute',inset:0,zIndex:10,background:'var(--surface-0)',overflow:'auto',padding:24}}><button id='close-settings' onClick={()=>setSettings(false)} style={{float:'right'}}>Back to session</button><button id='switch-project' onClick={()=>setActiveProject('operations')}>Switch open project</button><TicketSettingsPage key={activeProject} activeProjectId={activeProject}/></div>}
   </div>;
 }
 createRoot(document.getElementById('root')).render(<QueryClientProvider client={client}><Harness/></QueryClientProvider>);
@@ -50,6 +51,7 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
 const bundle = await build({ absWorkingDir: root, stdin: { contents: source, loader: "tsx", resolveDir: root, sourcefile: "ticket-ui-fixture.tsx" }, bundle: true, write: false, platform: "browser", format: "esm", jsx: "automatic", outfile: resolve(output, "harness.js"), define: { "process.env.NODE_ENV": '"development"', "import.meta.env.SSR": "false" } });
 let connection = { provider: "jira", workspaceUrl: "https://example.atlassian.net", connected: true, oauthConfigured: true, connecting: false };
 let filters = { project: "APP", repository: "fixture/repo", keywords: ["mission-control"], title: true, description: true, labels: true, field: true, fieldId: "customfield_10042", ancestors: true };
+const projectFilters = new Map([["fixture", filters], ["operations", { ...filters, project: "OPS", keywords: ["operations"] }]]);
 const issues = [1, 2].map(number => ({ id: `APP-${number}`, key: `APP-${number}`, title: number === 1 ? "Keep ticket context beside the terminal" : "Restore context across sessions", description: "Keep the description and ticket context available while working in the terminal.", url: `https://example.atlassian.net/browse/APP-${number}`, status: "To do", done: false, type: "Story", priority: "High", assignee: "Alex Morgan", labels: ["desktop"], parentId: "APP-9", metadata: ["mission-control"], match: { location: "Repository field", keyword: "mission-control", ancestor: "APP-9" }, comments: [{ id: "1", author: "Alex Morgan", body: "Keep existing prompt text intact.", editable: true, updatedAt: "2026-11-12" }], transitions: [{ id: "21", name: "Start progress" }], canEdit: true, canComment: true, commentsLimited: false, context }));
 const mutations = [];
 const server = createServer(async (request, response) => {
@@ -60,12 +62,12 @@ const server = createServer(async (request, response) => {
     let text = ""; for await (const chunk of request) text += chunk;
     const body = text ? JSON.parse(text) : {};
     if (url.pathname === "/api/tickets/connection") { if (request.method === "PUT") connection = { ...connection, ...body }; return json(connection); }
-    if (url.pathname === "/api/projects") return json({ projects: [{ id: "fixture", name: "mission-control", path: "/fixture", sandboxId: null }] });
+    if (url.pathname === "/api/projects") return json({ projects: [{ id: "fixture", name: "mission-control", path: "/fixture", sandboxId: null }, { id: "operations", name: "operations", path: "/operations", sandboxId: null }] });
     if (url.pathname === "/api/sandboxes") return json({ sandboxes: [], enabled: false, activeScopeId: "local" });
     if (url.pathname === "/api/settings") return json({ minimalTheme: true, themeStyle: "flat" });
     if (url.pathname === "/api/tickets/projects") return json([{ id: "APP", name: "Platform (APP)" }, { id: "OPS", name: "Operations (OPS)" }]);
     if (url.pathname.endsWith("/tickets/fields")) return json([{ id: "customfield_10042", name: "Repository · Custom field" }]);
-    if (url.pathname.endsWith("/tickets/filters")) { if (request.method === "PUT") filters = body; return json(filters); }
+    if (url.pathname.endsWith("/tickets/filters")) { const id = url.pathname.split('/')[3]; if (request.method === "PUT") projectFilters.set(id, body); return json(projectFilters.get(id)); }
     if (url.pathname.endsWith("/tickets") || url.pathname.endsWith("/tickets/preview")) return json({ context, tickets: issues, scanned: 2, ancestorLimited: false, nextCursor: null });
     const match = url.pathname.match(/\/tickets\/(APP-\d+)(\/comments)?$/);
     if (match) {
@@ -126,6 +128,19 @@ try {
   await page.screenshot({ path: resolve(output, "settings-filters.png") });
   await page.click("form[aria-label='Repository ticket filters'] button[type=submit]");
   await page.waitForFunction(() => document.querySelector("form[aria-label='Repository ticket filters'] button[type=submit]").disabled === false);
+  await page.select('#ticket-local-project', 'operations');
+  await page.waitForFunction(() => document.querySelector('textarea[name=keywords]')?.value === 'operations');
+  assert.equal(await page.$eval("form[aria-label='Repository ticket filters'] select", element => element.value), 'OPS');
+  await page.locator('textarea[name=keywords]').fill('operations, incident');
+  await page.click("form[aria-label='Repository ticket filters'] button[type=submit]");
+  await page.waitForFunction(() => document.querySelector("form[aria-label='Repository ticket filters'] button[type=submit]").disabled === false);
+  assert.deepEqual(projectFilters.get('operations').keywords, ['operations', 'incident']);
+  assert.deepEqual(projectFilters.get('fixture').keywords, ['mission-control']);
+  await page.click('#close-settings');
+  await page.click(".mc-ticket-header [aria-label='Ticket settings']");
+  await page.waitForFunction(() => document.querySelector('#ticket-local-project')?.value === 'fixture' && document.querySelector('textarea[name=keywords]')?.value === 'mission-control');
+  await page.click('#switch-project');
+  await page.waitForFunction(() => document.querySelector('#ticket-local-project')?.value === 'operations' && document.querySelector('textarea[name=keywords]')?.value === 'operations, incident');
   await page.click("#close-settings");
   await page.setViewport({ width: 700, height: 900 }); await page.waitForSelector(".mc-ticket-pane");
   await page.evaluate(() => document.querySelector('.mc-ticket-reader').scrollTop = 0);
@@ -140,6 +155,6 @@ try {
   await page.click("[aria-label='Hide Jira tickets']");
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-terminal-body]')).visibility), 'visible');
   assert.deepEqual(errors, []);
-  await writeFile(resolve(output, "result.json"), JSON.stringify({ passed: true, providerRequests: "fixture only", checks: ["production reader/settings components", "real xterm paste without Enter", "hide/reopen preserves terminal", "status transition", "title-only patch", "comment creation", "settings discovery/save", "narrow layout", "dark/light"], mutations: mutations.length }, null, 2));
+  await writeFile(resolve(output, "result.json"), JSON.stringify({ passed: true, providerRequests: "fixture only", checks: ["production reader/settings components", "real xterm paste without Enter", "hide/reopen preserves terminal", "status transition", "title-only patch", "comment creation", "settings discovery/save", "per-project filter isolation", "settings follow open project", "narrow layout", "dark/light"], mutations: mutations.length }, null, 2));
   console.log("Ticket UI: production components, xterm paste without Enter, hide/reopen, status, title-only edit, comments, settings, narrow and light appearances passed against fixture APIs.");
 } finally { if (browser) await browser.close(); await new Promise(resolve => server.close(resolve)); }

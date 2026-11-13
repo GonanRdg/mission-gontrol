@@ -10,7 +10,7 @@ The reader exposes available workflow transitions, title and description editing
 
 ## Settings
 
-The **Tickets** settings page separates the application-wide account connection from per-repo filters. Connecting applies the provider/site selection. Each repo keeps separate filters for each provider.
+The **Tickets** settings page opens with the current Mission Gontrol project selected. Each local project keeps its own Jira project or GitHub repository, keywords, and matching rules, with separate filters for each provider. Switching projects loads that project's saved filters in its ticket pane. The project selector also lets you configure another project without navigating away. The account connection remains application-wide; connecting applies the provider/site selection.
 
 - **Workspace URL** is the company Jira Cloud root, such as `https://company.atlassian.net`.
 - **Project / Repository** lists results available to the connected account. Search narrows the discovery results.

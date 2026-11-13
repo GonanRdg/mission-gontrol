@@ -1024,6 +1024,7 @@ function Shell() {
         {settingsOpen && (
           <Suspense fallback={null}>
             <SettingsPanel
+              projectId={projectId}
               initialPanel={settingsRequest?.panel ?? null}
               onBack={closeSettingsPanel}
             />

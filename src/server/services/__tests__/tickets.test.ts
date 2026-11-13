@@ -33,11 +33,24 @@ describe("Jira ticket provider", () => {
   it("keeps per-repo filters isolated and validates project and field identifiers", () => {
     const secondPath = join(root, `second-${Date.now()}`); mkdirSync(secondPath);
     const second = createProject({ name: "other", path: secondPath });
-    service.saveTicketFilters(second.id, { ...filters, keywords: ["other"] });
+    service.saveTicketFilters(second.id, { ...filters, project: "OPS", keywords: ["other"], labels: false });
     expect(service.getTicketFilters(project.id).keywords).toEqual(["mission-control"]);
-    expect(service.getTicketFilters(second.id).keywords).toEqual(["other"]);
+    expect(service.getTicketFilters(second.id)).toMatchObject({ project: "OPS", keywords: ["other"], labels: false });
+    expect(service.getTicketFilters(project.id)).toMatchObject({ project: "APP", labels: true });
     expect(() => service.saveTicketFilters(project.id, { ...filters, project: 'APP" OR project != "' })).toThrow();
     expect(() => service.saveTicketFilters(project.id, { ...filters, fieldId: "../../secret" })).toThrow();
+  });
+  it("queries each local project's saved Jira source independently", async () => {
+    const secondPath = join(root, `independent-${Date.now()}`); mkdirSync(secondPath);
+    const second = createProject({ name: "operations", path: secondPath });
+    service.saveTicketFilters(second.id, { ...filters, project: "OPS", keywords: ["operations"] });
+    mocks.jira.mockResolvedValue({ issues: [], isLast: true });
+    await service.listTickets(project.id);
+    await service.listTickets(second.id);
+    const queries = mocks.jira.mock.calls.map(call => JSON.parse(call[1].body).jql);
+    expect(queries[0]).toContain('project = "APP"');
+    expect(queries[1]).toContain('project = "OPS"');
+    expect(service.getTicketFilters(project.id).keywords).toEqual(["mission-control"]);
   });
   it("does not reuse a page token after the source filters change", async () => {
     mocks.jira.mockResolvedValueOnce({ issues: [], nextPageToken: "provider-page", isLast: false });

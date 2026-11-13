@@ -49,9 +49,11 @@ const BACKDROP_OUT = `mc-settings-backdrop-out ${SLIDE_OUT_MS}ms ${SLIDE_OUT_EAS
 
 export function SettingsPanel({
   onBack,
+  projectId,
   initialPanel = null,
 }: {
   onBack: () => void;
+  projectId?: string | null;
   // An explicitly requested panel always wins; null means a generic open,
   // which restores the last-visited panel from localStorage.
   initialPanel?: SettingsPanelId | null;
@@ -293,7 +295,7 @@ export function SettingsPanel({
           ) : activePanel === "providers" ? (
             <ProvidersSettingsPage />
           ) : activePanel === "tickets" ? (
-            <TicketSettingsPage />
+            <TicketSettingsPage key={projectId ?? "all-projects"} activeProjectId={projectId} />
           ) : activePanel === "usage" ? (
             <UsageSettingsPage />
           ) : activePanel === "terminal" ? (
