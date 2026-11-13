@@ -24,6 +24,14 @@ export async function filters(projectId: string, request: Request) {
     tickets.saveTicketFilters(projectId, body.data); return json(body.data);
   });
 }
+export async function browserSettings(projectId: string, request: Request) {
+  return run(async () => {
+    if (request.method === "GET") return json(tickets.getTicketBrowserSettings(projectId));
+    const body = await parseJsonBody(request, tickets.ticketBrowserSettingsSchema);
+    if (!body.ok) return body.response;
+    return json(tickets.saveTicketBrowserSettings(projectId, body.data));
+  });
+}
 export async function list(projectId: string, request: Request) {
   return run(async () => {
     const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined;

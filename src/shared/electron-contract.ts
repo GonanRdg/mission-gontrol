@@ -365,7 +365,7 @@ export type ElectronBridge = {
     readImage: (path: string) => Promise<{ dataUrl: string } | { error: string }>;
   };
   prBrowser: {
-    show: (sessionId: string, mountId: string, url: string, bounds: PrBrowserBounds) => Promise<PrBrowserState>;
+    show: (sessionId: string, mountId: string, url: string, bounds: PrBrowserBounds, kind?: "pr" | "jira") => Promise<PrBrowserState>;
     layout: (sessionId: string, mountId: string, bounds: PrBrowserBounds | null) => Promise<void>;
     command: (sessionId: string, command: PrBrowserCommand) => Promise<PrBrowserState>;
     destroy: (sessionId: string) => Promise<void>;

@@ -6,7 +6,8 @@ import { api } from "~/lib/api";
 import { openExternal } from "~/lib/open-external";
 import { ticketKeys, useTicketConnection } from "~/lib/tickets";
 import { useScopedProjects } from "~/queries";
-import { TICKET_PROVIDER_LABELS, type TicketConnection, type TicketFilters, type TicketProvider } from "~/shared/tickets";
+import { type TicketConnection, type TicketFilters, type TicketProvider } from "~/shared/tickets";
+import { ticketSearchUrl, type TicketBrowserSettings } from "~/shared/ticket-browser";
 import "./tickets.css";
 
 const message = (error: unknown) => error instanceof Error ? error.message : "Ticket settings request failed.";
@@ -19,43 +20,56 @@ export function TicketSettingsPage({ activeProjectId }: { activeProjectId?: stri
   const [projectId, setProjectId] = useState(() => activeProjectId ?? (typeof window === "undefined" ? "" : window.localStorage.getItem("mc-ticket-settings-project") ?? ""));
   const selectedProject = projects.find(project => project.id === projectId) ?? projects[0];
   useEffect(() => { if (selectedProject) window.localStorage.setItem("mc-ticket-settings-project", selectedProject.id); }, [selectedProject?.id]);
-  return <section className="mc-ticket-settings"><h2>Tickets</h2><p>Share an account connection. Each Mission Gontrol project keeps its own ticket source and filters.</p>
+  return <section className="mc-ticket-settings"><h2>Tickets</h2><p>Each Mission Gontrol project keeps its own ticket source and filters. Jira uses your browser sign-in.</p>
     {connection.isPending ? <p role="status">Loading ticket settings…</p> : connection.error ? <p role="alert">{message(connection.error)} <Btn variant="ghost" size="sm" onClick={() => void connection.refetch()}>Retry</Btn></p> : connection.data && <>
-      <TicketAccount connection={connection.data} />
+      <TicketProviderForm connection={connection.data} />
+      {connection.data.provider === "github" && <TicketAccount connection={connection.data} />}
       <fieldset><legend>Project filters <small>{selectedProject?.name ?? "Choose a project"}</small></legend>
-        <Field id="ticket-local-project" label="Mission Gontrol project" hint="Starts with your open project. The Jira project or GitHub repository, keywords, and matching rules below are saved only for this selection. Switching projects in the app loads that project’s filters."><select id="ticket-local-project" name="localProject" aria-describedby="ticket-local-project-hint" value={selectedProject?.id ?? ""} onChange={event => setProjectId(event.target.value)}>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></Field>
-        {selectedProject ? <TicketRepoSettings key={`${selectedProject.id}:${connection.data.provider}`} projectId={selectedProject.id} connection={connection.data} /> : <p className="mc-ticket-hint">Add a repository to configure ticket filters.</p>}
+        <Field id="ticket-local-project" label="Mission Gontrol project" hint="Starts with your open project. The Jira site, project, and search terms or GitHub repository filters below are saved only for this selection. Switching projects in the app loads that project’s filters."><select id="ticket-local-project" name="localProject" aria-describedby="ticket-local-project-hint" value={selectedProject?.id ?? ""} onChange={event => setProjectId(event.target.value)}>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></Field>
+        {selectedProject ? connection.data.provider === "jira" ? <JiraBrowserSettings key={selectedProject.id} projectId={selectedProject.id} /> : <TicketRepoSettings key={`${selectedProject.id}:${connection.data.provider}`} projectId={selectedProject.id} connection={connection.data} /> : <p className="mc-ticket-hint">Add a repository to configure ticket filters.</p>}
       </fieldset>
     </>}
   </section>;
 }
-function TicketAccount({ connection }: { connection: TicketConnection }) {
+function TicketProviderForm({ connection }: { connection: TicketConnection }) {
   const client = useQueryClient();
   const [provider, setProvider] = useState<TicketProvider>(connection.provider);
-  const [workspaceUrl, setWorkspaceUrl] = useState(connection.workspaceUrl);
+  useEffect(() => setProvider(connection.provider), [connection.provider]);
+  const save = useMutation({ mutationFn: () => api.saveTicketConnection({ provider, workspaceUrl: provider === "jira" ? "" : "https://github.com" }), onSuccess: async () => { await client.invalidateQueries({ queryKey: ticketKeys.all }); toast.success("Ticket application saved"); } });
+  return <form onSubmit={event => { event.preventDefault(); save.mutate(); }} aria-label="Ticket application">
+    <Field id="ticket-provider" label="Ticket application" hint="Applies to the ticket button throughout the app. Search filters below belong to individual projects."><select id="ticket-provider" name="provider" value={provider} onChange={event => setProvider(event.target.value as TicketProvider)} aria-describedby="ticket-provider-hint"><option value="jira">Jira browser</option><option value="github">GitHub Issues</option></select></Field>
+    <div className="mc-ticket-actions"><Btn type="submit" variant="ghost" size="sm" disabled={save.isPending || provider === connection.provider}>Save application</Btn></div>
+    {save.error && <p role="alert" className="mc-ticket-error">{message(save.error)}</p>}
+  </form>;
+}
+function TicketAccount({ connection }: { connection: TicketConnection }) {
+  const client = useQueryClient();
   const [code, setCode] = useState<string | null>(null);
-  useEffect(() => { setProvider(connection.provider); setWorkspaceUrl(connection.workspaceUrl); }, [connection.provider, connection.workspaceUrl]);
-  const connect = useMutation({ mutationFn: async () => {
-    const saved = await api.saveTicketConnection({ provider, workspaceUrl });
-    if (provider === "github" && saved.connected) return null;
-    return api.connectTickets();
-  }, onSuccess: async result => {
-    if (result) { setCode(result.code ?? null); openExternal(result.url); }
-    await client.invalidateQueries({ queryKey: ticketKeys.all });
-    toast.success(result ? "Continue sign-in in your browser" : "GitHub connected");
-  }, onError: async () => { await client.invalidateQueries({ queryKey: ticketKeys.connection }); } });
-  const disconnect = useMutation({ mutationFn: api.disconnectTickets, onSuccess: async () => { await client.invalidateQueries({ queryKey: ticketKeys.all }); } });
-  return <fieldset><legend>Connection <small>Application-wide</small></legend>
-    <form onSubmit={event => { event.preventDefault(); connect.mutate(); }} aria-label="Ticket account connection">
-      <Field id="ticket-provider" label="Provider" hint="This name appears on the session button beside PRs. Connect applies your provider selection."><select id="ticket-provider" name="provider" aria-describedby="ticket-provider-hint" value={provider} onChange={event => { setProvider(event.target.value as TicketProvider); setWorkspaceUrl(event.target.value === "jira" ? connection.workspaceUrl === "https://github.com" ? "" : connection.workspaceUrl : "https://github.com"); }}><option value="jira">Jira</option><option value="github">GitHub Issues</option></select></Field>
-      {provider === "jira" && <Field id="ticket-site" label="Workspace URL" hint="The root of your company Jira Cloud, e.g. https://your-company.atlassian.net. Do not paste a project or ticket URL."><input id="ticket-site" name="workspaceUrl" type="url" required aria-describedby="ticket-site-hint" value={workspaceUrl} onChange={event => setWorkspaceUrl(event.target.value)} autoCapitalize="none" spellCheck={false} /></Field>}
-      <div className="mc-ticket-actions"><Btn type="submit" variant="primary" size="sm" disabled={connect.isPending || connection.connecting}>{connection.connecting ? "Waiting for sign-in…" : `Connect with ${provider === "jira" ? "Jira" : "GitHub"}`}</Btn>{connection.connected && connection.provider === "jira" && <Btn type="button" size="sm" variant="ghost" disabled={disconnect.isPending} onClick={() => disconnect.mutate()}>Disconnect</Btn>}<Btn type="button" size="sm" variant="ghost" onClick={() => void client.invalidateQueries({ queryKey: ticketKeys.connection })}>Refresh connection</Btn></div>
-      <p className="mc-ticket-hint">{connection.connected ? `${TICKET_PROVIDER_LABELS[connection.provider]} connected.` : "Sign in through OAuth in your browser, then return here to select a project."}{provider === "github" && " Uses the GitHub CLI account on this computer. Disconnecting here does not sign out other apps."}</p>
-      {provider === "jira" && !connection.oauthConfigured && <p className="mc-ticket-notice">This build needs the Jira OAuth app configuration before sign-in. See docs/ticket-integrations.md.</p>}
-      {code && <p className="mc-ticket-notice">Enter this GitHub device code in your browser: <strong>{code}</strong></p>}
-      {(connect.error || disconnect.error) && <p role="alert" className="mc-ticket-error">{message(connect.error ?? disconnect.error)}</p>}
-    </form>
-  </fieldset>;
+  const connect = useMutation({ mutationFn: api.connectTickets, onSuccess: async result => { setCode(result.code ?? null); openExternal(result.url); await client.invalidateQueries({ queryKey: ticketKeys.all }); } });
+  return <fieldset><legend>GitHub account <small>Application-wide</small></legend><p className="mc-ticket-hint">{connection.connected ? "GitHub CLI is connected." : "Connect the GitHub CLI account on this computer."}</p><Btn variant="ghost" size="sm" disabled={connect.isPending || connection.connected} onClick={() => connect.mutate()}>Connect with GitHub</Btn><Btn variant="ghost" size="sm" onClick={() => void client.invalidateQueries({ queryKey: ticketKeys.connection })}>Refresh connection</Btn>{code && <p role="status">Enter this code in your browser: <strong>{code}</strong></p>}{connect.error && <p role="alert" className="mc-ticket-error">{message(connect.error)}</p>}</fieldset>;
+}
+function JiraBrowserSettings({ projectId }: { projectId: string }) {
+  const query = useQuery({ queryKey: ticketKeys.browser(projectId), queryFn: () => api.ticketBrowserSettings(projectId) });
+  return query.data ? <JiraBrowserForm projectId={projectId} initial={query.data} /> : <p role={query.error ? "alert" : "status"}>{query.error ? message(query.error) : "Loading project settings…"}</p>;
+}
+function JiraBrowserForm({ projectId, initial }: { projectId: string; initial: TicketBrowserSettings }) {
+  const [settings, setSettings] = useState(initial);
+  const [validation, setValidation] = useState<string | null>(null);
+  const client = useQueryClient(), prefix = useId();
+  const update = <K extends keyof TicketBrowserSettings>(key: K, value: TicketBrowserSettings[K]) => { setSettings(current => ({ ...current, [key]: value })); setValidation(null); };
+  const save = useMutation({ mutationFn: () => api.saveTicketBrowserSettings(projectId, settings), onSuccess: async () => { await client.invalidateQueries({ queryKey: ticketKeys.browser(projectId) }); toast.success("Project ticket settings saved"); } });
+  const url = ticketSearchUrl(settings);
+  return <form aria-label="Jira browser settings" onSubmit={event => { event.preventDefault(); if (!url) { setValidation("Enter a Jira Cloud site, a project and search text, and choose title or description."); return; } save.mutate(); }}>
+    <p className="mc-ticket-hint">Sign in inside the Jira pane with your company account. No API token or OAuth app setup is needed. Jira handles ticket details, status changes, and comments.</p>
+    <Field id={`${prefix}-site`} label="Jira workspace URL" hint="Your company Jira Cloud root, such as https://company.atlassian.net. This site is saved only for the selected project."><input id={`${prefix}-site`} name="workspaceUrl" type="url" required value={settings.workspaceUrl} autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-describedby={`${prefix}-site-hint`} onChange={event => update("workspaceUrl", event.target.value)} /></Field>
+    <Field id={`${prefix}-project`} label="Jira project" hint="Enter the Jira project key or exact name, such as HOPS or Example Project. Results stay inside this Jira project."><input id={`${prefix}-project`} name="project" required maxLength={200} value={settings.project} aria-describedby={`${prefix}-project-hint`} onChange={event => update("project", event.target.value)} /></Field>
+    <Field id={`${prefix}-keywords`} label="Search text" hint="A repo name or concept, such as billing service*. Jira’s text search syntax applies; this is one search expression, not a comma-separated list."><input id={`${prefix}-keywords`} name="keywords" required maxLength={2000} value={settings.keywords} aria-describedby={`${prefix}-keywords-hint`} onChange={event => update("keywords", event.target.value)} /></Field>
+    <fieldset><legend>Search in</legend><div className="mc-ticket-setting-rules">{([['title', 'Ticket title'], ['description', 'Ticket description']] as const).map(([key, label]) => <div className="mc-ticket-setting-rule" key={key}><input id={`${prefix}-${key}`} name={key} type="checkbox" checked={settings[key]} onChange={event => update(key, event.target.checked)} /><label htmlFor={`${prefix}-${key}`}>{label}</label></div>)}</div><p className="mc-ticket-hint">Choose at least one. Either checked location can match.</p></fieldset>
+    <div className="mc-ticket-setting-rules"><div className="mc-ticket-setting-rule"><input id={`${prefix}-pending`} name="pendingOnly" type="checkbox" checked={settings.pendingOnly} onChange={event => update("pendingOnly", event.target.checked)} aria-describedby={`${prefix}-pending-hint`} /><div><label htmlFor={`${prefix}-pending`}>Pending tickets only</label><p className="mc-ticket-hint" id={`${prefix}-pending-hint`}>Exclude Jira’s Done status category. Uncheck to include completed tickets.</p></div></div></div>
+    {url && <details className="mc-ticket-query-preview"><summary>Preview Jira search</summary><p>{new URL(url).searchParams.get("jql")}</p><Btn type="button" variant="ghost" size="sm" icon="external-link" onClick={() => openExternal(url)}>Open search in browser</Btn></details>}
+    <div className="mc-ticket-actions"><Btn type="button" variant="ghost" size="sm" onClick={() => { setSettings(initial); setValidation(null); }}>Cancel</Btn><Btn type="submit" variant="primary" size="sm" disabled={save.isPending}>Save</Btn></div>
+    {(validation || save.error) && <p role="alert" className="mc-ticket-error">{validation ?? message(save.error)}</p>}
+  </form>;
 }
 function TicketRepoSettings({ projectId, connection }: { projectId: string; connection: TicketConnection }) {
   const query = useQuery({ queryKey: ticketKeys.filters(projectId, connection.provider), queryFn: () => api.ticketFilters(projectId) });

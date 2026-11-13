@@ -1848,7 +1848,7 @@ export function TerminalPane({
         )}
       </div>
       {prBrowser.open && <SessionPrBrowser browser={prBrowser} />}
-      {ticketPane.open && <SessionTickets projectId={project.id} repoName={project.name} state={ticketPane} onClose={() => ticketPane.update({ open: false })}
+      {ticketPane.open && <SessionTickets projectId={project.id} repoName={project.name} state={ticketPane} onToggleExpanded={onToggleExpanded} onClose={() => { ticketPane.update({ open: false }); requestAnimationFrame(() => termSurfaceRef.current?.focus()); }}
         onPaste={text => { if (!termSurfaceRef.current?.pasteText?.(text)) throw new Error("The terminal is not ready for input."); }} />}
       </div>
       </div>

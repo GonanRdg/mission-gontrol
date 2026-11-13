@@ -9,6 +9,7 @@ import { openExternal } from "~/lib/open-external";
 import { openTicketSettings, ticketKeys, useTicketConnection } from "~/lib/tickets";
 import { TICKET_PROVIDER_LABELS, ticketImplementationPrompt, type TicketMatch, type TicketPatch, type TicketProvider } from "~/shared/tickets";
 import "./tickets.css";
+import { SessionTicketBrowser } from "./SessionTicketBrowser";
 
 type PaneState = { open: boolean; selected: string | null; ratio: number; context?: string };
 const sessions = new Map<string, PaneState>();
@@ -16,7 +17,7 @@ export function useSessionTickets(sessionId: string) {
   const [state, setState] = useState<PaneState>(() => sessions.get(sessionId) ?? { open: false, selected: null, ratio: .5 });
   useEffect(() => { setState(sessions.get(sessionId) ?? { open: false, selected: null, ratio: .5 }); }, [sessionId]);
   const update = (patch: Partial<PaneState>) => setState(current => { const next = { ...current, ...patch }; sessions.set(sessionId, next); return next; });
-  return { ...state, update };
+  return { ...state, sessionId, update };
 }
 export function TicketPaneButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const { data } = useTicketConnection();
@@ -26,7 +27,15 @@ export function TicketPaneButton({ open, onToggle }: { open: boolean; onToggle: 
 }
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Ticket request failed. Retry.";
 
-export function SessionTickets({ projectId, repoName, state, onClose, onPaste }: {
+export function SessionTickets({ projectId, repoName, state, onClose, onPaste, onToggleExpanded }: {
+  projectId: string; repoName: string; state: ReturnType<typeof useSessionTickets>; onClose: () => void; onPaste: (text: string) => void; onToggleExpanded?: () => void;
+}) {
+  const connection = useTicketConnection();
+  return connection.data?.provider === "github"
+    ? <SessionApiTickets projectId={projectId} repoName={repoName} state={state} onClose={onClose} onPaste={onPaste} />
+    : <SessionTicketBrowser projectId={projectId} repoName={repoName} state={state} onClose={onClose} onPaste={onPaste} onToggleExpanded={onToggleExpanded} />;
+}
+function SessionApiTickets({ projectId, repoName, state, onClose, onPaste }: {
   projectId: string; repoName: string; state: ReturnType<typeof useSessionTickets>; onClose: () => void; onPaste: (text: string) => void;
 }) {
   const connection = useTicketConnection();

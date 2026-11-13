@@ -74,6 +74,7 @@ export function forgetPrBrowserSession(project: Parameters<typeof prBrowserSessi
   layouts.delete(id);
   try { window.localStorage.removeItem(storageKey(id)); } catch { /* Storage may be unavailable. */ }
   void getElectron()?.prBrowser?.destroy(id).catch(() => {});
+  void getElectron()?.prBrowser?.destroy(`tickets:${id}:${project.id}`).catch(() => {});
   for (const listener of listeners) listener();
 }
 

@@ -37,7 +37,7 @@ export type PrBrowserState = {
   canGoForward: boolean;
   error: string | null;
 };
-export type PrBrowserCommand = "back" | "forward" | "reload" | "external" | "focus";
+export type PrBrowserCommand = "back" | "forward" | "reload" | "external" | "focus" | "home";
 export type PrBrowserIntent = { sessionId: string; action: "hide" | "restore" | "expand" | "focus" };
 
 export const PR_BROWSER_PARTITION = "persist:pr-browser";

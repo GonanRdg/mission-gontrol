@@ -169,8 +169,8 @@ const electronAPI = {
       ipcRenderer.invoke(IPC.settingsRegenerateToken),
   },
   prBrowser: {
-    show: (sessionId: string, mountId: string, url: string, bounds: PrBrowserBounds): Promise<PrBrowserState> =>
-      ipcRenderer.invoke(IPC.prBrowserShow, sessionId, mountId, url, bounds),
+    show: (sessionId: string, mountId: string, url: string, bounds: PrBrowserBounds, kind?: "pr" | "jira"): Promise<PrBrowserState> =>
+      ipcRenderer.invoke(IPC.prBrowserShow, sessionId, mountId, url, bounds, kind),
     layout: (sessionId: string, mountId: string, bounds: PrBrowserBounds | null): Promise<void> =>
       ipcRenderer.invoke(IPC.prBrowserLayout, sessionId, mountId, bounds),
     command: (sessionId: string, command: PrBrowserCommand): Promise<PrBrowserState> =>

@@ -7,8 +7,27 @@ import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from
 import { getSetting, setSetting } from "./settings";
 import { spawnCapture } from "./_spawn";
 import { beginJiraOAuth, disconnectJira, jiraConnected, jiraConnecting, jiraOAuthConfigured, jiraRequest, ticketJson } from "./ticket-oauth";
+import { DEFAULT_TICKET_BROWSER_SETTINGS, isJiraSite, type TicketBrowserSettings } from "~/shared/ticket-browser";
 
 const connectionKey = "ticket_connection";
+export const ticketBrowserSettingsSchema = z.object({
+  workspaceUrl: z.string().max(500).refine(value => isJiraSite(value) && new URL(value).pathname === "/" && !new URL(value).search && !new URL(value).hash, "Enter your Jira Cloud root URL"),
+  project: z.string().trim().min(1).max(200).regex(/^[^\x00-\x1f]+$/),
+  keywords: z.string().trim().min(1).max(2000).regex(/^[^\x00-\x1f]+$/),
+  title: z.boolean(), description: z.boolean(), pendingOnly: z.boolean(),
+}).refine(value => value.title || value.description, "Search the title, description, or both");
+export function getTicketBrowserSettings(projectId: string): TicketBrowserSettings {
+  requireProject(projectId);
+  try { return ticketBrowserSettingsSchema.parse(JSON.parse(getSetting(`ticket_browser:${projectId}`) ?? "null")); }
+  catch { return { ...DEFAULT_TICKET_BROWSER_SETTINGS }; }
+}
+export function saveTicketBrowserSettings(projectId: string, value: TicketBrowserSettings): TicketBrowserSettings {
+  requireProject(projectId);
+  const settings = ticketBrowserSettingsSchema.parse(value);
+  settings.workspaceUrl = new URL(settings.workspaceUrl).origin;
+  setSetting(`ticket_browser:${projectId}`, JSON.stringify(settings));
+  return settings;
+}
 const projectKey = (id: string, provider: TicketProvider) => `ticket_filters:${provider}:${id}`;
 const repositorySchema = z.string().regex(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/).max(240);
 export const ticketFiltersSchema = z.object({
@@ -28,7 +47,7 @@ export function ticketConnectionConfig(): { provider: TicketProvider; workspaceU
 }
 export function saveTicketConnection(value: { provider: TicketProvider; workspaceUrl: string }) {
   const parsed = ticketConnectionSchema.parse(value);
-  if (parsed.provider === "jira") {
+  if (parsed.provider === "jira" && parsed.workspaceUrl) {
     let url: URL;
     try { url = new URL(parsed.workspaceUrl); } catch { throw new ValidationError("Enter the root URL of your company Jira."); }
     if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash || !url.hostname.endsWith(".atlassian.net")) throw new ValidationError("Use your Jira Cloud root, such as https://company.atlassian.net.");

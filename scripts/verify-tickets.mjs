@@ -49,9 +49,9 @@ function Harness(){
 createRoot(document.getElementById('root')).render(<QueryClientProvider client={client}><Harness/></QueryClientProvider>);
 `;
 const bundle = await build({ absWorkingDir: root, stdin: { contents: source, loader: "tsx", resolveDir: root, sourcefile: "ticket-ui-fixture.tsx" }, bundle: true, write: false, platform: "browser", format: "esm", jsx: "automatic", outfile: resolve(output, "harness.js"), define: { "process.env.NODE_ENV": '"development"', "import.meta.env.SSR": "false" } });
-let connection = { provider: "jira", workspaceUrl: "https://example.atlassian.net", connected: true, oauthConfigured: true, connecting: false };
+let connection = { provider: "github", workspaceUrl: "https://example.atlassian.net", connected: true, oauthConfigured: true, connecting: false };
 let filters = { project: "APP", repository: "fixture/repo", keywords: ["mission-control"], title: true, description: true, labels: true, field: true, fieldId: "customfield_10042", ancestors: true };
-const projectFilters = new Map([["fixture", filters], ["operations", { ...filters, project: "OPS", keywords: ["operations"] }]]);
+const projectFilters = new Map([["fixture", filters], ["operations", { ...filters, project: "OPS", repository: "fixture/operations", keywords: ["operations"] }]]);
 const issues = [1, 2].map(number => ({ id: `APP-${number}`, key: `APP-${number}`, title: number === 1 ? "Keep ticket context beside the terminal" : "Restore context across sessions", description: "Keep the description and ticket context available while working in the terminal.", url: `https://example.atlassian.net/browse/APP-${number}`, status: "To do", done: false, type: "Story", priority: "High", assignee: "Alex Morgan", labels: ["desktop"], parentId: "APP-9", metadata: ["mission-control"], match: { location: "Repository field", keyword: "mission-control", ancestor: "APP-9" }, comments: [{ id: "1", author: "Alex Morgan", body: "Keep existing prompt text intact.", editable: true, updatedAt: "2026-11-12" }], transitions: [{ id: "21", name: "Start progress" }], canEdit: true, canComment: true, commentsLimited: false, context }));
 const mutations = [];
 const server = createServer(async (request, response) => {
@@ -99,16 +99,16 @@ try {
   const page = await browser.newPage(); const errors = []; page.on("pageerror", error => errors.push(error.message));
   await page.setViewport({ width: 1440, height: 1000 }); await page.goto(origin);
   await page.addStyleTag({ content: '* { transition: none !important; animation: none !important; }' });
-  await page.waitForSelector(".xterm"); await page.waitForSelector("[aria-label='Show Jira tickets']");
-  await page.click("[aria-label='Show Jira tickets']"); await page.waitForSelector(".mc-ticket-title h3");
+  await page.waitForSelector(".xterm"); await page.waitForSelector("[aria-label='Show GitHub Issues tickets']");
+  await page.click("[aria-label='Show GitHub Issues tickets']"); await page.waitForSelector(".mc-ticket-title h3");
   await page.mouse.move(10, 10);
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: resolve(output, "desktop.png") });
   await page.click(".mc-ticket-footer button");
   assert.equal(await page.evaluate(() => pasted.join("")), "Implement ticket https://example.atlassian.net/browse/APP-1");
   assert.equal(await page.evaluate(() => pasted.join("").includes("\r")), false);
-  await page.click("[aria-label='Hide Jira tickets']"); assert.equal(await page.$(".mc-ticket-pane"), null);
-  await page.click("[aria-label='Show Jira tickets']"); await page.waitForSelector(".mc-ticket-title h3");
+  await page.click("[aria-label='Hide GitHub Issues tickets']"); assert.equal(await page.$(".mc-ticket-pane"), null);
+  await page.click("[aria-label='Show GitHub Issues tickets']"); await page.waitForSelector(".mc-ticket-title h3");
   assert.equal(await page.evaluate(() => pasted.join("")), "Implement ticket https://example.atlassian.net/browse/APP-1");
   await page.select(".mc-ticket-transition select", "21");
   await page.waitForFunction(() => document.querySelector(".mc-ticket-transition select").selectedOptions[0].textContent === "In progress");
@@ -130,7 +130,7 @@ try {
   await page.waitForFunction(() => document.querySelector("form[aria-label='Repository ticket filters'] button[type=submit]").disabled === false);
   await page.select('#ticket-local-project', 'operations');
   await page.waitForFunction(() => document.querySelector('textarea[name=keywords]')?.value === 'operations');
-  assert.equal(await page.$eval("form[aria-label='Repository ticket filters'] select", element => element.value), 'OPS');
+  assert.equal(await page.$eval("form[aria-label='Repository ticket filters'] select", element => element.value), 'fixture/operations');
   await page.locator('textarea[name=keywords]').fill('operations, incident');
   await page.click("form[aria-label='Repository ticket filters'] button[type=submit]");
   await page.waitForFunction(() => document.querySelector("form[aria-label='Repository ticket filters'] button[type=submit]").disabled === false);
@@ -152,7 +152,7 @@ try {
   await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-terminal-body]')).visibility === 'hidden');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.screenshot({ path: resolve(output, "compact.png") });
-  await page.click("[aria-label='Hide Jira tickets']");
+  await page.click("[aria-label='Hide GitHub Issues tickets']");
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-terminal-body]')).visibility), 'visible');
   assert.deepEqual(errors, []);
   await writeFile(resolve(output, "result.json"), JSON.stringify({ passed: true, providerRequests: "fixture only", checks: ["production reader/settings components", "real xterm paste without Enter", "hide/reopen preserves terminal", "status transition", "title-only patch", "comment creation", "settings discovery/save", "per-project filter isolation", "settings follow open project", "narrow layout", "dark/light"], mutations: mutations.length }, null, 2));

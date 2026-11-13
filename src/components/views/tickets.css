@@ -13,3 +13,8 @@
 @container (max-width: 620px){.mc-ticket-pane{position:absolute;inset:0;width:100%!important;min-width:0;z-index:2;border-left:0}.mc-ticket-divider{display:none}[data-tickets-open]>[data-terminal-body]{visibility:hidden}.mc-ticket-reader-content{padding:16px}}
 .mc-ticket-pane .mc-btn-ghost,.mc-ticket-settings .mc-btn-ghost{color:var(--text-dim)}
 @media(prefers-reduced-motion:reduce){.mc-ticket-pane *{scroll-behavior:auto}}
+.mc-ticket-browser-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border-strong);flex-shrink:0}
+.mc-ticket-browser-slot{position:relative;flex:1;min-height:120px;overflow:hidden;outline-offset:-2px}.mc-ticket-browser-slot:focus-visible{outline:2px solid var(--accent-ink)}
+.mc-ticket-browser .mc-ticket-footer p{flex-basis:100%;margin:0;color:var(--text-dim);font-size:14px;line-height:1.5}.mc-ticket-browser .mc-ticket-empty{font-size:14px}.mc-ticket-browser .mc-ticket-empty h3{font-size:18px;color:var(--text);margin:0 0 8px}
+.mc-ticket-query-preview{margin-top:20px;font-size:14px}.mc-ticket-query-preview summary{cursor:pointer}.mc-ticket-query-preview p{overflow-wrap:anywhere;line-height:1.6;color:var(--text-dim)}
+.mc-ticket-settings .mc-ticket-hint{font-size:14px}.mc-ticket-settings .mc-ticket-setting-field>label,.mc-ticket-settings .mc-ticket-setting-rule label{font-size:14px}.mc-ticket-settings :is(input,select,textarea){font-size:14px}

@@ -3,6 +3,7 @@ import type { TaskAgent, TaskStatus } from "~/shared/domain";
 import type { ActiveSessions } from "~/shared/active-sessions";
 import type { BranchPullRequestResult, RepositoryPullRequestsResult } from "~/shared/pr-browser";
 import type { TicketConnection, TicketDetail, TicketFilters, TicketOption, TicketPage, TicketPatch, TicketProvider } from "~/shared/tickets";
+import type { TicketBrowserSettings } from "~/shared/ticket-browser";
 import type { ProjectPathStatus, ProjectWithCounts } from "~/shared/projects";
 import { DEV_SERVER_ORIGIN } from "~/shared/dev-server";
 import type {
@@ -396,6 +397,8 @@ export const api = {
   ticketProjects: (query = "") => req<TicketOption[]>(`/api/tickets/projects?q=${encodeURIComponent(query)}`),
   ticketFields: (projectId: string, project = "") => req<TicketOption[]>(`/api/projects/${encodeURIComponent(projectId)}/tickets/fields?project=${encodeURIComponent(project)}`),
   ticketFilters: (projectId: string) => req<TicketFilters>(`/api/projects/${encodeURIComponent(projectId)}/tickets/filters`),
+  ticketBrowserSettings: (projectId: string) => req<TicketBrowserSettings>(`/api/projects/${encodeURIComponent(projectId)}/tickets/browser`),
+  saveTicketBrowserSettings: (projectId: string, body: TicketBrowserSettings) => req<TicketBrowserSettings>(`/api/projects/${encodeURIComponent(projectId)}/tickets/browser`, { method: "PUT", body: JSON.stringify(body) }),
   saveTicketFilters: (projectId: string, body: TicketFilters) => req<TicketFilters>(`/api/projects/${encodeURIComponent(projectId)}/tickets/filters`, { method: "PUT", body: JSON.stringify(body) }),
   tickets: (projectId: string, cursor?: string) => req<TicketPage>(`/api/projects/${encodeURIComponent(projectId)}/tickets${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
   previewTickets: (projectId: string, filters: TicketFilters) => req<TicketPage>(`/api/projects/${encodeURIComponent(projectId)}/tickets/preview`, { method: "POST", body: JSON.stringify(filters) }),

@@ -222,9 +222,10 @@ async function dispatch(
   if (pathname === "/api/tickets/connect" && method === "POST") return ticketsController.connect();
   if (pathname === "/api/tickets/disconnect" && method === "POST") return ticketsController.disconnect();
   if (pathname === "/api/tickets/projects" && method === "GET") return ticketsController.projects(request);
-  const ticketRoute = pathname.match(/^\/api\/projects\/([^/]+)\/tickets(?:\/(filters|fields|preview|([^/]+)(\/comments)?))?$/);
+  const ticketRoute = pathname.match(/^\/api\/projects\/([^/]+)\/tickets(?:\/(browser|filters|fields|preview|([^/]+)(\/comments)?))?$/);
   if (ticketRoute) {
     const projectId = decode(ticketRoute[1]);
+    if (ticketRoute[2] === "browser" && ["GET", "PUT"].includes(method)) return ticketsController.browserSettings(projectId, request);
     if (ticketRoute[2] === "filters" && ["GET", "PUT"].includes(method)) return ticketsController.filters(projectId, request);
     if (ticketRoute[2] === "fields" && method === "GET") return ticketsController.fields(projectId, request);
     if (ticketRoute[2] === "preview" && method === "POST") return ticketsController.preview(projectId, request);

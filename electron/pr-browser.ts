@@ -12,6 +12,7 @@ import {
 import { IPC } from "./ipc-channels";
 import { safeHandle } from "./ipc-safe-handle";
 import { getBinding, matchElectronInput } from "./keybindings-reader";
+import { isJiraSite, TICKET_BROWSER_PARTITION } from "../src/shared/ticket-browser";
 
 const browserPreferences: WebPreferences = {
   partition: PR_BROWSER_PARTITION,
@@ -22,6 +23,7 @@ const browserPreferences: WebPreferences = {
 };
 
 type BrowserEntry = {
+  kind: "pr" | "jira";
   host: BrowserWindow;
   view: WebContentsView;
   sessionId: string;
@@ -80,7 +82,7 @@ function configurePopups(contents: WebContents, entry: BrowserEntry) {
       overrideBrowserWindowOptions: {
         parent: entry.host,
         autoHideMenuBar: true,
-        webPreferences: browserPreferences,
+        webPreferences: { ...browserPreferences, partition: entry.kind === "jira" ? TICKET_BROWSER_PARTITION : PR_BROWSER_PARTITION },
       },
     };
   });
@@ -131,11 +133,11 @@ function setBounds(entry: BrowserEntry, bounds: PrBrowserBounds | null) {
   entry.view.setVisible(width > 0 && height > 0);
 }
 
-function createBrowser(host: BrowserWindow, sessionId: string, mountId: string, url: string): BrowserEntry {
-  const view = new WebContentsView({ webPreferences: browserPreferences });
+function createBrowser(host: BrowserWindow, sessionId: string, mountId: string, url: string, kind: "pr" | "jira"): BrowserEntry {
+  const view = new WebContentsView({ webPreferences: { ...browserPreferences, partition: kind === "jira" ? TICKET_BROWSER_PARTITION : PR_BROWSER_PARTITION } });
   view.setVisible(false);
   host.contentView.addChildView(view);
-  const entry: BrowserEntry = { host, view, sessionId, mountId, initialUrl: url, error: null, popups: new Set() };
+  const entry: BrowserEntry = { host, view, sessionId, mountId, initialUrl: url, error: null, popups: new Set(), kind };
   const contents = view.webContents;
   restrictNavigation(contents);
   configurePopups(contents, entry);
@@ -151,7 +153,7 @@ function createBrowser(host: BrowserWindow, sessionId: string, mountId: string, 
   });
   contents.on("did-fail-load", (_event, code, _description, _url, isMainFrame) => {
     if (!isMainFrame || code === -3) return;
-    entry.error = "Page could not load. Reload or open the PR externally.";
+    entry.error = "Page could not load. Reload or open it externally.";
     publish(entry);
   });
   contents.on("render-process-gone", () => {
@@ -183,16 +185,17 @@ function navigate(entry: BrowserEntry, url: string) {
 }
 
 export function registerPrBrowserHandlers() {
-  safeHandle(IPC.prBrowserShow, (event, sessionId: unknown, mountId: unknown, url: unknown, bounds: unknown) => {
+  safeHandle(IPC.prBrowserShow, (event, sessionId: unknown, mountId: unknown, url: unknown, bounds: unknown, kind: unknown = "pr") => {
     validId(sessionId); validId(mountId);
-    if (typeof url !== "string" || !isPullRequestUrl(url) || !validPrBrowserBounds(bounds)) {
+    if ((kind !== "pr" && kind !== "jira") || typeof url !== "string" || !(kind === "jira" ? isJiraSite(url) : isPullRequestUrl(url)) || !validPrBrowserBounds(bounds)) {
       throw new Error("Invalid PR browser request");
     }
     const host = owner(event);
     const entries = ownedBrowsers(host);
     let entry = entries.get(sessionId);
+    if (entry && entry.kind !== kind) throw new Error("Browser source changed");
     if (!entry) {
-      entry = createBrowser(host, sessionId, mountId, url);
+      entry = createBrowser(host, sessionId, mountId, url, kind);
       entries.set(sessionId, entry);
       navigate(entry, url);
     } else if (entry.initialUrl !== url) {
@@ -217,6 +220,7 @@ export function registerPrBrowserHandlers() {
       case "back": if (contents.navigationHistory.canGoBack()) contents.navigationHistory.goBack(); break;
       case "forward": if (contents.navigationHistory.canGoForward()) contents.navigationHistory.goForward(); break;
       case "reload": entry.error = null; contents.reload(); break;
+      case "home": navigate(entry, entry.initialUrl); break;
       case "external": await shell.openExternal(entry.initialUrl); break;
       case "focus": contents.focus(); break;
       default: throw new Error("Invalid browser command");
@@ -231,5 +235,6 @@ export function registerPrBrowserHandlers() {
   });
   app.on("before-quit", () => {
     void session.fromPartition(PR_BROWSER_PARTITION).cookies.flushStore().catch(() => {});
+    void session.fromPartition(TICKET_BROWSER_PARTITION).cookies.flushStore().catch(() => {});
   });
 }
