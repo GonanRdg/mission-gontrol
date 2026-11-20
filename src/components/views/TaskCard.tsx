@@ -1,33 +1,17 @@
 import { memo, useState } from "react";
 import { CardFrame } from "~/components/ui/CardFrame";
 import { ShimmerBar } from "~/components/ui/ShimmerBar";
-import { Btn } from "~/components/ui/Btn";
-import { ConfirmDialog } from "~/components/ui/ConfirmDialog";
-import { HotkeyTooltip } from "~/components/ui/Tooltip";
 import { AgentLogo } from "~/components/ui/AgentLogo";
 import { SessionIcon } from "~/components/ui/SessionIcon";
-import { useDiagrams } from "~/lib/use-diagram-events";
 import { AGENT_META, STATUS_META } from "~/lib/design-meta";
 import { isSentinelTitle } from "~/lib/task-sentinels";
 import { formatRelativeTime } from "~/lib/format-relative-time";
 import { DEFAULT_SESSION_ICON, isSessionIcon } from "~/lib/session-icons";
 import type { Task } from "~/db/schema";
 
-type TaskCardProps = {
-  task: Task;
-  selected: boolean;
-  onToggle: (taskId: string) => void;
-  /** Archive an active session (soft, no confirmation, kills the tty). */
-  onArchive?: (taskId: string) => void;
-  /** Restore an archived session back to the active list. */
-  onRestore?: (taskId: string) => void;
-  /** Permanently delete a session (confirmed, irreversible). */
-  onDelete?: (taskId: string) => void;
-  /** Pin or unpin an active session. */
-  onTogglePinned?: (taskId: string) => Promise<void> | void;
-  /** True while the pin/unpin mutation for this session is saving. */
-  pinning?: boolean;
-};
+import { TaskActions, type TaskActionsProps } from "./TaskActions";
+
+type TaskCardProps = TaskActionsProps;
 
 function TaskCardImpl({
   task,
@@ -39,11 +23,7 @@ function TaskCardImpl({
   onTogglePinned,
   pinning = false,
 }: TaskCardProps) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const { hasDiagram, openDiagram } = useDiagrams();
-  const taskHasDiagram = hasDiagram(task.id);
 
   const meta = AGENT_META[task.agent];
   const statusMeta = STATUS_META[task.status];
@@ -241,202 +221,17 @@ function TaskCardImpl({
           </div>
         </div>
 
-        {/* Top-right session actions */}
-        {(onTogglePinned || onArchive || onRestore || onDelete) && (
-          <div
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              pointerEvents: "auto",
-              zIndex: 3,
-            }}
-          >
-            {!archived && onTogglePinned && (
-              <Btn
-                variant="ghost"
-                size="sm"
-                icon={task.pinned ? "pin-fill" : "pin"}
-                disabled={pinning}
-                aria-busy={pinning}
-                aria-label={`${task.pinned ? "Unpin" : "Pin"} ${task.title}`}
-                title={pinning ? "Saving pin state" : task.pinned ? "Unpin session" : "Pin session"}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (pinning) return;
-                  void onTogglePinned(task.id);
-                }}
-                style={{
-                  width: 30,
-                  height: 30,
-                  padding: 0,
-                  color: task.pinned ? "var(--accent-ink)" : undefined,
-                }}
-              />
-            )}
-            {archived && onRestore && (
-              <Btn
-                variant="ghost"
-                size="sm"
-                icon="refresh"
-                aria-label={`Restore ${task.title}`}
-                title="Restore session"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRestore(task.id);
-                }}
-                style={{ width: 30, height: 30, padding: 0 }}
-              />
-            )}
-            {!archived && onArchive && (
-              <HotkeyTooltip
-                action="session.closeWindow"
-                label="Archive session"
-                disabled={!selected}
-              >
-                <Btn
-                  variant="ghost"
-                  size="sm"
-                  icon="archive"
-                  aria-label={`Archive ${task.title}`}
-                  title={selected ? undefined : "Archive session"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Running sessions lose the live terminal + agent on
-                    // archive, so confirm first; parked ones archive silently.
-                    if (isRunning) setConfirmArchiveOpen(true);
-                    else onArchive(task.id);
-                  }}
-                  style={{ width: 30, height: 30, padding: 0 }}
-                />
-              </HotkeyTooltip>
-            )}
-            {onDelete && (
-              <HotkeyTooltip
-                action="session.closeWindow"
-                label="Delete session"
-                disabled={!selected || !archived}
-              >
-                <Btn
-                  variant="ghost"
-                  size="sm"
-                  icon="trash"
-                  aria-label={`Delete ${task.title}`}
-                  title={selected && archived ? undefined : "Delete session"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmOpen(true);
-                  }}
-                  style={{ width: 30, height: 30, padding: 0 }}
-                />
-              </HotkeyTooltip>
-            )}
-          </div>
-        )}
-
-        {(taskHasDiagram ||
-          task.status === "needs-input" ||
-          task.status === "interrupted") && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 10,
-              right: 10,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              pointerEvents: "auto",
-              zIndex: 3,
-            }}
-          >
-            {taskHasDiagram && (
-              <Btn
-                size="sm"
-                variant="ghost"
-                icon="chart"
-                title="View session diagram"
-                aria-label="View session diagram"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void openDiagram(task.id);
-                }}
-              >
-                Diagram
-              </Btn>
-            )}
-            {(task.status === "needs-input" || task.status === "interrupted") && (
-              <Btn
-                size="sm"
-                variant="accent"
-                icon="terminal"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  selectTask();
-                }}
-              >
-                Reply
-              </Btn>
-            )}
-          </div>
-        )}
-
+        <TaskActions
+          task={task}
+          selected={selected}
+          onToggle={onToggle}
+          onArchive={onArchive}
+          onRestore={onRestore}
+          onDelete={onDelete}
+          onTogglePinned={onTogglePinned}
+          pinning={pinning}
+        />
       </div>
-
-      {onArchive && (
-        <div onClick={(e) => e.stopPropagation()}>
-          <ConfirmDialog
-            open={confirmArchiveOpen}
-            onClose={() => setConfirmArchiveOpen(false)}
-            onConfirm={() => {
-              onArchive(task.id);
-              setConfirmArchiveOpen(false);
-            }}
-            title="Archive running session?"
-            confirmLabel="Archive"
-            cancelLabel="Keep running"
-            variant="danger"
-            icon="archive"
-            width={420}
-          >
-            <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 6, overflowWrap: "anywhere" }}>
-              &ldquo;{task.title}&rdquo; is still running.
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
-              Archiving disconnects its terminal and stops the in-progress agent.
-              You can restore the session later, but the current run won&rsquo;t
-              resume.
-            </div>
-          </ConfirmDialog>
-        </div>
-      )}
-
-      {onDelete && (
-        <div onClick={(e) => e.stopPropagation()}>
-          <ConfirmDialog
-            open={confirmOpen}
-            onClose={() => setConfirmOpen(false)}
-            onConfirm={() => {
-              onDelete(task.id);
-              setConfirmOpen(false);
-            }}
-            title="Delete session?"
-            confirmLabel="Delete"
-            icon="trash"
-            width={420}
-          >
-            <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 6, overflowWrap: "anywhere" }}>
-              Delete &ldquo;{task.title}&rdquo;?
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
-              This permanently removes the session and closes its terminal.
-              The git worktree stays. This cannot be undone.
-            </div>
-          </ConfirmDialog>
-        </div>
-      )}
     </CardFrame>
   );
 }

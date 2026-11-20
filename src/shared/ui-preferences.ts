@@ -6,6 +6,14 @@ export type ProjectsDashboardView = (typeof PROJECTS_DASHBOARD_VIEWS)[number];
 
 export const DEFAULT_PROJECTS_DASHBOARD_VIEW: ProjectsDashboardView = "cards";
 
+export const SESSION_LIST_LAYOUTS = ["table", "cards"] as const;
+export type SessionListLayout = (typeof SESSION_LIST_LAYOUTS)[number];
+export const DEFAULT_SESSION_LIST_LAYOUT: SessionListLayout = "table";
+
+export function normalizeSessionListLayout(value: unknown): SessionListLayout | null {
+  return normalizeEnumValue(value, SESSION_LIST_LAYOUTS);
+}
+
 export const FILE_FINDER_VIEWS = ["list", "tree"] as const;
 export type FileFinderView = (typeof FILE_FINDER_VIEWS)[number];
 

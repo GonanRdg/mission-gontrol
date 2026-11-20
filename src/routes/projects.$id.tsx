@@ -14,6 +14,8 @@ import { openExternal } from "~/lib/open-external";
 import { ProjectIcon } from "~/components/ui/ProjectIcon";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { TaskColumn } from "~/components/views/TaskColumn";
+import { SessionsTable, type SessionSection } from "~/components/views/SessionsTable";
+import { SessionListViewToggle } from "~/components/views/SessionListViewToggle";
 import { NewAgentDialog } from "~/components/views/NewAgentDialog";
 import {
   CodexHooksNoticeDialog,
@@ -187,10 +189,14 @@ import { LOCAL_SCOPE_ID, normalizeScopeId } from "~/shared/sandbox";
 import { scopeKeyForProject } from "~/lib/scoped-project";
 import {
   readCachedSelectedWorktreeByProject,
+  readCachedSessionListLayout,
   writeCachedSelectedWorktreeByProject,
+  writeCachedSessionListLayout,
 } from "~/lib/ui-preference-cache";
 import {
   selectedWorktreeMapsEqual,
+  DEFAULT_SESSION_LIST_LAYOUT,
+  type SessionListLayout,
   type SelectedWorktreeByProject,
 } from "~/shared/ui-preferences";
 import {
@@ -585,6 +591,13 @@ function ProjectPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [sessionView, setSessionView] = useState<SessionView>("active");
+  const [sessionListLayout, setSessionListLayout] = useState<SessionListLayout>(
+    () => readCachedSessionListLayout() ?? DEFAULT_SESSION_LIST_LAYOUT,
+  );
+  const changeSessionListLayout = (layout: SessionListLayout) => {
+    setSessionListLayout(layout);
+    writeCachedSessionListLayout(layout);
+  };
   const showArchived = sessionView === "archived";
   const showPinned = sessionView === "pinned";
   const [pinningTaskIds, setPinningTaskIds] = useState<Set<string>>(() => new Set());
@@ -2854,8 +2867,45 @@ function ProjectPage() {
     </HeaderActions>
   );
 
-  // Grid-view toggle lives in the project header beside the other session
-  // controls — a session view mode, not app chrome, so it left the top bar.
+  const sessionSections: SessionSection[] = [];
+  if (pinnedListTasks.length > 0) {
+    sessionSections.push({
+      id: "pinned",
+      title: "Pinned",
+      color: "var(--accent)",
+      tasks: pinnedListTasks,
+    });
+  }
+  for (const status of STATUS_DISPLAY_ORDER) {
+    if (tasksByStatus[status].length === 0) continue;
+    const canArchiveGroup = !showArchived && (status === "finished" || status === "disconnected");
+    sessionSections.push({
+      id: status,
+      title: showArchived ? "Archived" : STATUS_META[status].label,
+      color: STATUS_META[status].color,
+      tasks: tasksByStatus[status],
+      headerAction: showArchived ? (
+        <Btn
+          variant="ghost"
+          icon="list"
+          onClick={() => setSessionView("active")}
+          title="Back to active sessions"
+        >
+          View active
+        </Btn>
+      ) : canArchiveGroup ? (
+        <Btn
+          variant="ghost"
+          icon="archive"
+          onClick={() => archiveTasks(tasksByStatus[status])}
+          title={`Archive all ${status} sessions`}
+        >
+          Archive all
+        </Btn>
+      ) : undefined,
+    });
+  }
+
   const gridViewToggle = (
     <HotkeyTooltip
       action="session.gridView"
@@ -3287,6 +3337,9 @@ function ProjectPage() {
               </HotkeyTooltip>
             )}
             {headerActions}
+            {!showGrid && (
+              <SessionListViewToggle layout={sessionListLayout} onChange={changeSessionListLayout} />
+            )}
             {headerButtons.gridView && gridViewToggle}
             {headerButtons.fileFinder && (
               // Hide sits on an outer wrapper, not the button: it disables when
@@ -3468,41 +3521,10 @@ function ProjectPage() {
             />
           ) : (
             <>
-              {pinnedListTasks.length > 0 && (
-                <TaskColumn
-                  key={`${id}:pinned`}
-                  title="Pinned"
-                  color="var(--accent)"
-                  tasks={pinnedListTasks}
-                  activeId={activeId}
-                  onToggle={stableSelectTerminal}
-                  onArchive={stableArchiveSession}
-                  onDelete={stableDeleteTask}
-                  onTogglePinned={stableToggleSessionPinned}
-                  pinningTaskIds={pinningTaskIds}
-                />
-              )}
-              {STATUS_DISPLAY_ORDER.filter((s) => tasksByStatus[s].length > 0).map((status) => {
-                const isArchivedTitleRow = showArchived && status === "finished";
-                const firstArchivedStatus = showArchived
-                  ? STATUS_DISPLAY_ORDER.find((s) => tasksByStatus[s].length > 0)
-                  : undefined;
-                // Prefer the "Archived" (finished) row; otherwise put the exit
-                // control on the first visible archived status column.
-                const showViewActive =
-                  showArchived &&
-                  (isArchivedTitleRow ||
-                    (tasksByStatus.finished.length === 0 && status === firstArchivedStatus));
-                return (
-                <TaskColumn
-                  key={`${id}:${status}`}
-                  title={
-                    isArchivedTitleRow
-                      ? "Archived"
-                      : STATUS_META[status].label
-                  }
-                  color={STATUS_META[status].color}
-                  tasks={tasksByStatus[status]}
+              {sessionListLayout === "table" ? (
+                <SessionsTable
+                  key={id}
+                  sections={sessionSections}
                   activeId={activeId}
                   onToggle={stableSelectTerminal}
                   onArchive={showArchived ? undefined : stableArchiveSession}
@@ -3510,41 +3532,23 @@ function ProjectPage() {
                   onDelete={stableDeleteTask}
                   onTogglePinned={showArchived ? undefined : stableToggleSessionPinned}
                   pinningTaskIds={showArchived ? undefined : pinningTaskIds}
-                  headerAction={
-                    showViewActive ? (
-                      <Btn
-                        variant="ghost"
-                        icon="list"
-                        onClick={() => setSessionView("active")}
-                        title="Back to active sessions"
-                      >
-                        View active
-                      </Btn>
-                    ) : !showArchived && status === "finished" && tasksByStatus.finished.length > 0 ? (
-                      <Btn
-                        variant="ghost"
-                        icon="archive"
-                        onClick={() => archiveTasks(tasksByStatus.finished)}
-                        title="Archive all finished sessions"
-                      >
-                        Archive all
-                      </Btn>
-                    ) : !showArchived &&
-                      status === "disconnected" &&
-                      tasksByStatus.disconnected.length > 0 ? (
-                      <Btn
-                        variant="ghost"
-                        icon="archive"
-                        onClick={() => archiveTasks(tasksByStatus.disconnected)}
-                        title="Archive all disconnected sessions"
-                      >
-                        Archive all
-                      </Btn>
-                    ) : undefined
-                  }
                 />
-                );
-              })}
+              ) : sessionSections.map((section) => (
+                <TaskColumn
+                  key={`${id}:${section.id}`}
+                  title={section.title}
+                  color={section.color}
+                  tasks={section.tasks}
+                  activeId={activeId}
+                  onToggle={stableSelectTerminal}
+                  onArchive={showArchived ? undefined : stableArchiveSession}
+                  onRestore={showArchived ? stableRestoreSession : undefined}
+                  onDelete={stableDeleteTask}
+                  onTogglePinned={showArchived ? undefined : stableToggleSessionPinned}
+                  pinningTaskIds={showArchived ? undefined : pinningTaskIds}
+                  headerAction={section.headerAction}
+                />
+              ))}
               {!showArchived && hasArchivedTasks && (
                 <div
                   style={{

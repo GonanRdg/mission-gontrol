@@ -5,17 +5,20 @@ import {
   normalizeGitDiffChangedFilesView,
   normalizeProjectsDashboardView,
   normalizeSelectedWorktreeByProject,
+  normalizeSessionListLayout,
   type ActiveProjectGroup,
   type CollapsedProjectGroups,
   type FileFinderView,
   type GitDiffChangedFilesView,
   type ProjectsDashboardView,
   type SelectedWorktreeByProject,
+  type SessionListLayout,
 } from "~/shared/ui-preferences";
 
 export const GIT_DIFF_CHANGED_FILES_VIEW_STORAGE_KEY = "mc:gitDiffChangedFilesView";
 export const GIT_DIFF_CHANGED_FILES_WIDTH_STORAGE_KEY = "mc:gitDiffChangedFilesWidth";
 export const PROJECTS_DASHBOARD_VIEW_STORAGE_KEY = "mc:projectsDashboardView";
+export const SESSION_LIST_LAYOUT_STORAGE_KEY = "mc:sessionListLayout";
 export const FILE_FINDER_VIEW_STORAGE_KEY = "mc:fileFinderView";
 export const SELECTED_WORKTREE_BY_PROJECT_STORAGE_KEY = "mc.selectedWorktreeByProject";
 export const ACTIVE_PROJECT_GROUP_STORAGE_KEY = "mc:activeProjectGroup";
@@ -63,6 +66,13 @@ const projectsDashboardView = makeStringPreference<ProjectsDashboardView>(
 );
 export const readCachedProjectsDashboardView = projectsDashboardView.read;
 export const writeCachedProjectsDashboardView = projectsDashboardView.write;
+
+const sessionListLayout = makeStringPreference<SessionListLayout>(
+  SESSION_LIST_LAYOUT_STORAGE_KEY,
+  normalizeSessionListLayout,
+);
+export const readCachedSessionListLayout = sessionListLayout.read;
+export const writeCachedSessionListLayout = sessionListLayout.write;
 
 const activeProjectGroup = makeStringPreference<ActiveProjectGroup>(
   ACTIVE_PROJECT_GROUP_STORAGE_KEY,
