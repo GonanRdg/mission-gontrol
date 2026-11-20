@@ -7,14 +7,7 @@ import * as esbuild from "esbuild";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = path.join(repoRoot, ".agents", "skills");
 const targetRoot = path.join(repoRoot, "dist", "bundled-skills");
-const BUNDLED_SKILL_NAMES = [
-  "diagram",
-  "implement-ticket",
-  "investigate-issue",
-  "verify-claims",
-  "optimize-skill",
-  "write-adr",
-];
+const BUNDLED_SKILL_NAMES = ["diagram"];
 
 function copyTree(from, to) {
   fs.mkdirSync(to, { recursive: true });
@@ -34,6 +27,9 @@ if (!fs.existsSync(sourceRoot)) {
   process.exit(1);
 }
 
+// Start from an empty target so a skill dropped from the list stops shipping.
+fs.rmSync(targetRoot, { recursive: true, force: true });
+
 let copied = 0;
 for (const skillName of BUNDLED_SKILL_NAMES) {
   const skillDir = path.join(sourceRoot, skillName);
@@ -42,9 +38,7 @@ for (const skillName of BUNDLED_SKILL_NAMES) {
     console.warn(`[copy-bundled-skills] missing bundled skill: ${skillName}`);
     continue;
   }
-  const dest = path.join(targetRoot, skillName);
-  fs.rmSync(dest, { recursive: true, force: true });
-  copyTree(skillDir, dest);
+  copyTree(skillDir, path.join(targetRoot, skillName));
   copied += 1;
   console.log(`[copy-bundled-skills] copied ${skillName}`);
 }
