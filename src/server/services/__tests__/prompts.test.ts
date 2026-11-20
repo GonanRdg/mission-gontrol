@@ -93,13 +93,13 @@ describe("prompts service", () => {
     expect(searchPromptHistory("100%")).toHaveLength(1);
   });
 
-  it("excludes archived sessions from search and recents", () => {
+  it("includes archived sessions in search and recents, flagged as archived", () => {
     const project = makeProject();
     const task = makeTask(project.id);
     recordPrompt({ taskId: task.id, text: "hello world" });
     archiveTask(task.id);
-    expect(searchPromptHistory("hello")).toHaveLength(0);
-    expect(searchPromptHistory("")).toHaveLength(0);
+    expect(searchPromptHistory("hello").map((r) => r.archived)).toEqual([true]);
+    expect(searchPromptHistory("").map((r) => r.archived)).toEqual([true]);
   });
 
   it("returns recent prompts newest-first for an empty query", () => {
