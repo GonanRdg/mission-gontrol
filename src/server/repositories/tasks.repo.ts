@@ -2,7 +2,8 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "~/db/client";
 import { projects, tasks } from "~/db/schema";
 import type { Task } from "~/db/schema";
-import type { ActiveSessionSummary } from "~/shared/active-sessions";
+import type { ActiveSessionSummary, SessionSearchResult } from "~/shared/active-sessions";
+import { escapeLike, likeEscaped } from "./_sql";
 import { LOCAL_SCOPE_ID, normalizeScopeId } from "~/shared/sandbox";
 
 export function findAllTasks(): Task[] {
@@ -42,6 +43,19 @@ const sessionSummaryColumns = {
   status: tasks.status,
   updatedAt: tasks.updatedAt,
 };
+
+export function searchSessionTitles(query: string): SessionSearchResult[] {
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  return getDb()
+    .select({ ...sessionSummaryColumns, archived: tasks.archived })
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .where(and(...words.map((word) => likeEscaped(tasks.title, `%${escapeLike(word)}%`))))
+    .orderBy(desc(tasks.updatedAt), asc(tasks.id))
+    .limit(50)
+    .all();
+}
 
 export function findLiveSessionSummaries(): ActiveSessionSummary[] {
   return getDb()

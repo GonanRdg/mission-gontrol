@@ -133,8 +133,8 @@ export function PromptSearchPalette({ open, onClose }: { open: boolean; onClose:
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={onInputKeyDown}
-        placeholder="Search your prompts…"
-        aria-label="Search prompt history"
+        placeholder="Search prompts, sessions, and projects…"
+        aria-label="Search conversations, including archived sessions"
         style={{
           flex: 1,
           minWidth: 0,
@@ -273,6 +273,7 @@ export function PromptSearchPalette({ open, onClose }: { open: boolean; onClose:
                     {row.projectName}
                   </span>
                   <AgentGlyph agent={row.agent} size={10} />
+                  {row.archived && <span>Archived</span>}
                   <span style={{ marginLeft: "auto", flexShrink: 0, paddingLeft: 8 }}>
                     {formatRelativeTime(row.ts, nowRef.current)}
                   </span>

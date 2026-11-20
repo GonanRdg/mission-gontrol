@@ -16,6 +16,7 @@ const { handleApiRequest } = await import("../api-router");
 const { getOrCreateApiToken } = await import("../services/settings");
 const { createProject } = await import("../services/projects");
 const { createTask } = await import("../services/tasks");
+const { archiveTask, getTask } = await import("../services/tasks");
 const { getDb } = await import("~/db/client");
 const { prompts, tasks, projects, groups, worktrees } = await import("~/db/schema");
 const { events } = await import("../events");
@@ -94,6 +95,20 @@ describe("prompt capture + search API", () => {
     await submitPrompt(task.id, "identical prompt");
     await submitPrompt(task.id, "identical prompt");
     expect(await search("identical")).toHaveLength(1);
+  });
+
+  it("finds archived prompts by text and title without restoring the session", async () => {
+    const { task } = makeTask("Old conversation");
+    await submitPrompt(task.id, "recover the missing draft");
+    archiveTask(task.id);
+
+    for (const query of ["missing draft", "Old conversation", ""]) {
+      const results = await search(query);
+      expect(results).toEqual(expect.arrayContaining([
+        expect.objectContaining({ taskId: task.id, archived: true }),
+      ]));
+    }
+    expect(getTask(task.id)?.archived).toBe(true);
   });
 
   it("returns recent prompts when the query is empty", async () => {

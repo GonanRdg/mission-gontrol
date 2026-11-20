@@ -17,6 +17,7 @@ import {
   findTasksByProjectIdAndWorktreeId,
   insertTask,
   updateTaskRow,
+  searchSessionTitles,
 } from "../repositories/tasks.repo";
 import { findProjectNameById } from "../repositories/projects.repo";
 import {
@@ -49,6 +50,10 @@ export function listTasksForProjectWorktree(
 
 export function getTask(id: string): Task | null {
   return findTaskById(id);
+}
+
+export function searchSessions(query: string) {
+  return searchSessionTitles(query);
 }
 
 function groupSessionSummaries(rows: ActiveSessionSummary[]): ActiveSessionGroup[] {

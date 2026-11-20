@@ -1106,7 +1106,7 @@ function ProjectPage() {
 
         let resolvedScopeId = normalizeScopeId(request.scopeId);
         let resolvedWorktreeId = request.worktreeId;
-        let task = tasks.find((entry) => entry.id === request.taskId && !entry.archived) ?? null;
+        let task = tasks.find((entry) => entry.id === request.taskId) ?? null;
 
         if (task) {
           resolvedScopeId = normalizeScopeId(task.scopeId);
@@ -1116,7 +1116,7 @@ function ProjectPage() {
         } else {
           try {
             const { task: remoteTask } = await api.getTask(request.taskId);
-            if (!remoteTask || remoteTask.projectId !== id || remoteTask.archived) {
+            if (!remoteTask || remoteTask.projectId !== id) {
               clearPendingSessionOpen(request);
               return;
             }
@@ -1160,7 +1160,7 @@ function ProjectPage() {
         }
 
         if (!task) {
-          task = tasks.find((entry) => entry.id === request.taskId && !entry.archived) ?? null;
+          task = tasks.find((entry) => entry.id === request.taskId) ?? null;
         }
         if (!task) {
           if (tasksQuery.isLoading || sandboxProvisioning) return;
@@ -1168,6 +1168,7 @@ function ProjectPage() {
           return;
         }
 
+        if (task.archived) setSessionView("archived");
         const active = terminals.activeFor(selectedScopeKey);
         if (active?.taskId !== task.id) {
           const activeTaskId = terminals.activeTaskIdFor(selectedScopeKey);

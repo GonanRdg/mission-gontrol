@@ -20,6 +20,7 @@ export type PromptSearchResult = {
   ts: number;
   taskTitle: string;
   taskIcon: string | null;
+  archived: boolean;
   projectName: string;
   projectIcon: string;
   projectIconColor: string;

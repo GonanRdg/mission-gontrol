@@ -16,6 +16,7 @@ export const queryKeys = {
   projects: ["projects"] as const,
   project: (id: string) => ["projects", id] as const,
   activeSessions: ["tasks", "active"] as const,
+  sessionSearch: (query: string) => ["tasks", "search", query] as const,
   sandboxes: ["sandboxes"] as const,
   groups: ["groups"] as const,
   tasks: (projectId: string, worktreeId?: string | null, scopeId?: string | null) =>
@@ -334,6 +335,12 @@ export const useScopedProjects = () => {
 };
 export const useProject = (id: string) => useQuery(projectQueryOptions(id));
 export const useActiveSessions = () => useQuery(activeSessionsQueryOptions());
+export const useSessionSearch = (query: string, enabled: boolean) => useQuery({
+  queryKey: queryKeys.sessionSearch(query),
+  queryFn: async ({ signal }) => (await api.searchSessions(query, signal)).sessions,
+  enabled,
+  staleTime: 0,
+});
 export const useGroups = () => useQuery(groupsQueryOptions());
 export const useTasks = (projectId: string, worktreeId?: string | null, scopeId?: string | null) =>
   useQuery(tasksQueryOptions(projectId, worktreeId, scopeId));

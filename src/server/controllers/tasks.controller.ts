@@ -12,6 +12,7 @@ import {
   sweepOrphanedActiveTasks,
   updateStatus,
   updateTask,
+  searchSessions,
 } from "../services/tasks";
 import { getPendingQuestion } from "../services/pending-questions";
 import {
@@ -23,6 +24,7 @@ import {
   parseJsonBody,
   urlScopeId,
   urlWorktreeId,
+  parseSearchParams,
 } from "./_helpers";
 import { HTTP_CREATED } from "~/shared/http-status";
 import { getWorktree } from "../services/worktrees";
@@ -83,6 +85,12 @@ export async function listForProject(rawProjectId: string, request: Request): Pr
 
 export function listActive(): Response {
   return json(listActiveSessions());
+}
+
+export function search(url: URL): Response {
+  const parsed = parseSearchParams(url, z.object({ q: z.string().max(500).default("") }));
+  if (!parsed.ok) return parsed.response;
+  return json({ sessions: searchSessions(parsed.data.q) });
 }
 
 export async function create(rawProjectId: string, request: Request): Promise<Response> {
