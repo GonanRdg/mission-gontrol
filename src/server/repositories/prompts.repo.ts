@@ -1,4 +1,4 @@
-import { and, desc, eq, or, type SQL } from "drizzle-orm";
+import { desc, eq, or, type SQL } from "drizzle-orm";
 import { getDb } from "~/db/client";
 import { projects, prompts, tasks, type NewPrompt } from "~/db/schema";
 import type { PromptSearchResult } from "~/shared/prompts";
@@ -48,6 +48,7 @@ const resultColumns = {
   ts: prompts.ts,
   taskTitle: tasks.title,
   taskIcon: tasks.icon,
+  archived: tasks.archived,
   projectName: projects.name,
   projectIcon: projects.icon,
   projectIconColor: projects.iconColor,
@@ -65,15 +66,14 @@ function selectResults(where: SQL | undefined, limit: number): PromptSearchResul
     .all();
 }
 
-/** Newest prompts across all non-archived sessions (empty-query state). */
+/** Newest prompts across active and archived sessions (empty-query state). */
 export function recentPrompts({ limit }: { limit: number }): PromptSearchResult[] {
-  return selectResults(eq(tasks.archived, false), limit);
+  return selectResults(undefined, limit);
 }
 
 /**
  * Substring search over prompt text — also matches the session title and
- * project name so a phrase in either surfaces the session. Archived sessions
- * are excluded because the open pipeline can't reopen them. SQLite LIKE is
+ * project name so a phrase in either surfaces active and archived sessions. SQLite LIKE is
  * case-insensitive for ASCII, which is fine here.
  */
 export function searchPrompts({
@@ -89,5 +89,5 @@ export function searchPrompts({
     likeEscaped(tasks.title, pattern),
     likeEscaped(projects.name, pattern),
   );
-  return selectResults(and(eq(tasks.archived, false), match), limit);
+  return selectResults(match, limit);
 }

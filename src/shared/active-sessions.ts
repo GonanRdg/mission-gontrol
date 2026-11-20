@@ -13,6 +13,8 @@ export type ActiveSessionSummary = {
   updatedAt: number;
 };
 
+export type SessionSearchResult = ActiveSessionSummary & { archived: boolean };
+
 export type ActiveSessionGroup = {
   projectId: string;
   projectName: string;

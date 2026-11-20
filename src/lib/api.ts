@@ -1,6 +1,6 @@
 import type { Group, Project, Task, UserTerminal } from "~/db/schema";
 import type { TaskAgent, TaskStatus } from "~/shared/domain";
-import type { ActiveSessions } from "~/shared/active-sessions";
+import type { ActiveSessions, SessionSearchResult } from "~/shared/active-sessions";
 import type { BranchPullRequestResult, RepositoryPullRequestsResult } from "~/shared/pr-browser";
 import type { ProjectPathStatus, ProjectWithCounts } from "~/shared/projects";
 import { DEV_SERVER_ORIGIN } from "~/shared/dev-server";
@@ -612,6 +612,8 @@ export const api = {
       `/api/projects/${projectId}/tasks${scopedWorktreeQuery(worktreeId, scopeId)}`,
     ),
   listActiveSessions: () => req<ActiveSessions>("/api/tasks/active"),
+  searchSessions: (query: string, signal?: AbortSignal) =>
+    req<{ sessions: SessionSearchResult[] }>(`/api/tasks/search?q=${encodeURIComponent(query)}`, { signal }),
   getTask: (id: string) => req<{ task: Task }>(`/api/tasks/${id}`),
   getTaskQuestion: (id: string) =>
     req<{ question: PendingQuestion | null }>(`/api/tasks/${id}/question`),

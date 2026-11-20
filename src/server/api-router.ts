@@ -387,6 +387,9 @@ async function dispatch(
   }
 
   // Tasks
+  if (pathname === "/api/tasks/search" && method === "GET") {
+    return tasksController.search(url);
+  }
   if (pathname === TASK_SWEEP_DISCONNECTED_PATH && method === "POST") {
     return tasksController.sweepDisconnected();
   }

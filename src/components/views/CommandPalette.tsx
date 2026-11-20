@@ -8,7 +8,7 @@ import { useKeybindings } from "~/lib/keybindings/store";
 import { formatBinding } from "~/lib/keybindings/format";
 import { bindingsEqual, matchBinding } from "~/lib/keybindings/match";
 import { HOTKEY_ACTIONS } from "~/lib/keybindings/types";
-import { useScopedProjects } from "~/queries";
+import { useScopedProjects, useSessionSearch } from "~/queries";
 import { useTerminals } from "~/lib/terminal-store";
 import { useSessionSwitcher } from "~/lib/session-switcher-store";
 import { requestSessionOpenById } from "~/lib/session-notification-store";
@@ -56,6 +56,7 @@ export function CommandPalette() {
   const registered = useRegisteredPaletteCommands();
   const [target, setTarget] = useState<Target | null>(null);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [highlight, setHighlight] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
@@ -63,6 +64,14 @@ export function CommandPalette() {
   const list = useRef<HTMLDivElement>(null);
   const executing = useRef(false);
   const listId = useId();
+  const searchTitles = target !== null && (category === "All" || category === "Sessions") && query.trim().length > 0;
+  const sessionSearch = useSessionSearch(debouncedQuery, searchTitles && debouncedQuery === query.trim());
+  const searchingTitles = searchTitles && (debouncedQuery !== query.trim() || sessionSearch.isFetching);
+  const titleSearchFailed = searchTitles && debouncedQuery === query.trim() && sessionSearch.isError;
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 150);
+    return () => clearTimeout(timer);
+  }, [query]);
   const latest = useRef({ bindings, terminals, registered, target, projectId });
   latest.current = { bindings, terminals, registered, target, projectId };
 
@@ -149,7 +158,8 @@ export function CommandPalette() {
     { id: "settings", label: "Settings", keywords: "preferences configuration", run: () => settings() },
     { id: "keybindings", label: "Keyboard shortcuts", keywords: "settings bindings double shift", run: () => settings("keybindings") },
     { id: "project.add", label: "Add project", shortcut: "project.add", run: addProject.open },
-    { id: "prompt.search", label: "Search prompt history", shortcut: "prompt.search", run: prompts.open },
+    { id: "prompt.search", label: "Search conversations", detail: "Search prompts and session titles, including archived sessions",
+      keywords: "prompt history archived conversations", shortcut: "prompt.search", run: prompts.open },
     { id: "scratch.toggle", label: "Open scratch pad", shortcut: "scratch.toggle",
       disabledReason: !projectId ? "Open a project first"
         : target?.session && target.session.projectId !== projectId ? "Switch to the session's project first" : undefined,
@@ -181,7 +191,7 @@ export function CommandPalette() {
       await router.navigate({ to: "/projects/$id", params: { id: project.id } });
     },
   }));
-  const sessionMap = new Map<string, ActiveSessionSummary>();
+  const sessionMap = new Map<string, ActiveSessionSummary & { archived?: boolean }>();
   for (const group of [...(switcher.sessions?.live ?? []), ...(switcher.sessions?.recentlyFinished ?? [])]) {
     for (const session of group.sessions) sessionMap.set(`${session.taskId}:${session.worktreeId}:${session.scopeId}`, session);
   }
@@ -194,9 +204,14 @@ export function CommandPalette() {
     const key = `${summary.taskId}:${summary.worktreeId}:${summary.scopeId}`;
     if (!sessionMap.has(key)) sessionMap.set(key, summary);
   }
+  if (searchTitles && debouncedQuery === query.trim()) {
+    for (const session of sessionSearch.data ?? []) {
+      sessionMap.set(`${session.taskId}:${session.worktreeId}:${session.scopeId}`, session);
+    }
+  }
   const sessions: Item[] = [...sessionMap.entries()].sort(([, a], [, b]) => Number(b.status === "needs-input") - Number(a.status === "needs-input")).map(([key, session]) => ({
     id: `session:${key}`, label: session.title,
-    detail: `${session.projectName} · ${session.worktreeId ?? "main"} · ${session.scopeId} · ${session.agent} · ${STATUS_META[session.status].label}`,
+    detail: `${session.projectName} · ${session.worktreeId ?? "main"} · ${session.scopeId} · ${session.agent} · ${session.archived ? "Archived" : STATUS_META[session.status].label}`,
     keywords: "session agent terminal", category: "Sessions", run: () => openSession(session),
   }));
   const items = rankPaletteItems([...commands, ...sessions, ...projects].filter((item) => category === "All" || item.category === category), query, recent);
@@ -229,7 +244,7 @@ export function CommandPalette() {
       <input ref={input} className="mc-command-search" role="combobox" aria-label="Search commands, projects, and sessions"
         aria-expanded="true" aria-autocomplete="list" aria-controls={listId}
         aria-activedescendant={items.length ? `${listId}-${selected}` : undefined}
-        placeholder="Search commands, projects, sessions…" value={query}
+        placeholder="Search commands, projects, sessions…" value={query} maxLength={500}
         onChange={(event) => { setQuery(event.target.value); setHighlight(0); }} />
       <div className="mc-command-filters" role="group" aria-label="Search category">
         {["All", "Commands", "Projects", "Sessions"].map((filter) => <button key={filter} type="button" aria-pressed={category === filter}
@@ -242,8 +257,10 @@ export function CommandPalette() {
           <span className="mc-command-copy"><span>{item.label}</span><small>{item.disabledReason ?? item.detail ?? ""}</small></span>
           <span className="mc-command-hint">{item.shortcut ? formatBinding(bindings[item.shortcut]) : item.category}</span>
         </div>)}
-        {!items.length && <div className="mc-command-empty">No results. Try a project name, session title, or command.</div>}
+        {!items.length && !searchingTitles && !titleSearchFailed && <div className="mc-command-empty">No results. Try a project name, session title, or command.</div>}
       </div>
+      {searchingTitles && <div className="mc-command-hint" role="status">Searching session titles…</div>}
+      {titleSearchFailed && <div role="alert">Could not search session titles. <button type="button" onClick={() => void sessionSearch.refetch()}>Retry</button></div>}
       {(category === "Sessions" || category === "All") && switcher.isError && <button type="button" onClick={switcher.retry}>Could not refresh sessions. Retry</button>}
       {(category === "Projects" || category === "All") && projectsQuery.isError && <button type="button" onClick={() => void projectsQuery.refetch()}>Could not load projects. Retry</button>}
       {(switcher.isLoading || projectsQuery.isLoading) && <div className="mc-command-hint" role="status">Loading destinations…</div>}
